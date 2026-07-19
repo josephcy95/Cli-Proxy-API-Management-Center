@@ -1,6 +1,7 @@
 import {
   useCallback,
   type CSSProperties,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -110,6 +111,101 @@ const requestStatus = (error: unknown): number | undefined => {
   return typeof value === 'number' ? value : undefined;
 };
 
+const EMPTY_BADGES: string[] = [];
+
+interface InitialUiState {
+  filter: string;
+  statusFilterMode: AuthFilesStatusFilterMode;
+  privateInstructionsOnly: boolean;
+  compactMode: boolean;
+  search: string;
+  page: number;
+  pageSizeByMode: { regular: number; compact: number };
+  sortMode: AuthFilesSortMode;
+  xaiStatusFilter: XaiStatusFilter;
+}
+
+/**
+ * Persisted UI state is read synchronously for the first render. Hydrating it
+ * in an effect (the previous approach) painted the default layout first and
+ * then re-rendered with the restored filters — a visible layout jump on entry.
+ */
+const readInitialUiState = (): InitialUiState => {
+  const initial: InitialUiState = {
+    filter: 'all',
+    statusFilterMode: 'all',
+    privateInstructionsOnly: false,
+    compactMode: false,
+    search: '',
+    page: 1,
+    pageSizeByMode: { regular: DEFAULT_REGULAR_PAGE_SIZE, compact: DEFAULT_COMPACT_PAGE_SIZE },
+    sortMode: 'priority',
+    xaiStatusFilter: 'all',
+  };
+
+  const persistedCompactMode = readPersistedAuthFilesCompactMode();
+  if (typeof persistedCompactMode === 'boolean') {
+    initial.compactMode = persistedCompactMode;
+  }
+
+  const persisted = readAuthFilesUiState();
+  if (!persisted) {
+    return initial;
+  }
+
+  if (typeof persisted.filter === 'string' && persisted.filter.trim()) {
+    initial.filter = normalizeProviderKey(persisted.filter);
+  }
+  const persistedStatusFilterMode = normalizePersistedStatusFilterMode(persisted.statusFilterMode);
+  if (persistedStatusFilterMode) {
+    initial.statusFilterMode = persistedStatusFilterMode;
+  } else if (
+    typeof persisted.problemOnly === 'boolean' ||
+    typeof persisted.disabledOnly === 'boolean'
+  ) {
+    initial.statusFilterMode = resolveStatusFilterMode(
+      persisted.problemOnly === true,
+      persisted.disabledOnly === true
+    );
+  }
+  if (typeof persistedCompactMode !== 'boolean' && typeof persisted.compactMode === 'boolean') {
+    initial.compactMode = persisted.compactMode;
+  }
+  if (typeof persisted.privateInstructionsOnly === 'boolean') {
+    initial.privateInstructionsOnly = persisted.privateInstructionsOnly;
+  }
+  if (typeof persisted.search === 'string') {
+    initial.search = persisted.search;
+  }
+  if (typeof persisted.page === 'number' && Number.isFinite(persisted.page)) {
+    initial.page = Math.max(1, Math.round(persisted.page));
+  }
+  const legacyPageSize =
+    typeof persisted.pageSize === 'number' && Number.isFinite(persisted.pageSize)
+      ? clampCardPageSize(persisted.pageSize)
+      : null;
+  initial.pageSizeByMode = {
+    regular:
+      typeof persisted.regularPageSize === 'number' && Number.isFinite(persisted.regularPageSize)
+        ? clampCardPageSize(persisted.regularPageSize)
+        : (legacyPageSize ?? DEFAULT_REGULAR_PAGE_SIZE),
+    compact:
+      typeof persisted.compactPageSize === 'number' && Number.isFinite(persisted.compactPageSize)
+        ? clampCardPageSize(persisted.compactPageSize)
+        : (legacyPageSize ?? DEFAULT_COMPACT_PAGE_SIZE),
+  };
+  if (isAuthFilesSortMode(persisted.sortMode)) {
+    initial.sortMode = persisted.sortMode;
+  }
+  if (
+    typeof persisted.xaiStatusFilter === 'string' &&
+    XAI_STATUS_FILTERS.includes(persisted.xaiStatusFilter as XaiStatusFilter)
+  ) {
+    initial.xaiStatusFilter = persisted.xaiStatusFilter as XaiStatusFilter;
+  }
+  return initial;
+};
+
 export function AuthFilesPage() {
   const { t } = useTranslation();
   const showNotification = useNotificationStore((state) => state.showNotification);
@@ -119,28 +215,35 @@ export function AuthFilesPage() {
   const isCurrentLayer = pageTransitionLayer ? pageTransitionLayer.status === 'current' : true;
   const navigate = useNavigate();
 
-  const [filter, setFilter] = useState<'all' | string>('all');
-  const [statusFilterMode, setStatusFilterMode] = useState<AuthFilesStatusFilterMode>('all');
-  const [privateInstructionsOnly, setPrivateInstructionsOnly] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSizeByMode, setPageSizeByMode] = useState({
-    regular: DEFAULT_REGULAR_PAGE_SIZE,
-    compact: DEFAULT_COMPACT_PAGE_SIZE,
-  });
-  const [pageSizeInput, setPageSizeInput] = useState(String(DEFAULT_REGULAR_PAGE_SIZE));
+  const [initialUi] = useState(readInitialUiState);
+  const [filter, setFilter] = useState<'all' | string>(initialUi.filter);
+  const [statusFilterMode, setStatusFilterMode] = useState<AuthFilesStatusFilterMode>(
+    initialUi.statusFilterMode
+  );
+  const [privateInstructionsOnly, setPrivateInstructionsOnly] = useState(
+    initialUi.privateInstructionsOnly
+  );
+  const [compactMode, setCompactMode] = useState(initialUi.compactMode);
+  const [search, setSearch] = useState(initialUi.search);
+  const [page, setPage] = useState(initialUi.page);
+  const [pageSizeByMode, setPageSizeByMode] = useState(initialUi.pageSizeByMode);
+  const [pageSizeInput, setPageSizeInput] = useState(() =>
+    String(
+      initialUi.compactMode ? initialUi.pageSizeByMode.compact : initialUi.pageSizeByMode.regular
+    )
+  );
   const [viewMode, setViewMode] = useState<'diagram' | 'list'>('list');
-  const [sortMode, setSortMode] = useState<AuthFilesSortMode>('priority');
+  const [sortMode, setSortMode] = useState<AuthFilesSortMode>(initialUi.sortMode);
   const [codexStatusFilter, setCodexStatusFilter] = useState<CodexStatusFilter>('all');
   const [codexPlanFilter, setCodexPlanFilter] = useState<CodexPlanFilter>('all');
-  const [xaiStatusFilter, setXaiStatusFilter] = useState<XaiStatusFilter>('all');
+  const [xaiStatusFilter, setXaiStatusFilter] = useState<XaiStatusFilter>(
+    initialUi.xaiStatusFilter
+  );
   const [codexRefreshByName, setCodexRefreshByName] = useState<Record<string, CodexRefreshState>>(
     {}
   );
   const [codexRefreshing, setCodexRefreshing] = useState(false);
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
-  const [uiStateHydrated, setUiStateHydrated] = useState(false);
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -221,7 +324,11 @@ export function AuthFilesPage() {
   )
     ? (normalizedFilter as QuotaProviderType)
     : null;
+  // The toggle knob reads the live value; the (expensive) card grid re-renders
+  // behind it via useDeferredValue so flipping density never blocks the click.
+  const gridCompactMode = useDeferredValue(compactMode);
   const pageSize = compactMode ? pageSizeByMode.compact : pageSizeByMode.regular;
+  const gridPageSize = gridCompactMode ? pageSizeByMode.compact : pageSizeByMode.regular;
   const problemOnly = statusFilterMode === 'problem';
   const disabledOnly = statusFilterMode === 'disabled';
   const enabledOnly = statusFilterMode === 'enabled';
@@ -229,74 +336,6 @@ export function AuthFilesPage() {
   const isXaiSelected = normalizedFilter === 'xai';
 
   useEffect(() => {
-    const persistedCompactMode = readPersistedAuthFilesCompactMode();
-    if (typeof persistedCompactMode === 'boolean') {
-      setCompactMode(persistedCompactMode);
-    }
-
-    const persisted = readAuthFilesUiState();
-    if (persisted) {
-      if (typeof persisted.filter === 'string' && persisted.filter.trim()) {
-        setFilter(normalizeProviderKey(persisted.filter));
-      }
-      const persistedStatusFilterMode = normalizePersistedStatusFilterMode(
-        persisted.statusFilterMode
-      );
-      if (persistedStatusFilterMode) {
-        setStatusFilterMode(persistedStatusFilterMode);
-      } else if (
-        typeof persisted.problemOnly === 'boolean' ||
-        typeof persisted.disabledOnly === 'boolean'
-      ) {
-        setStatusFilterMode(
-          resolveStatusFilterMode(persisted.problemOnly === true, persisted.disabledOnly === true)
-        );
-      }
-      if (typeof persistedCompactMode !== 'boolean' && typeof persisted.compactMode === 'boolean') {
-        setCompactMode(persisted.compactMode);
-      }
-      if (typeof persisted.privateInstructionsOnly === 'boolean') {
-        setPrivateInstructionsOnly(persisted.privateInstructionsOnly);
-      }
-      if (typeof persisted.search === 'string') {
-        setSearch(persisted.search);
-      }
-      if (typeof persisted.page === 'number' && Number.isFinite(persisted.page)) {
-        setPage(Math.max(1, Math.round(persisted.page)));
-      }
-      const legacyPageSize =
-        typeof persisted.pageSize === 'number' && Number.isFinite(persisted.pageSize)
-          ? clampCardPageSize(persisted.pageSize)
-          : null;
-      const regularPageSize =
-        typeof persisted.regularPageSize === 'number' && Number.isFinite(persisted.regularPageSize)
-          ? clampCardPageSize(persisted.regularPageSize)
-          : (legacyPageSize ?? DEFAULT_REGULAR_PAGE_SIZE);
-      const compactPageSize =
-        typeof persisted.compactPageSize === 'number' && Number.isFinite(persisted.compactPageSize)
-          ? clampCardPageSize(persisted.compactPageSize)
-          : (legacyPageSize ?? DEFAULT_COMPACT_PAGE_SIZE);
-      setPageSizeByMode({
-        regular: regularPageSize,
-        compact: compactPageSize,
-      });
-      if (isAuthFilesSortMode(persisted.sortMode)) {
-        setSortMode(persisted.sortMode);
-      }
-      if (
-        typeof persisted.xaiStatusFilter === 'string' &&
-        XAI_STATUS_FILTERS.includes(persisted.xaiStatusFilter as XaiStatusFilter)
-      ) {
-        setXaiStatusFilter(persisted.xaiStatusFilter as XaiStatusFilter);
-      }
-    }
-
-    setUiStateHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!uiStateHydrated) return;
-
     writeAuthFilesUiState({
       filter,
       statusFilterMode,
@@ -325,7 +364,6 @@ export function AuthFilesPage() {
     search,
     sortMode,
     statusFilterMode,
-    uiStateHydrated,
     xaiStatusFilter,
   ]);
 
@@ -494,9 +532,9 @@ export function AuthFilesPage() {
   }, [isCodexSelected, sortMode]);
 
   useEffect(() => {
-    if (!uiStateHydrated || isXaiSelected) return;
+    if (isXaiSelected) return;
     setXaiStatusFilter('all');
-  }, [isXaiSelected, uiStateHydrated]);
+  }, [isXaiSelected]);
 
   const handleHeaderRefresh = useCallback(async () => {
     await Promise.all([loadFiles(), loadExcluded(), loadModelAlias()]);
@@ -641,10 +679,13 @@ export function AuthFilesPage() {
     return copy;
   }, [codexRefreshByName, filtered, sortMode]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sorted.length / gridPageSize));
   const currentPage = Math.min(page, totalPages);
-  const start = (currentPage - 1) * pageSize;
-  const pageItems = useMemo(() => sorted.slice(start, start + pageSize), [pageSize, sorted, start]);
+  const start = (currentPage - 1) * gridPageSize;
+  const pageItems = useMemo(
+    () => sorted.slice(start, start + gridPageSize),
+    [gridPageSize, sorted, start]
+  );
   const selectablePageItems = useMemo(
     () => pageItems.filter((file) => !isRuntimeOnlyAuthFile(file)),
     [pageItems]
@@ -663,6 +704,38 @@ export function AuthFilesPage() {
     selectedNames.length === 0 ||
     batchStatusUpdating ||
     selectedHasStatusUpdating;
+
+  // Precomputed per file so AuthFileCard props stay referentially stable and
+  // React.memo can skip untouched cards.
+  const codexBadgesByName = useMemo(() => {
+    if (!isCodexSelected) return null;
+    const map = new Map<string, string[]>();
+    pageItems.forEach((file) => {
+      const refreshed = codexRefreshByName[file.name];
+      const status = getCodexAccountStatus(file, refreshed);
+      const badges: string[] = [];
+      const plan = getCodexPlanFilterValue(file, refreshed);
+      if (plan) badges.push(t(`codex_quota.plan_${plan}`));
+      if (status.kind === 'denied') {
+        badges.push(t('auth_files.codex_status_denied'));
+      } else if (status.kind === 'cooldown') {
+        badges.push(t('auth_files.codex_status_cooldown'));
+        if (status.fiveHourLimited) {
+          badges.push(t('auth_files.codex_status_five_hour_limited'));
+        }
+        if (status.weeklyLimited) {
+          badges.push(t('auth_files.codex_status_weekly_limited'));
+        }
+        if (status.monthlyLimited) {
+          badges.push(t('auth_files.codex_status_monthly_limited'));
+        }
+      } else if (status.kind === 'other') {
+        badges.push(t('auth_files.codex_status_other'));
+      }
+      map.set(file.name, badges);
+    });
+    return map;
+  }, [codexRefreshByName, isCodexSelected, pageItems, t]);
 
   const copyTextWithNotification = useCallback(
     async (text: string) => {
@@ -1031,13 +1104,13 @@ export function AuthFilesPage() {
               />
             ) : (
               <div
-                className={`${styles.fileGrid} ${quotaFilterType ? styles.fileGridQuotaManaged : ''} ${compactMode ? styles.fileGridCompact : ''}`}
+                className={`${styles.fileGrid} ${quotaFilterType ? styles.fileGridQuotaManaged : ''} ${gridCompactMode ? styles.fileGridCompact : ''}`}
               >
                 {pageItems.map((file) => (
                   <AuthFileCard
                     key={file.name}
                     file={file}
-                    compact={compactMode}
+                    compact={gridCompactMode}
                     selected={selectedFiles.has(file.name)}
                     resolvedTheme={resolvedTheme}
                     disableControls={disableControls}
@@ -1045,34 +1118,7 @@ export function AuthFilesPage() {
                     statusUpdating={statusUpdating}
                     quotaFilterType={quotaFilterType}
                     statusBarCache={statusBarCache}
-                    codexBadges={
-                      isCodexSelected
-                        ? (() => {
-                            const refreshed = codexRefreshByName[file.name];
-                            const status = getCodexAccountStatus(file, refreshed);
-                            const badges = [] as string[];
-                            const plan = getCodexPlanFilterValue(file, refreshed);
-                            if (plan) badges.push(t(`codex_quota.plan_${plan}`));
-                            if (status.kind === 'denied') {
-                              badges.push(t('auth_files.codex_status_denied'));
-                            } else if (status.kind === 'cooldown') {
-                              badges.push(t('auth_files.codex_status_cooldown'));
-                              if (status.fiveHourLimited) {
-                                badges.push(t('auth_files.codex_status_five_hour_limited'));
-                              }
-                              if (status.weeklyLimited) {
-                                badges.push(t('auth_files.codex_status_weekly_limited'));
-                              }
-                              if (status.monthlyLimited) {
-                                badges.push(t('auth_files.codex_status_monthly_limited'));
-                              }
-                            } else if (status.kind === 'other') {
-                              badges.push(t('auth_files.codex_status_other'));
-                            }
-                            return badges;
-                          })()
-                        : []
-                    }
+                    codexBadges={codexBadgesByName?.get(file.name) ?? EMPTY_BADGES}
                     onShowModels={showModels}
                     onDownload={handleDownload}
                     onOpenPrefixProxyEditor={openPrefixProxyEditor}
@@ -1085,7 +1131,7 @@ export function AuthFilesPage() {
               </div>
             )}
 
-            {!loading && sorted.length > pageSize && (
+            {!loading && sorted.length > gridPageSize && (
               <div className={styles.pagination}>
                 <Button
                   variant="secondary"

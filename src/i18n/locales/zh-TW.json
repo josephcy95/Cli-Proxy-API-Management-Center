@@ -1540,6 +1540,7 @@
       "key": "金鑰",
       "baseUrl": "服務位址",
       "prefix": "前綴",
+      "priority": "優先級",
       "models": "模型/請求標頭",
       "status": "狀態",
       "actions": "操作",

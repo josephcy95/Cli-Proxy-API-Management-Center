@@ -1492,6 +1492,7 @@
       "key": "Ключ",
       "baseUrl": "Base URL",
       "prefix": "Префикс",
+      "priority": "Приоритет",
       "models": "Модели/Заголовки",
       "status": "Статус",
       "actions": "Действия",

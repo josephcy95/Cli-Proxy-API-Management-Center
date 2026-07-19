@@ -1,10 +1,10 @@
+// Full width like every other page — a page-specific max-width made switching
+// between Dashboard and its neighbors visibly reflow the shell.
 .dashboard {
   display: flex;
   flex-direction: column;
   gap: $spacing-md;
   width: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
 }
 
 // ─── Header ─────────────────────────────────────────────
@@ -137,6 +137,14 @@
   white-space: nowrap;
 }
 
+// Non-navigating stat card (scrolls to an on-page section instead).
+.statCardButton {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
 // ─── Config summary ─────────────────────────────────────
 
 .configCard {
@@ -250,8 +258,189 @@
   }
 }
 
+// ─── System summary (merged Management Center info) ─────
+
+.systemLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.systemLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: $radius-sm;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+
+  svg {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  }
+}
+
+// Invisible tap target for the hidden request-log switch (7 taps on version).
+.versionTap {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+  font: inherit;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+// System rows hold longer values plus inline actions — wider columns, and the
+// value side may wrap instead of colliding with the neighbor column.
+.systemGrid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.configValueGroup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.inlineAction {
+  border: 0;
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 550;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+// ─── Available models (merged from System page) ─────────
+
+.modelsCard {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  box-shadow: var(--shadow);
+  padding: 13px 14px;
+  scroll-margin-top: calc(var(--header-height, 64px) + 8px);
+
+  .configHeader {
+    margin-bottom: 12px;
+  }
+}
+
+.modelsBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.modelsStatus {
+  align-self: flex-start;
+  margin-bottom: 12px;
+}
+
+.modelGroups {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.modelGroup {
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.modelGroupHead {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  min-width: 0;
+}
+
+.modelGroupIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.modelGroupTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modelGroupCount {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.modelTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.modelTag {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: 3px 9px;
+  border-radius: $radius-full;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  font-family: $font-mono;
+  font-size: 12px;
+}
+
+.modelName {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.modelAlias {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
 @media (max-width: $breakpoint-mobile) {
   .configGrid {
     grid-template-columns: 1fr;
+  }
+
+  .systemLinks {
+    justify-content: flex-start;
   }
 }

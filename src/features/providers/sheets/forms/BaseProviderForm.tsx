@@ -124,7 +124,9 @@ function buildInitialForm(
       testModel: cfg.testModel ?? '',
       apiKeyEntries: cfg.apiKeyEntries?.length
         ? cfg.apiKeyEntries.map((entry) => ({
-            apiKey: '',
+            // Show the stored key directly so it can be copied or edited in place.
+            // Clearing the field still keeps the old key via existingApiKey fallback.
+            apiKey: entry.apiKey ?? '',
             existingApiKey: entry.apiKey,
             proxyUrl: entry.proxyUrl ?? '',
             authIndex: entry.authIndex,
@@ -137,11 +139,11 @@ function buildInitialForm(
   const disabled = hasDisableAllModelsRule(cfg.excludedModels);
   const excludedList = stripDisableAllRule(cfg.excludedModels);
   return {
-    // Keep the API key blank in edit mode. Pre-filling the real key makes this
-    // password field a browser-autofill target (the saved management key can
-    // overwrite it) and defeats the "leave empty = keep unchanged" contract; an
-    // empty field is preserved on save via buildProviderKeyConfig's existing fallback.
-    apiKey: '',
+    // Show the stored key so it can be copied or edited in place. Autofill
+    // managers are blocked via data-*-ignore attributes on the input, and
+    // clearing the field still keeps the old key via buildProviderKeyConfig's
+    // fallback ("leave empty = keep unchanged").
+    apiKey: cfg.apiKey ?? '',
     name: '',
     baseUrl: cfg.baseUrl ?? '',
     proxyUrl: cfg.proxyUrl ?? '',

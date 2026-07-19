@@ -145,15 +145,13 @@
     flex-shrink: 0;
   }
 
-  .language-menu,
-  .theme-menu {
+  .language-menu {
     position: relative;
     display: inline-flex;
     align-items: center;
   }
 
-  .language-menu-popover,
-  .theme-menu-popover {
+  .language-menu-popover {
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
@@ -162,9 +160,6 @@
     border-radius: 10px;
     background: var(--floating-surface, var(--bg-primary));
     box-shadow: var(--shadow-lg);
-  }
-
-  .language-menu-popover {
     min-width: 152px;
     padding: 4px;
     display: flex;
@@ -205,89 +200,6 @@
   .language-menu-check {
     font-size: 12px;
     line-height: 1;
-  }
-
-  .theme-menu-popover {
-    padding: 6px;
-    display: flex;
-    gap: 2px;
-    width: max-content;
-    max-width: calc(100vw - 16px);
-  }
-
-  .theme-card {
-    border: 1px solid transparent;
-    border-radius: $radius-md;
-    background: transparent;
-    cursor: pointer;
-    padding: 5px 5px 3px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-
-    &:hover {
-      background: color-mix(in srgb, var(--text-primary) 6%, transparent);
-    }
-
-    &:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 2px var(--focus-ring);
-    }
-
-    &.active {
-      border-color: var(--primary-color);
-    }
-  }
-
-  .theme-card-preview {
-    width: 64px;
-    height: 44px;
-    border-radius: $radius-sm;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .theme-card-header {
-    height: 8px;
-    flex-shrink: 0;
-  }
-
-  .theme-card-body {
-    flex: 1;
-    display: flex;
-    min-height: 0;
-  }
-
-  .theme-card-sidebar {
-    width: 14px;
-    flex-shrink: 0;
-  }
-
-  .theme-card-content {
-    flex: 1;
-    padding: 5px 7px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    justify-content: center;
-  }
-
-  .theme-card-line {
-    height: 3px;
-    border-radius: 1px;
-
-    &.short {
-      width: 60%;
-    }
-  }
-
-  .theme-card-label {
-    font-size: 11px;
-    color: var(--text-primary);
-    font-weight: 500;
-    white-space: nowrap;
   }
 
   svg {
@@ -665,27 +577,6 @@
     .language-menu-popover {
       right: auto;
       left: 0;
-    }
-
-    .theme-menu-popover {
-      right: 0;
-      left: auto;
-      transform: none;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      justify-content: stretch;
-      width: min(176px, calc(100vw - 16px));
-    }
-
-    .theme-card {
-      width: 100%;
-      min-width: 0;
-    }
-
-    .theme-card-label {
-      white-space: normal;
-      text-align: center;
-      line-height: 1.2;
     }
   }
 

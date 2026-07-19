@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -74,7 +75,10 @@ const resolveQuotaType = (file: AuthFileItem): QuotaProviderType | null => {
   return provider as QuotaProviderType;
 };
 
-export function AuthFileCard(props: AuthFileCardProps) {
+// Memoized: the auth-files grid renders up to a full page of these, and
+// page-level state changes (density toggle, codex refresh, selection) would
+// otherwise re-render every card synchronously.
+export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps) {
   const { t } = useTranslation();
   const {
     file,
@@ -376,4 +380,4 @@ export function AuthFileCard(props: AuthFileCardProps) {
       </div>
     </div>
   );
-}
+});

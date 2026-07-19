@@ -1596,6 +1596,7 @@
       "key": "Key",
       "baseUrl": "Base URL",
       "prefix": "Prefix",
+      "priority": "Priority",
       "models": "Models/Headers",
       "status": "Status",
       "actions": "Actions",

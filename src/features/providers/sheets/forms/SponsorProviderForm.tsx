@@ -158,6 +158,8 @@ const sponsorEntryFromProviderKey = (
     | SponsorProviderRaw['gemini'][number]['config']
 ): SponsorKeyEntryInput => ({
   ...emptySponsorKeyEntry(definition, protocol),
+  // Prefill so the key can be copied/edited; empty still keeps the old key.
+  apiKey: config.apiKey ?? '',
   existingApiKey: config.apiKey ?? '',
   baseUrl: definition.resolveBaseUrl(config.baseUrl),
   proxyUrl: config.proxyUrl ?? '',
@@ -175,6 +177,7 @@ const sponsorEntryFromOpenAI = (
   const firstEntry = config.apiKeyEntries?.find((entry) => entry.apiKey?.trim());
   return {
     ...emptySponsorKeyEntry(definition, 'openai'),
+    apiKey: firstEntry?.apiKey ?? '',
     existingApiKey: firstEntry?.apiKey ?? '',
     baseUrl: definition.resolveBaseUrl(config.baseUrl),
     proxyUrl: firstEntry?.proxyUrl ?? '',

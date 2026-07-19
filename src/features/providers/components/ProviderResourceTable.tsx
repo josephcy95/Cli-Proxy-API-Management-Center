@@ -42,7 +42,7 @@ interface ProviderResourceTableProps {
   onToggleDisabled?: (resource: ProviderResource, disabled: boolean) => void;
 }
 
-const columnWidths = ['180px', '220px', '72px', '138px', '174px', '176px'];
+const columnWidths = ['180px', '200px', '72px', '76px', '138px', '174px', '176px'];
 
 const isSponsorResource = (resource: ProviderResource): boolean =>
   isMultiProtocolSponsorBrand(resource.brand);
@@ -184,6 +184,18 @@ export function ProviderResourceTable({
     );
   };
 
+  const renderPriority = (r: ProviderResource) => {
+    // Non-sponsor resources carry priority on their raw config; sponsor
+    // resources aggregate it in resource.priority (0 = unset).
+    const rawPriority = isSponsorResource(r)
+      ? r.priority || undefined
+      : (r.raw as { priority?: number } | undefined)?.priority;
+    if (typeof rawPriority !== 'number' || !Number.isFinite(rawPriority)) {
+      return <span className={styles.priorityEmpty}>—</span>;
+    }
+    return <span className={styles.priorityValue}>{rawPriority}</span>;
+  };
+
   const renderBaseUrl = (r: ProviderResource) => {
     if (isSponsorResource(r)) {
       return <span className={styles.baseUrl}>{renderProtocolSummary(r)}</span>;
@@ -210,6 +222,7 @@ export function ProviderResourceTable({
           <TableHead>{t('providersPage.table.key')}</TableHead>
           <TableHead>{t('providersPage.table.baseUrl')}</TableHead>
           <TableHead>{t('providersPage.table.prefix')}</TableHead>
+          <TableHead>{t('providersPage.table.priority')}</TableHead>
           <TableHead>{t('providersPage.table.models')}</TableHead>
           <TableHead>{t('providersPage.table.status')}</TableHead>
           <TableHead alignRight className={styles.actionsHead}>
@@ -230,6 +243,7 @@ export function ProviderResourceTable({
                   <span className={styles.baseUrl}>{t('providersPage.status.none')}</span>
                 )}
               </TableCell>
+              <TableCell>{renderPriority(resource)}</TableCell>
               <TableCell>{renderModelsSummary(resource)}</TableCell>
               <TableCell>
                 <div className={styles.statusCell}>

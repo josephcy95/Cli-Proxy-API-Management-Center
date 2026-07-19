@@ -37,13 +37,14 @@
 }
 
 .baseUrl {
+  display: block;
   font-family: $font-mono;
   font-size: 12px;
   color: var(--muted-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 220px;
+  max-width: 100%;
 }
 
 .chip {
@@ -55,6 +56,18 @@
   background: var(--muted-bg);
   color: var(--muted-foreground);
   font-size: 12px;
+}
+
+.priorityValue {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.priorityEmpty {
+  font-size: 12px;
+  color: var(--text-quaternary);
 }
 
 .metricsCell {

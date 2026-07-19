@@ -14,7 +14,6 @@ import { PluginStorePage } from '@/features/plugins/PluginStorePage';
 import { ConfigPage } from '@/pages/ConfigPage';
 import { LogsPage } from '@/pages/LogsPage';
 import { MonitoringPage } from '@/pages/MonitoringPage';
-import { SystemPage } from '@/pages/SystemPage';
 import { useAuthStore } from '@/stores';
 
 const createMainRoutes = (supportsPlugin: boolean) => [
@@ -46,7 +45,8 @@ const createMainRoutes = (supportsPlugin: boolean) => [
       ]),
   { path: '/config', element: <ConfigPage /> },
   { path: '/logs', element: <LogsPage /> },
-  { path: '/system', element: <SystemPage /> },
+  // Management Center info now lives on the dashboard.
+  { path: '/system', element: <Navigate to="/" replace /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ];
 

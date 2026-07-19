@@ -1514,6 +1514,7 @@
       "key": "密钥",
       "baseUrl": "服务地址",
       "prefix": "前缀",
+      "priority": "优先级",
       "models": "模型/请求头",
       "status": "状态",
       "actions": "操作",

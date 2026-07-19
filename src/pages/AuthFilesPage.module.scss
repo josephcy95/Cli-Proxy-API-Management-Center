@@ -211,8 +211,9 @@
     margin: 0;
   }
 
+  // One control height across the filter bar (inputs, number field, selects).
   :global(.input) {
-    height: 42px;
+    height: $control-height-md;
     box-sizing: border-box;
   }
 
@@ -341,9 +342,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 22px;
-  min-height: 42px;
-  padding: 10px 12px;
+  gap: 8px 22px;
+  min-height: $control-height-md;
+  padding: 5px 12px;
   border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
   border-radius: 8px;
   background: color-mix(in srgb, var(--bg-primary) 56%, transparent);
@@ -369,14 +370,14 @@
 
 .pageSizeSelect {
   width: 100%;
-  padding: 8px 12px;
+  padding: 4px 10px;
   border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
   border-radius: 8px;
   background-color: var(--bg-secondary);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
   cursor: text;
-  height: 42px;
+  height: $control-height-md;
   box-sizing: border-box;
 
   &:focus {

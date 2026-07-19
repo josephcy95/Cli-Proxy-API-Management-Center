@@ -6,15 +6,16 @@
  * without decorative color. Status hues (green/red/amber) are reserved for state.
  */
 
-// Light (default) — warm paper
+// Light (default) — warm wool. Cards stay lighter than the page for elevation,
+// but every surface is dimmed a notch so long sessions don't glare.
 :root {
-  --bg-secondary: #f4f2ed; // page background
-  --bg-primary: #fcfbf8; // container/card background (lighter than page: crisp elevation)
-  --bg-tertiary: #edeae4; // hover / secondary surfaces
-  --bg-hover: #e8e5de;
-  --bg-quinary: #f0eee8;
+  --bg-secondary: #f0ede5; // page background
+  --bg-primary: #f9f7f1; // container/card background (lighter than page: crisp elevation)
+  --bg-tertiary: #e9e5da; // hover / secondary surfaces
+  --bg-hover: #e3dfd3;
+  --bg-quinary: #edeae0;
   --bg-error-light: rgba(198, 87, 70, 0.1);
-  --floating-surface: #fdfcfa;
+  --floating-surface: #faf8f2;
   --floating-shadow: 0 8px 24px rgba(28, 25, 21, 0.14);
 
   --text-primary: #26231f;
@@ -23,10 +24,10 @@
   --text-quaternary: #c0bab3;
   --text-muted: var(--text-tertiary);
 
-  --border-color: #e4e1da; // hairlines / dividers
+  --border-color: #e1ddd1; // hairlines / dividers
   --border-secondary: var(--border-color);
-  --border-primary: #d6d2ca;
-  --border-hover: #c5c0b8;
+  --border-primary: #d3cec1;
+  --border-hover: #c2bcaf;
 
   --primary-color: #34302b; // action color (warm near-black)
   --primary-hover: #26231f;
