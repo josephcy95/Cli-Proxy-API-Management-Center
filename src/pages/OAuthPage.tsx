@@ -18,6 +18,7 @@ import iconClaude from '@/assets/icons/claude.svg';
 import iconAntigravity from '@/assets/icons/antigravity.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
 import iconKimiDark from '@/assets/icons/kimi-dark.svg';
+import iconQoderCN from '@/assets/icons/qodercn.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
 import iconGrok from '@/assets/icons/grok.svg';
 import iconGrokDark from '@/assets/icons/grok-dark.svg';
@@ -101,6 +102,12 @@ const PROVIDERS: BuiltInOAuthProviderCard[] = [
     id: 'xai',
     titleKey: 'auth_login.xai_oauth_title',
     icon: { light: iconGrok, dark: iconGrokDark },
+  },
+  {
+    kind: 'builtin',
+    id: 'qodercn',
+    titleKey: 'auth_login.qodercn_oauth_title',
+    icon: iconQoderCN,
   },
 ];
 
