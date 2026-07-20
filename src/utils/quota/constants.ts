@@ -31,8 +31,8 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     dark: { bg: '#003880', text: '#70b5ff' },
   },
   qodercn: {
-    light: { bg: '#fce7f3', text: '#be185d' },
-    dark: { bg: '#831843', text: '#f9a8d4' },
+    light: { bg: '#E8FBEF', text: '#0F7A32' },
+    dark: { bg: '#0F3D1F', text: '#7DFFA2' },
   },
   antigravity: {
     light: { bg: '#e0f7fa', text: '#006064' },

@@ -72,10 +72,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#dce8ff', text: '#0560cf' },
     dark: { bg: '#003880', text: '#70b5ff' },
   },
-  // Qoder CN: pink brand
+  // Qoder CN: Qoder brand green
   qodercn: {
-    light: { bg: '#fce7f3', text: '#be185d' },
-    dark: { bg: '#831843', text: '#f9a8d4' },
+    light: { bg: '#E8FBEF', text: '#0F7A32' },
+    dark: { bg: '#0F3D1F', text: '#7DFFA2' },
   },
   // Gemini logo: 多色蓝 #3186FF（偏柔和的蓝）
   gemini: {
