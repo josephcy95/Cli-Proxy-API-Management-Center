@@ -23,7 +23,7 @@ import {
 } from '@/stores';
 import { authFilesApi, configApi, versionApi } from '@/services/api';
 import { useApiKeysForModels } from '@/hooks/useApiKeysForModels';
-import { formatDateValue, formatDateTimeValue } from '@/utils/format';
+import { formatDateTimeValue } from '@/utils/format';
 import { getDashboardModelsStatValue } from '@/utils/dashboard';
 import { classifyModels } from '@/utils/models';
 import iconGemini from '@/assets/icons/gemini.svg';
@@ -124,10 +124,6 @@ export function DashboardPage() {
 
   const [authFilesCount, setAuthFilesCount] = useState<number | null>(null);
   const [authFilesLoading, setAuthFilesLoading] = useState(false);
-  const [modelStatus, setModelStatus] = useState<{
-    type: 'success' | 'warning' | 'error' | 'muted';
-    message: string;
-  }>();
   const [checkingVersion, setCheckingVersion] = useState(false);
   const [requestLogModalOpen, setRequestLogModalOpen] = useState(false);
   const [requestLogDraft, setRequestLogDraft] = useState(false);
@@ -146,25 +142,15 @@ export function DashboardPage() {
         return;
       }
 
-      setModelStatus({ type: 'muted', message: t('system_info.models_loading') });
       try {
         const apiKeys = await resolveApiKeysForModels({ force: forceRefresh });
         const primaryKey = apiKeys[0];
-        const list = await fetchModelsFromStore(apiBase, primaryKey, forceRefresh);
-        const hasModels = list.length > 0;
-        setModelStatus({
-          type: hasModels ? 'success' : 'warning',
-          message: hasModels
-            ? t('system_info.models_count', { count: list.length })
-            : t('system_info.models_empty'),
-        });
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
-        const suffix = message ? `: ${message}` : '';
-        setModelStatus({ type: 'error', message: `${t('system_info.models_error')}${suffix}` });
+        await fetchModelsFromStore(apiBase, primaryKey, forceRefresh);
+      } catch {
+        // Loading, empty, and error states are surfaced by the models store below.
       }
     },
-    [apiBase, connectionStatus, fetchModelsFromStore, resolveApiKeysForModels, t]
+    [apiBase, connectionStatus, fetchModelsFromStore, resolveApiKeysForModels]
   );
 
   useEffect(() => {
@@ -297,9 +283,6 @@ export function DashboardPage() {
         ? 'common.connecting'
         : 'common.disconnected'
   );
-  const serverBuildDateDisplay = formatDateValue(serverBuildDate, i18n.language);
-  const versionDisplay = serverVersion ? `v${serverVersion.trim().replace(/^[vV]+/, '')}` : null;
-
   const appVersion = __APP_VERSION__ || t('system_info.version_unknown');
   const apiVersion = serverVersion || t('system_info.version_unknown');
   const buildTime =
@@ -432,15 +415,6 @@ export function DashboardPage() {
     <div className={styles.dashboard}>
       <header className={styles.header}>
         <h1>{t('nav.dashboard')}</h1>
-        <div className={styles.serverMeta}>
-          <span className={styles.connection}>
-            <span className={`${styles.statusDot} ${connectionClass}`} />
-            {versionDisplay ?? connectionLabel}
-          </span>
-          {serverBuildDateDisplay && (
-            <span className={styles.buildDate}>{serverBuildDateDisplay}</span>
-          )}
-        </div>
       </header>
 
       <section className={styles.statGrid}>
@@ -462,127 +436,131 @@ export function DashboardPage() {
         )}
       </section>
 
-      {config && (
+      <div className={styles.summaryColumns}>
+        {config && (
+          <section className={styles.configCard}>
+            <div className={styles.configHeader}>
+              <h2>{t('dashboard.current_config')}</h2>
+              <Link to="/config" className={styles.configEditLink}>
+                {t('dashboard.edit_settings')}
+              </Link>
+            </div>
+            <div className={styles.configGrid}>
+              <div className={styles.configRow}>
+                <span className={styles.configLabel}>{t('basic_settings.debug_enable')}</span>
+                {boolBadge(config.debug)}
+              </div>
+              <div className={styles.configRow}>
+                <span className={styles.configLabel}>
+                  {t('basic_settings.logging_to_file_enable')}
+                </span>
+                {boolBadge(config.loggingToFile)}
+              </div>
+              <div className={styles.configRow}>
+                <span className={styles.configLabel}>{t('basic_settings.retry_count_label')}</span>
+                <span className={styles.configValue}>{config.requestRetry ?? 0}</span>
+              </div>
+              <div className={styles.configRow}>
+                <span className={styles.configLabel}>{t('basic_settings.ws_auth_enable')}</span>
+                {boolBadge(config.wsAuth)}
+              </div>
+              <div className={styles.configRow}>
+                <span className={styles.configLabel}>{t('dashboard.routing_strategy')}</span>
+                <span className={styles.configValue}>{routingStrategyDisplay}</span>
+              </div>
+              {config.proxyUrl && (
+                <div className={`${styles.configRow} ${styles.configRowWide}`}>
+                  <span className={styles.configLabel}>{t('basic_settings.proxy_url_label')}</span>
+                  <span className={styles.configMono} title={config.proxyUrl}>
+                    {config.proxyUrl}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         <section className={styles.configCard}>
           <div className={styles.configHeader}>
-            <h2>{t('dashboard.current_config')}</h2>
-            <Link to="/config" className={styles.configEditLink}>
-              {t('dashboard.edit_settings')}
-            </Link>
+            <h2>{t('nav.system_info')}</h2>
+            <div className={styles.systemLinks}>
+              <a
+                className={styles.systemLink}
+                href={API_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={t('system_info.link_main_repo_desc')}
+              >
+                <IconGithub size={13} />
+                <span>{t('system_info.link_main_repo')}</span>
+                <IconExternalLink size={11} />
+              </a>
+              <a
+                className={styles.systemLink}
+                href={UI_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={t('system_info.link_webui_repo_desc')}
+              >
+                <IconCode size={13} />
+                <span>{t('system_info.link_webui_repo')}</span>
+                <IconExternalLink size={11} />
+              </a>
+              <a
+                className={styles.systemLink}
+                href={DOCS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={t('system_info.link_docs_desc')}
+              >
+                <IconBookOpen size={13} />
+                <span>{t('system_info.link_docs')}</span>
+                <IconExternalLink size={11} />
+              </a>
+            </div>
           </div>
           <div className={styles.configGrid}>
             <div className={styles.configRow}>
-              <span className={styles.configLabel}>{t('basic_settings.debug_enable')}</span>
-              {boolBadge(config.debug)}
+              <span className={styles.configLabel}>{t('footer.version')}</span>
+              <button type="button" className={styles.versionTap} onClick={handleVersionTap}>
+                <span className={styles.configValue}>{appVersion}</span>
+              </button>
             </div>
             <div className={styles.configRow}>
-              <span className={styles.configLabel}>
-                {t('basic_settings.logging_to_file_enable')}
+              <span className={styles.configLabel}>{t('footer.api_version')}</span>
+              <span className={styles.configValueGroup}>
+                <span className={styles.configValue}>{apiVersion}</span>
+                <button
+                  type="button"
+                  className={styles.inlineAction}
+                  onClick={() => void handleVersionCheck()}
+                  disabled={checkingVersion}
+                >
+                  {t('system_info.version_check_button')}
+                </button>
               </span>
-              {boolBadge(config.loggingToFile)}
             </div>
             <div className={styles.configRow}>
-              <span className={styles.configLabel}>{t('basic_settings.retry_count_label')}</span>
-              <span className={styles.configValue}>{config.requestRetry ?? 0}</span>
+              <span className={styles.configLabel}>{t('footer.build_date')}</span>
+              <span className={styles.configValue}>{buildTime}</span>
             </div>
-            <div className={styles.configRow}>
-              <span className={styles.configLabel}>{t('basic_settings.ws_auth_enable')}</span>
-              {boolBadge(config.wsAuth)}
+            <div className={`${styles.configRow} ${styles.configRowWide}`}>
+              <span className={styles.configLabel}>
+                {stripTrailingColon(t('connection.status'))}
+              </span>
+              <span className={styles.configValueGroup}>
+                <span className={`${styles.statusDot} ${connectionClass}`} />
+                <span className={styles.configValue}>{connectionLabel}</span>
+                {apiBase && (
+                  <span className={styles.configMono} title={apiBase}>
+                    {apiBase}
+                  </span>
+                )}
+              </span>
             </div>
-            <div className={styles.configRow}>
-              <span className={styles.configLabel}>{t('dashboard.routing_strategy')}</span>
-              <span className={styles.configValue}>{routingStrategyDisplay}</span>
-            </div>
-            {config.proxyUrl && (
-              <div className={`${styles.configRow} ${styles.configRowWide}`}>
-                <span className={styles.configLabel}>{t('basic_settings.proxy_url_label')}</span>
-                <span className={styles.configMono} title={config.proxyUrl}>
-                  {config.proxyUrl}
-                </span>
-              </div>
-            )}
           </div>
         </section>
-      )}
-
-      <section className={styles.configCard}>
-        <div className={styles.configHeader}>
-          <h2>{t('nav.system_info')}</h2>
-          <div className={styles.systemLinks}>
-            <a
-              className={styles.systemLink}
-              href={API_REPO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={t('system_info.link_main_repo_desc')}
-            >
-              <IconGithub size={13} />
-              <span>{t('system_info.link_main_repo')}</span>
-              <IconExternalLink size={11} />
-            </a>
-            <a
-              className={styles.systemLink}
-              href={UI_REPO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={t('system_info.link_webui_repo_desc')}
-            >
-              <IconCode size={13} />
-              <span>{t('system_info.link_webui_repo')}</span>
-              <IconExternalLink size={11} />
-            </a>
-            <a
-              className={styles.systemLink}
-              href={DOCS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={t('system_info.link_docs_desc')}
-            >
-              <IconBookOpen size={13} />
-              <span>{t('system_info.link_docs')}</span>
-              <IconExternalLink size={11} />
-            </a>
-          </div>
-        </div>
-        <div className={`${styles.configGrid} ${styles.systemGrid}`}>
-          <div className={styles.configRow}>
-            <span className={styles.configLabel}>{t('footer.version')}</span>
-            <button type="button" className={styles.versionTap} onClick={handleVersionTap}>
-              <span className={styles.configValue}>{appVersion}</span>
-            </button>
-          </div>
-          <div className={styles.configRow}>
-            <span className={styles.configLabel}>{t('footer.api_version')}</span>
-            <span className={styles.configValueGroup}>
-              <span className={styles.configValue}>{apiVersion}</span>
-              <button
-                type="button"
-                className={styles.inlineAction}
-                onClick={() => void handleVersionCheck()}
-                disabled={checkingVersion}
-              >
-                {t('system_info.version_check_button')}
-              </button>
-            </span>
-          </div>
-          <div className={styles.configRow}>
-            <span className={styles.configLabel}>{t('footer.build_date')}</span>
-            <span className={styles.configValue}>{buildTime}</span>
-          </div>
-          <div className={`${styles.configRow} ${styles.configRowWide}`}>
-            <span className={styles.configLabel}>{stripTrailingColon(t('connection.status'))}</span>
-            <span className={styles.configValueGroup}>
-              <span className={`${styles.statusDot} ${connectionClass}`} />
-              <span className={styles.configValue}>{connectionLabel}</span>
-              {apiBase && (
-                <span className={styles.configMono} title={apiBase}>
-                  {apiBase}
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
-      </section>
+      </div>
 
       <section className={styles.modelsCard} ref={modelsSectionRef}>
         <div className={styles.configHeader}>
@@ -597,11 +575,6 @@ export function DashboardPage() {
           </Button>
         </div>
         <div className={styles.modelsBody}>
-          {modelStatus && (
-            <div className={`status-badge ${modelStatus.type} ${styles.modelsStatus}`}>
-              {modelStatus.message}
-            </div>
-          )}
           {modelsError && <div className="error-box">{modelsError}</div>}
           {modelsLoading ? (
             <div className="hint">{t('common.loading')}</div>

@@ -20,12 +20,22 @@
   white-space: nowrap;
 }
 
+// Match the sort dropdown, direction button, filter trigger, and search box to a
+// single control height so the whole panel header reads as one aligned row.
+.sortSelect {
+  height: 34px;
+
+  button {
+    height: 100%;
+  }
+}
+
 .dirBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
@@ -49,7 +59,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
+  height: 34px;
   padding: 0 11px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);

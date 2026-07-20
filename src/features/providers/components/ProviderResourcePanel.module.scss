@@ -17,26 +17,27 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.headerMain {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 
   @media (min-width: 768px) {
     flex-direction: row;
-    align-items: flex-start;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: space-between;
   }
 }
 
-.headerToolbarRow {
+// Sort/filter controls and the search box share a single right-aligned row so the
+// panel header stays one line; every control keeps the same height for a clean edge.
+.controls {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
+
+  @media (min-width: 768px) {
+    flex-shrink: 0;
+  }
 }
 
 .titleArea {
@@ -204,15 +205,17 @@
 .searchWrap {
   position: relative;
   min-width: 0;
+  flex: 1 1 200px;
 
   @media (min-width: 768px) {
-    width: 280px;
+    flex: 0 0 auto;
+    width: 260px;
   }
 }
 
 .searchInput {
   width: 100%;
-  height: 38px;
+  height: 34px;
   padding: 0 12px 0 38px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);

@@ -110,47 +110,57 @@ export function ProviderResourcePanel({
   return (
     <section className={styles.panel}>
       <div className={styles.header}>
-        <div className={styles.headerMain}>
-          <div className={styles.titleArea}>
-            {showSponsorDashboardLink ? (
-              <a
-                className={`${styles.titleRow} ${styles.titleLink}`}
-                href={APIKEY_FUN_DASHBOARD_URL}
-                target="_blank"
-                rel="noreferrer"
-                title={t('providersPage.sponsor.dashboardLink')}
-              >
-                {titleContent}
-              </a>
-            ) : (
-              <div className={styles.titleRow}>{titleContent}</div>
-            )}
-            {showSponsorDashboardLink ? (
-              <a
-                className={styles.sponsorLink}
-                href={APIKEY_FUN_DASHBOARD_URL}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className={styles.sponsorLinkText}>
-                  {t('providersPage.sponsor.dashboardLink')}
-                </span>
-                <IconExternalLink className={styles.sponsorLinkIcon} size={14} />
-              </a>
-            ) : showClaudeApiSponsorLink || registrationUrl ? (
-              <a
-                className={`${styles.sponsorLink} ${styles.sponsorLinkEmphasis}`}
-                href={registrationUrl ?? CLAUDE_API_AFFILIATE_URL}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className={styles.sponsorLinkText}>
-                  {registrationLabel}
-                </span>
-                <IconExternalLink className={styles.sponsorLinkIcon} size={14} />
-              </a>
-            ) : null}
-          </div>
+        <div className={styles.titleArea}>
+          {showSponsorDashboardLink ? (
+            <a
+              className={`${styles.titleRow} ${styles.titleLink}`}
+              href={APIKEY_FUN_DASHBOARD_URL}
+              target="_blank"
+              rel="noreferrer"
+              title={t('providersPage.sponsor.dashboardLink')}
+            >
+              {titleContent}
+            </a>
+          ) : (
+            <div className={styles.titleRow}>{titleContent}</div>
+          )}
+          {showSponsorDashboardLink ? (
+            <a
+              className={styles.sponsorLink}
+              href={APIKEY_FUN_DASHBOARD_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className={styles.sponsorLinkText}>
+                {t('providersPage.sponsor.dashboardLink')}
+              </span>
+              <IconExternalLink className={styles.sponsorLinkIcon} size={14} />
+            </a>
+          ) : showClaudeApiSponsorLink || registrationUrl ? (
+            <a
+              className={`${styles.sponsorLink} ${styles.sponsorLinkEmphasis}`}
+              href={registrationUrl ?? CLAUDE_API_AFFILIATE_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className={styles.sponsorLinkText}>{registrationLabel}</span>
+              <IconExternalLink className={styles.sponsorLinkIcon} size={14} />
+            </a>
+          ) : null}
+        </div>
+        <div className={styles.controls}>
+          {toolbarControls ? (
+            <ProviderResourceToolbar
+              key={group.id}
+              sortBy={toolbarControls.sortBy}
+              sortDir={toolbarControls.sortDir}
+              onSortBy={toolbarControls.onSortBy}
+              onSortDir={toolbarControls.onSortDir}
+              availableModels={toolbarControls.availableModels}
+              selectedModels={toolbarControls.selectedModels}
+              onSelectedModelsChange={toolbarControls.onSelectedModelsChange}
+            />
+          ) : null}
           <div className={styles.searchWrap}>
             <span className={styles.searchIcon} aria-hidden="true">
               <IconSearch size={16} />
@@ -164,20 +174,6 @@ export function ProviderResourcePanel({
             />
           </div>
         </div>
-        {toolbarControls ? (
-          <div className={styles.headerToolbarRow}>
-            <ProviderResourceToolbar
-              key={group.id}
-              sortBy={toolbarControls.sortBy}
-              sortDir={toolbarControls.sortDir}
-              onSortBy={toolbarControls.onSortBy}
-              onSortDir={toolbarControls.onSortDir}
-              availableModels={toolbarControls.availableModels}
-              selectedModels={toolbarControls.selectedModels}
-              onSelectedModelsChange={toolbarControls.onSelectedModelsChange}
-            />
-          </div>
-        ) : null}
       </div>
 
       {filteredResources.length === 0 ? (

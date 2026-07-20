@@ -21,23 +21,6 @@
   }
 }
 
-.serverMeta {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12.5px;
-  color: var(--text-secondary);
-}
-
-.connection {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-
 .statusDot {
   width: 7px;
   height: 7px;
@@ -56,11 +39,6 @@
   &.disconnected {
     background: var(--error-color);
   }
-}
-
-.buildDate {
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
 }
 
 // ─── Stat grid ──────────────────────────────────────────
@@ -147,6 +125,19 @@
 
 // ─── Config summary ─────────────────────────────────────
 
+// Current Configuration + Management Center Info sit side by side, each taking
+// half the width; they collapse to a single stacked column on narrow screens.
+.summaryColumns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-md;
+
+  > * {
+    flex: 1 1 340px;
+    min-width: 0;
+  }
+}
+
 .configCard {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -159,12 +150,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: $spacing-md;
+  flex-wrap: wrap;
+  column-gap: $spacing-md;
+  row-gap: 6px;
   padding-bottom: 9px;
   border-bottom: 1px solid var(--border-color);
 
   h2 {
     margin: 0;
+    white-space: nowrap;
     font-size: 13px;
     font-weight: 650;
     letter-spacing: -0.01em;
@@ -185,10 +179,10 @@
   }
 }
 
+// Half-width summary cards stack every entry as a single column of rows.
 .configGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  column-gap: $spacing-xl;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .configRow {
@@ -266,6 +260,8 @@
   gap: 4px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  // Keep the links right-aligned even after the header wraps them below the title.
+  margin-left: auto;
   min-width: 0;
 }
 
@@ -301,12 +297,6 @@
   font: inherit;
   cursor: default;
   flex-shrink: 0;
-}
-
-// System rows hold longer values plus inline actions — wider columns, and the
-// value side may wrap instead of colliding with the neighbor column.
-.systemGrid {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
 .configValueGroup {
@@ -360,11 +350,6 @@
 .modelsBody {
   display: flex;
   flex-direction: column;
-}
-
-.modelsStatus {
-  align-self: flex-start;
-  margin-bottom: 12px;
 }
 
 .modelGroups {
@@ -436,10 +421,6 @@
 }
 
 @media (max-width: $breakpoint-mobile) {
-  .configGrid {
-    grid-template-columns: 1fr;
-  }
-
   .systemLinks {
     justify-content: flex-start;
   }
