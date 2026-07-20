@@ -388,6 +388,16 @@ export function MonitoringPage() {
 
   const statsOff = statsEnabledHint === false;
 
+  // The recorded input_tokens is the full prompt; for OpenAI-compatible providers
+  // it already includes cache-read tokens. Show the net (uncached) input so the
+  // Input / Cache read / Cache write / Output cards don't overlap. When input is
+  // already net (Anthropic-style, input < cache read) there is nothing to subtract.
+  const netInputTokens = summary
+    ? summary.input_tokens >= summary.cache_read_tokens
+      ? summary.input_tokens - summary.cache_read_tokens
+      : summary.input_tokens
+    : undefined;
+
   const rangeOptions: Array<[RangeKey, string]> = [
     ['24h', t('monitoring.range_24h')],
     ['7d', '7d'],
@@ -631,18 +641,7 @@ export function MonitoringPage() {
         </div>
         <div className={styles.summaryCard} title={t('monitoring.card_input_hint')}>
           <div className={styles.summaryLabel}>{t('monitoring.card_input')}</div>
-          <div className={styles.summaryValueGroup}>
-            <div className={styles.summaryValue}>{formatNumber(summary?.input_tokens)}</div>
-            {summary &&
-            summary.cache_read_tokens > 0 &&
-            summary.cache_read_tokens <= summary.input_tokens ? (
-              <div className={styles.summarySub}>
-                {t('monitoring.card_input_incl_cache', {
-                  tokens: formatNumber(summary.cache_read_tokens),
-                })}
-              </div>
-            ) : null}
-          </div>
+          <div className={styles.summaryValue}>{formatNumber(netInputTokens)}</div>
         </div>
         <div className={styles.summaryCard}>
           <div className={styles.summaryLabel}>{t('monitoring.card_output')}</div>
