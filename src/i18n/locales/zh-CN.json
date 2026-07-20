@@ -1786,6 +1786,8 @@
     "prices_hint": "仅用于估算 API 等价成本（$ / 百万 tokens）。可从 LiteLLM / OpenRouter 同步，确认模糊映射，或手动覆盖。",
     "price_prompt": "输入 /1M",
     "price_completion": "输出 /1M",
+    "price_cache_read": "缓存读取 /1M",
+    "price_cache_write": "缓存写入 /1M",
     "price_source": "来源",
     "save_price": "保存定价",
     "price_saved": "定价已保存",

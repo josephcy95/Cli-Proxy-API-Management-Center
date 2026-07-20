@@ -124,6 +124,8 @@ export function MonitoringPage() {
   const [priceModel, setPriceModel] = useState('');
   const [pricePrompt, setPricePrompt] = useState('');
   const [priceCompletion, setPriceCompletion] = useState('');
+  const [priceCacheRead, setPriceCacheRead] = useState('');
+  const [priceCacheWrite, setPriceCacheWrite] = useState('');
   const [aliasFrom, setAliasFrom] = useState('');
   const [aliasTo, setAliasTo] = useState('');
   const [priceSearch, setPriceSearch] = useState('');
@@ -186,11 +188,7 @@ export function MonitoringPage() {
   }, [buildQuery, showNotification]);
 
   const applyPricesResponse = useCallback(
-    (res: {
-      prices?: ModelPrice[];
-      aliases?: ModelPriceAlias[];
-      unpriced_models?: string[];
-    }) => {
+    (res: { prices?: ModelPrice[]; aliases?: ModelPriceAlias[]; unpriced_models?: string[] }) => {
       setPrices(res.prices || []);
       setAliases(res.aliases || []);
       setUnpriced(res.unpriced_models || []);
@@ -258,6 +256,8 @@ export function MonitoringPage() {
           model: modelName,
           prompt_per_1m: Number(pricePrompt) || 0,
           completion_per_1m: Number(priceCompletion) || 0,
+          cache_read_per_1m: Number(priceCacheRead) || 0,
+          cache_creation_per_1m: Number(priceCacheWrite) || 0,
           source: asManual ? 'manual' : 'override',
         },
       ]);
@@ -265,6 +265,8 @@ export function MonitoringPage() {
       setPriceModel('');
       setPricePrompt('');
       setPriceCompletion('');
+      setPriceCacheRead('');
+      setPriceCacheWrite('');
       await loadPrices();
       await loadCore();
     } catch (err) {
@@ -276,6 +278,8 @@ export function MonitoringPage() {
     setPriceModel(p.model);
     setPricePrompt(String(p.prompt_per_1m ?? ''));
     setPriceCompletion(String(p.completion_per_1m ?? ''));
+    setPriceCacheRead(p.cache_read_per_1m ? String(p.cache_read_per_1m) : '');
+    setPriceCacheWrite(p.cache_creation_per_1m ? String(p.cache_creation_per_1m) : '');
     setPriceListFilter('all');
   };
 
@@ -419,8 +423,8 @@ export function MonitoringPage() {
 
   const sourceOptions = useMemo(() => {
     // Distinct emails / API keys only — skip auth_index hashes (already listed under Auth elsewhere).
-    const values = Array.from(new Set((filterOptions?.sources || []).filter(Boolean))).sort((a, b) =>
-      a.localeCompare(b)
+    const values = Array.from(new Set((filterOptions?.sources || []).filter(Boolean))).sort(
+      (a, b) => a.localeCompare(b)
     );
     return [
       { value: '', label: t('monitoring.filter_sources') },
@@ -429,8 +433,8 @@ export function MonitoringPage() {
   }, [filterOptions?.sources, t]);
 
   const apiKeyOptions = useMemo(() => {
-    const values = Array.from(new Set((filterOptions?.api_keys || []).filter(Boolean))).sort((a, b) =>
-      a.localeCompare(b)
+    const values = Array.from(new Set((filterOptions?.api_keys || []).filter(Boolean))).sort(
+      (a, b) => a.localeCompare(b)
     );
     return [
       { value: '', label: t('monitoring.filter_api_keys') },
@@ -477,8 +481,7 @@ export function MonitoringPage() {
     }
     if (!q) return list;
     return list.filter(
-      (p) =>
-        p.model.toLowerCase().includes(q) || (p.source || '').toLowerCase().includes(q)
+      (p) => p.model.toLowerCase().includes(q) || (p.source || '').toLowerCase().includes(q)
     );
   }, [prices, priceSearch, priceListFilter]);
 
@@ -867,9 +870,7 @@ export function MonitoringPage() {
                         className={styles.candidateSelect}
                         value={candidatePicks[set.model] || options[0]?.value || ''}
                         options={options}
-                        onChange={(v) =>
-                          setCandidatePicks((prev) => ({ ...prev, [set.model]: v }))
-                        }
+                        onChange={(v) => setCandidatePicks((prev) => ({ ...prev, [set.model]: v }))}
                         size="sm"
                         fullWidth
                         ariaLabel={t('monitoring.candidates_title')}
@@ -949,6 +950,8 @@ export function MonitoringPage() {
                     <TableHead>{t('monitoring.col_model')}</TableHead>
                     <TableHead alignRight>{t('monitoring.price_prompt')}</TableHead>
                     <TableHead alignRight>{t('monitoring.price_completion')}</TableHead>
+                    <TableHead alignRight>{t('monitoring.price_cache_read')}</TableHead>
+                    <TableHead alignRight>{t('monitoring.price_cache_write')}</TableHead>
                     <TableHead>{t('monitoring.price_source')}</TableHead>
                     <TableHead />
                   </TableRow>
@@ -964,6 +967,12 @@ export function MonitoringPage() {
                       </TableCell>
                       <TableCell alignRight className={styles.num}>
                         {formatRate(p.completion_per_1m)}
+                      </TableCell>
+                      <TableCell alignRight className={styles.num}>
+                        {p.cache_read_per_1m ? formatRate(p.cache_read_per_1m) : '—'}
+                      </TableCell>
+                      <TableCell alignRight className={styles.num}>
+                        {p.cache_creation_per_1m ? formatRate(p.cache_creation_per_1m) : '—'}
                       </TableCell>
                       <TableCell>
                         <span className={styles.cellSecondary}>{p.source || 'manual'}</span>
@@ -1012,6 +1021,18 @@ export function MonitoringPage() {
                   value={priceCompletion}
                   onChange={(e) => setPriceCompletion(e.target.value)}
                   placeholder="10"
+                />
+                <Input
+                  label={t('monitoring.price_cache_read')}
+                  value={priceCacheRead}
+                  onChange={(e) => setPriceCacheRead(e.target.value)}
+                  placeholder="0.125"
+                />
+                <Input
+                  label={t('monitoring.price_cache_write')}
+                  value={priceCacheWrite}
+                  onChange={(e) => setPriceCacheWrite(e.target.value)}
+                  placeholder="1.5625"
                 />
                 <div className={styles.formActions}>
                   <Button size="sm" onClick={() => void savePrice(true)}>

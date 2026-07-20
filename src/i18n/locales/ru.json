@@ -1764,6 +1764,8 @@
     "prices_hint": "Оценка эквивалентной API-стоимости ($ / 1M токенов). Синхронизация LiteLLM / OpenRouter, подтверждение сопоставлений или ручной override.",
     "price_prompt": "Prompt /1M",
     "price_completion": "Completion /1M",
+    "price_cache_read": "Чтение кэша /1M",
+    "price_cache_write": "Запись кэша /1M",
     "price_source": "Источник",
     "save_price": "Сохранить цену",
     "price_saved": "Цена сохранена",

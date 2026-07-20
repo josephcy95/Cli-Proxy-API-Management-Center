@@ -187,6 +187,8 @@
     "prices_hint": "Estimated API-equivalent cost ($ / 1M tokens). Sync from LiteLLM and OpenRouter, confirm fuzzy mappings, or override manually.",
     "price_prompt": "Prompt /1M",
     "price_completion": "Completion /1M",
+    "price_cache_read": "Cache read /1M",
+    "price_cache_write": "Cache write /1M",
     "price_source": "Source",
     "save_price": "Save price",
     "price_saved": "Price saved",
