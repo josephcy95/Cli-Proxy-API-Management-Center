@@ -629,19 +629,32 @@ export function MonitoringPage() {
           <div className={styles.summaryLabel}>{t('monitoring.card_tokens')}</div>
           <div className={styles.summaryValue}>{formatNumber(summary?.total_tokens)}</div>
         </div>
-        <div className={styles.summaryCard}>
+        <div className={styles.summaryCard} title={t('monitoring.card_input_hint')}>
           <div className={styles.summaryLabel}>{t('monitoring.card_input')}</div>
-          <div className={styles.summaryValue}>{formatNumber(summary?.input_tokens)}</div>
+          <div className={styles.summaryValueGroup}>
+            <div className={styles.summaryValue}>{formatNumber(summary?.input_tokens)}</div>
+            {summary &&
+            summary.cache_read_tokens > 0 &&
+            summary.cache_read_tokens <= summary.input_tokens ? (
+              <div className={styles.summarySub}>
+                {t('monitoring.card_input_incl_cache', {
+                  tokens: formatNumber(summary.cache_read_tokens),
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
         <div className={styles.summaryCard}>
           <div className={styles.summaryLabel}>{t('monitoring.card_output')}</div>
           <div className={styles.summaryValue}>{formatNumber(summary?.output_tokens)}</div>
         </div>
+        <div className={styles.summaryCard} title={t('monitoring.card_cache_read_hint')}>
+          <div className={styles.summaryLabel}>{t('monitoring.card_cache_read')}</div>
+          <div className={styles.summaryValue}>{formatNumber(summary?.cache_read_tokens)}</div>
+        </div>
         <div className={styles.summaryCard}>
-          <div className={styles.summaryLabel}>{t('monitoring.card_cached')}</div>
-          <div className={styles.summaryValue}>
-            {formatNumber((summary?.cache_read_tokens || 0) + (summary?.cached_tokens || 0))}
-          </div>
+          <div className={styles.summaryLabel}>{t('monitoring.card_cache_write')}</div>
+          <div className={styles.summaryValue}>{formatNumber(summary?.cache_creation_tokens)}</div>
         </div>
       </div>
 

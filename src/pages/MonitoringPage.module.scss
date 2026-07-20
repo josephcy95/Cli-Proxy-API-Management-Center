@@ -168,9 +168,10 @@ $control-h: 38px;
 
 /* ── Summary stats — full width, even columns ────────── */
 
+// Five ops metrics on the first row, the four-part token breakdown on the second.
 .summaryGrid {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: $spacing-sm;
   width: 100%;
 }
@@ -203,6 +204,25 @@ $control-h: 38px;
   line-height: 1.15;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Value plus an optional secondary line (e.g. the cached portion of Input).
+.summaryValueGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.summarySub {
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--text-tertiary);
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -619,7 +639,7 @@ $control-h: 38px;
 
 @media (max-width: $breakpoint-tablet) {
   .summaryGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .secondaryEditors {
