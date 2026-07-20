@@ -527,6 +527,24 @@
     "plan_pro": "Pro 20x",
     "plan_prolite": "Pro 5x"
   },
+  "qodercn_quota": {
+    "title": "Qoder CN Quota",
+    "empty_title": "No Qoder CN Auth Files",
+    "empty_desc": "Log in with Qoder CN OAuth to view remaining credits.",
+    "idle": "Click here to refresh quota",
+    "loading": "Loading quota...",
+    "load_failed": "Failed to load quota: {{message}}",
+    "missing_auth_index": "Auth file missing auth_index",
+    "empty_data": "No quota data available",
+    "refresh_button": "Refresh Quota",
+    "fetch_all": "Fetch All",
+    "user_quota": "Plan credits",
+    "addon_quota": "Add-on credits",
+    "org_quota": "Organization package",
+    "plan_label": "Plan: {{plan}}",
+    "exceeded": "Quota exceeded",
+    "expires_at": "Expires {{time}}"
+  },
   "kimi_quota": {
     "title": "Kimi Quota",
     "empty_title": "No Kimi Auth Files",

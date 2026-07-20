@@ -115,6 +115,7 @@
 .claudeGrid,
 .codexGrid,
 .kimiGrid,
+.qodercnGrid,
 .xaiGrid {
   display: grid;
   gap: $spacing-md;
@@ -239,6 +240,10 @@
 
 .kimiCard {
   background-image: linear-gradient(180deg, rgba(220, 232, 255, 0.2), rgba(220, 232, 255, 0));
+}
+
+.qodercnCard {
+  background-image: linear-gradient(180deg, rgba(252, 231, 243, 0.22), rgba(252, 231, 243, 0));
 }
 
 .xaiCard {

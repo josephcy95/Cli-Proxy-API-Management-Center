@@ -8,6 +8,7 @@ import iconGrokDark from '@/assets/icons/grok-dark.svg';
 import iconIflow from '@/assets/icons/iflow.svg';
 import iconKimiDark from '@/assets/icons/kimi-dark.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
+import iconQoderCN from '@/assets/icons/qodercn.svg';
 import iconQwen from '@/assets/icons/qwen.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
 import type { AuthFileItem } from '@/types';
@@ -25,7 +26,7 @@ export type AuthFileModelItem = {
 };
 export type AuthFileIconAsset = string | { light: string; dark: string };
 
-export type QuotaProviderType = 'antigravity' | 'claude' | 'codex' | 'kimi' | 'xai';
+export type QuotaProviderType = 'antigravity' | 'claude' | 'codex' | 'kimi' | 'qodercn' | 'xai';
 export type OAuthConfigLoadError = 'loading' | 'unsupported' | 'load' | null;
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
@@ -33,6 +34,7 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'claude',
   'codex',
   'kimi',
+  'qodercn',
   'xai',
 ]);
 
@@ -44,6 +46,7 @@ export const OAUTH_PROVIDER_PRESETS = [
   'claude',
   'codex',
   'kimi',
+  'qodercn',
 ];
 
 const OAUTH_PROVIDER_EXCLUDES = new Set(['all', 'unknown', 'empty']);
@@ -68,6 +71,11 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
   kimi: {
     light: { bg: '#dce8ff', text: '#0560cf' },
     dark: { bg: '#003880', text: '#70b5ff' },
+  },
+  // Qoder CN: pink brand
+  qodercn: {
+    light: { bg: '#fce7f3', text: '#be185d' },
+    dark: { bg: '#831843', text: '#f9a8d4' },
   },
   // Gemini logo: 多色蓝 #3186FF（偏柔和的蓝）
   gemini: {
@@ -128,6 +136,7 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   xai: { light: iconGrok, dark: iconGrokDark },
   iflow: iconIflow,
   kimi: { light: iconKimiDark, dark: iconKimiLight },
+  qodercn: iconQoderCN,
   qwen: iconQwen,
   vertex: iconVertex,
 };

@@ -426,6 +426,24 @@
     "plan_pro": "Pro 20x",
     "plan_prolite": "Pro 5x"
   },
+  "qodercn_quota": {
+    "title": "Квота Qoder CN",
+    "empty_title": "Нет файлов Qoder CN",
+    "empty_desc": "Войдите через Qoder CN OAuth, чтобы увидеть остаток кредитов.",
+    "idle": "Нажмите, чтобы обновить квоту",
+    "loading": "Загрузка квоты...",
+    "load_failed": "Не удалось загрузить квоту: {{message}}",
+    "missing_auth_index": "В файле авторизации нет auth_index",
+    "empty_data": "Нет данных о квоте",
+    "refresh_button": "Обновить квоту",
+    "fetch_all": "Загрузить все",
+    "user_quota": "Кредиты плана",
+    "addon_quota": "Доп. кредиты",
+    "org_quota": "Пакет организации",
+    "plan_label": "План: {{plan}}",
+    "exceeded": "Квота исчерпана",
+    "expires_at": "Истекает {{time}}"
+  },
   "kimi_quota": {
     "title": "Квота Kimi",
     "empty_title": "Файлы авторизации Kimi отсутствуют",

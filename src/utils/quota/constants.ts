@@ -30,6 +30,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#dce8ff', text: '#0560cf' },
     dark: { bg: '#003880', text: '#70b5ff' },
   },
+  qodercn: {
+    light: { bg: '#fce7f3', text: '#be185d' },
+    dark: { bg: '#831843', text: '#f9a8d4' },
+  },
   antigravity: {
     light: { bg: '#e0f7fa', text: '#006064' },
     dark: { bg: '#004d40', text: '#80deea' },
@@ -139,6 +143,13 @@ export const KIMI_USAGE_URL = 'https://api.kimi.com/coding/v1/usages';
 
 export const KIMI_REQUEST_HEADERS = {
   Authorization: 'Bearer $TOKEN$',
+};
+
+export const QODERCN_USAGE_URL = 'https://openapi.qoder.com.cn/api/v2/quota/usage';
+
+export const QODERCN_REQUEST_HEADERS = {
+  Authorization: 'Bearer $TOKEN$',
+  Accept: 'application/json',
 };
 
 // xAI/Grok API configuration

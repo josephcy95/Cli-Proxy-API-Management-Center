@@ -13,6 +13,7 @@ import {
   CLAUDE_CONFIG,
   CODEX_CONFIG,
   KIMI_CONFIG,
+  QODERCN_CONFIG,
   XAI_CONFIG,
 } from '@/components/quota';
 import type { AuthFileItem } from '@/types';
@@ -87,6 +88,14 @@ export function QuotaPage() {
       {files.some(KIMI_CONFIG.filterFn) && (
         <QuotaSection
           config={KIMI_CONFIG}
+          files={files}
+          loading={loading}
+          disabled={disableControls}
+        />
+      )}
+      {files.some(QODERCN_CONFIG.filterFn) && (
+        <QuotaSection
+          config={QODERCN_CONFIG}
           files={files}
           loading={loading}
           disabled={disableControls}

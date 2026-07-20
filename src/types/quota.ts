@@ -335,3 +335,29 @@ export interface XaiQuotaState {
   error?: string;
   errorStatus?: number;
 }
+
+export interface QoderCNQuotaBucket {
+  used: number;
+  total: number;
+  remaining: number;
+  percentage: number;
+  unit: string;
+}
+
+export interface QoderCNQuotaData {
+  user: QoderCNQuotaBucket | null;
+  addon: QoderCNQuotaBucket | null;
+  org: QoderCNQuotaBucket | null;
+  totalPercentage: number | null;
+  isQuotaExceeded: boolean;
+  expiresAt: number | null;
+  userType: string | null;
+  usageType: string | null;
+}
+
+export interface QoderCNQuotaState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  data: QoderCNQuotaData | null;
+  error?: string;
+  errorStatus?: number;
+}

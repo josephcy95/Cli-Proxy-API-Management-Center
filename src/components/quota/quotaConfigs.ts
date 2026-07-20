@@ -24,6 +24,9 @@ import type {
   CodexUsagePayload,
   KimiQuotaRow,
   KimiQuotaState,
+  QoderCNQuotaBucket,
+  QoderCNQuotaData,
+  QoderCNQuotaState,
   XaiBillingSummary,
   XaiQuotaState,
 } from '@/types';
@@ -47,6 +50,8 @@ import {
   CODEX_REQUEST_HEADERS,
   KIMI_USAGE_URL,
   KIMI_REQUEST_HEADERS,
+  QODERCN_USAGE_URL,
+  QODERCN_REQUEST_HEADERS,
   XAI_BILLING_MONTHLY_URL,
   XAI_BILLING_WEEKLY_URL,
   XAI_REQUEST_HEADERS,
@@ -77,6 +82,7 @@ import {
   isCodexFile,
   isDisabledAuthFile,
   isKimiFile,
+  isQoderCNFile,
   isXaiFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/authIndex';
@@ -86,7 +92,7 @@ import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'kimi' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codex' | 'kimi' | 'qodercn' | 'xai';
 
 type AntigravityQuotaData = {
   groups: AntigravityQuotaGroup[];
@@ -123,11 +129,13 @@ export interface QuotaStore {
   claudeQuota: Record<string, ClaudeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
+  qodercnQuota: Record<string, QoderCNQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
+  setQoderCNQuota: (updater: QuotaUpdater<Record<string, QoderCNQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
   clearQuotaCache: () => void;
 }
@@ -1793,6 +1801,205 @@ export const KIMI_CONFIG: QuotaConfig<KimiQuotaState, KimiQuotaRow[]> = {
   cardClassName: styles.kimiCard,
   gridClassName: styles.kimiGrid,
   renderQuotaItems: renderKimiItems,
+};
+
+const toQoderCNBucket = (raw: unknown): QoderCNQuotaBucket | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const data = raw as Record<string, unknown>;
+  const total = normalizeNumberValue(data.total) ?? 0;
+  const used = normalizeNumberValue(data.used) ?? 0;
+  const remaining =
+    normalizeNumberValue(data.remaining) ?? Math.max(0, total - used);
+  const percentage =
+    normalizeNumberValue(data.percentage) ??
+    (total > 0 ? used / total : 0);
+  const unit = normalizeStringValue(data.unit) ?? 'credits';
+  if (total <= 0 && used <= 0 && remaining <= 0) return null;
+  return { used, total, remaining, percentage, unit };
+};
+
+const parseQoderCNUsagePayload = (body: unknown): QoderCNQuotaData | null => {
+  let payload: Record<string, unknown> | null = null;
+  if (typeof body === 'string') {
+    const trimmed = body.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object') payload = parsed as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  } else if (body && typeof body === 'object') {
+    payload = body as Record<string, unknown>;
+  }
+  if (!payload) return null;
+
+  const user = toQoderCNBucket(payload.userQuota ?? payload.user_quota);
+  const addon = toQoderCNBucket(payload.addOnQuota ?? payload.addonQuota ?? payload.add_on_quota);
+  const org = toQoderCNBucket(
+    payload.orgResourcePackage ?? payload.org_resource_package
+  );
+  if (!user && !addon && !org) return null;
+
+  return {
+    user,
+    addon,
+    org,
+    totalPercentage: normalizeNumberValue(
+      payload.totalUsagePercentage ?? payload.total_usage_percentage
+    ),
+    isQuotaExceeded: Boolean(payload.isQuotaExceeded ?? payload.is_quota_exceeded),
+    expiresAt: normalizeNumberValue(payload.expiresAt ?? payload.expires_at),
+    userType: normalizeStringValue(payload.userType ?? payload.user_type),
+    usageType: normalizeStringValue(payload.usageType ?? payload.usage_type),
+  };
+};
+
+const fetchQoderCNQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<QoderCNQuotaData> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('qodercn_quota.missing_auth_index'));
+  }
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'GET',
+    url: QODERCN_USAGE_URL,
+    header: { ...QODERCN_REQUEST_HEADERS },
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+
+  const payload = parseQoderCNUsagePayload(result.body ?? result.bodyText);
+  if (!payload) {
+    throw new Error(t('qodercn_quota.empty_data'));
+  }
+  return payload;
+};
+
+const renderQoderCNBucket = (
+  key: string,
+  label: string,
+  bucket: QoderCNQuotaBucket,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h } = React;
+  const remainingPercent =
+    bucket.total > 0
+      ? Math.max(0, Math.min(100, Math.round((bucket.remaining / bucket.total) * 100)))
+      : bucket.used > 0
+        ? 0
+        : null;
+  const amountLabel = `${Math.round(bucket.remaining)} / ${Math.round(bucket.total)} ${bucket.unit || 'credits'}`;
+
+  return h(
+    'div',
+    { key, className: styleMap.quotaRow },
+    h(
+      'div',
+      { className: styleMap.quotaRowHeader },
+      h('span', { className: styleMap.quotaModel }, label),
+      h(
+        'div',
+        { className: styleMap.quotaMeta },
+        h(
+          'span',
+          { className: styleMap.quotaPercent },
+          remainingPercent === null ? '--' : `${remainingPercent}%`
+        ),
+        h('span', { className: styleMap.quotaAmount }, amountLabel)
+      )
+    ),
+    h(QuotaProgressBar, {
+      percent: remainingPercent,
+      highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+      mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+    })
+  );
+};
+
+const renderQoderCNItems = (
+  quota: QoderCNQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap } = helpers;
+  const { createElement: h } = React;
+  const data = quota.data;
+  if (!data) {
+    return h('div', { className: styleMap.quotaMessage }, t('qodercn_quota.empty_data'));
+  }
+
+  const nodes: ReactNode[] = [];
+  if (data.userType) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'plan', className: styleMap.quotaMessage },
+        t('qodercn_quota.plan_label', { plan: data.userType })
+      )
+    );
+  }
+  if (data.user) {
+    nodes.push(
+      renderQoderCNBucket('user', t('qodercn_quota.user_quota'), data.user, helpers)
+    );
+  }
+  if (data.addon) {
+    nodes.push(
+      renderQoderCNBucket('addon', t('qodercn_quota.addon_quota'), data.addon, helpers)
+    );
+  }
+  if (data.org) {
+    nodes.push(renderQoderCNBucket('org', t('qodercn_quota.org_quota'), data.org, helpers));
+  }
+  if (data.isQuotaExceeded) {
+    nodes.push(
+      h('div', { key: 'exceeded', className: styleMap.quotaWarning }, t('qodercn_quota.exceeded'))
+    );
+  }
+  if (data.expiresAt && data.expiresAt > 0) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'expires', className: styleMap.quotaReset },
+        t('qodercn_quota.expires_at', {
+          time: formatDateTimeValue(data.expiresAt),
+        })
+      )
+    );
+  }
+  if (nodes.length === 0) {
+    return h('div', { className: styleMap.quotaMessage }, t('qodercn_quota.empty_data'));
+  }
+  return nodes;
+};
+
+export const QODERCN_CONFIG: QuotaConfig<QoderCNQuotaState, QoderCNQuotaData> = {
+  type: 'qodercn',
+  i18nPrefix: 'qodercn_quota',
+  filterFn: (file) => isQoderCNFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchQoderCNQuota,
+  storeSelector: (state) => state.qodercnQuota,
+  storeSetter: 'setQoderCNQuota',
+  buildLoadingState: () => ({ status: 'loading', data: null }),
+  buildSuccessState: (data) => ({ status: 'success', data }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    data: null,
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.qodercnCard,
+  gridClassName: styles.qodercnGrid,
+  renderQuotaItems: renderQoderCNItems,
 };
 
 export const XAI_CONFIG: QuotaConfig<XaiQuotaState, XaiBillingSummary> = {

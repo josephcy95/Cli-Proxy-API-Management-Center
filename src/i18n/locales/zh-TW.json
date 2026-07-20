@@ -439,6 +439,24 @@
     "plan_pro": "Pro 20x",
     "plan_prolite": "Pro 5x"
   },
+  "qodercn_quota": {
+    "title": "Qoder CN 額度",
+    "empty_title": "暫無 Qoder CN 認證檔案",
+    "empty_desc": "使用 Qoder CN OAuth 登入後可查看剩餘積分。",
+    "idle": "點擊刷新額度",
+    "loading": "正在載入額度...",
+    "load_failed": "載入額度失敗: {{message}}",
+    "missing_auth_index": "認證檔案缺少 auth_index",
+    "empty_data": "暫無額度資料",
+    "refresh_button": "刷新額度",
+    "fetch_all": "全部取得",
+    "user_quota": "方案積分",
+    "addon_quota": "附加積分",
+    "org_quota": "組織資源包",
+    "plan_label": "方案: {{plan}}",
+    "exceeded": "額度已用盡",
+    "expires_at": "到期 {{time}}"
+  },
   "kimi_quota": {
     "title": "Kimi 配額",
     "empty_title": "暫無 Kimi 驗證",

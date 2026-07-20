@@ -27,6 +27,11 @@ export function isKimiFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'kimi';
 }
 
+export function isQoderCNFile(file: AuthFileItem): boolean {
+  const provider = resolveAuthProvider(file);
+  return provider === 'qodercn' || provider === 'qoder-cn' || provider === 'qoder';
+}
+
 export function isXaiFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'xai';
 }

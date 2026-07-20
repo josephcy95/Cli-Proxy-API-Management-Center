@@ -127,9 +127,11 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
           ? styles.codexCard
           : quotaType === 'kimi'
             ? styles.kimiCard
-            : quotaType === 'xai'
-              ? styles.xaiCard
-              : '';
+            : quotaType === 'qodercn'
+              ? styles.qodercnCard
+              : quotaType === 'xai'
+                ? styles.xaiCard
+                : '';
 
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndexKey = normalizeRecentRequestAuthIndex(rawAuthIndex);
