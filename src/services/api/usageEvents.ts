@@ -69,6 +69,18 @@ export interface UsageAccountStat {
   estimated_cost: number;
 }
 
+export interface UsageAPIKeyStat {
+  api_key?: string;
+  api_key_hash?: string;
+  total_calls: number;
+  success_calls: number;
+  failure_calls: number;
+  total_tokens: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost: number;
+}
+
 export interface UsageFilterOptions {
   models: string[];
   providers: string[];
@@ -185,6 +197,11 @@ export const usageEventsApi = {
 
   getAccountStats: (query: UsageQuery = {}) =>
     apiClient.post<{ accounts: UsageAccountStat[] }>('/usage-account-stats', query, {
+      timeout: TIMEOUT_MS,
+    }),
+
+  getAPIKeyStats: (query: UsageQuery = {}) =>
+    apiClient.post<{ api_keys: UsageAPIKeyStat[] }>('/usage-api-key-stats', query, {
       timeout: TIMEOUT_MS,
     }),
 

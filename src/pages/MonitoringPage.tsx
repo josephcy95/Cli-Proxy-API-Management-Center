@@ -21,19 +21,55 @@ import {
   type PriceSyncCandidateSet,
   type PriceSyncResult,
   type UsageAccountStat,
+  type UsageAPIKeyStat,
   type UsageEvent,
   type UsageFilterOptions,
   type UsageQuery,
   type UsageSummary,
 } from '@/services/api/usageEvents';
+import { configFileApi } from '@/services/api/configFile';
 import { apiClient } from '@/services/api/client';
+import { parseApiKeyEntries } from '@/hooks/useVisualConfig';
 import { useNotificationStore } from '@/stores';
 import { getErrorMessage } from '@/utils/helpers';
+import { isScalar, isSeq, parseDocument } from 'yaml';
 import styles from './MonitoringPage.module.scss';
 
 type RangeKey = '24h' | '7d' | '14d' | '30d' | 'all';
-type TabKey = 'realtime' | 'accounts' | 'prices';
+type TabKey = 'realtime' | 'accounts' | 'api_keys' | 'prices';
 type PriceListFilter = 'all' | 'manual' | 'synced' | 'unpriced';
+
+/** Parse optional display names stored as YAML EOL comments on api-keys. */
+const parseApiKeyLabelMap = (yamlText: string): Record<string, string> => {
+  const map: Record<string, string> = {};
+  try {
+    const doc = parseDocument(yamlText);
+    const node = doc.getIn(['api-keys'], true);
+    if (isSeq(node)) {
+      for (const item of node.items) {
+        if (!isScalar(item)) continue;
+        const key = String(item.value ?? '').trim();
+        if (!key) continue;
+        const name = String(item.comment ?? '')
+          .replace(/^\s*/, '')
+          .trim();
+        if (name) map[key] = name;
+      }
+      return map;
+    }
+  } catch {
+    // fall through
+  }
+  // Fallback: plain list without comments
+  try {
+    for (const entry of parseApiKeyEntries(yamlText)) {
+      if (entry.key && entry.name) map[entry.key] = entry.name;
+    }
+  } catch {
+    // ignore
+  }
+  return map;
+};
 
 const AUTO_OPTIONS = [
   { label: 'Off', value: '0' },
@@ -114,6 +150,8 @@ export function MonitoringPage() {
   const [events, setEvents] = useState<UsageEvent[]>([]);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [accounts, setAccounts] = useState<UsageAccountStat[]>([]);
+  const [apiKeyStats, setApiKeyStats] = useState<UsageAPIKeyStat[]>([]);
+  const [apiKeyLabels, setApiKeyLabels] = useState<Record<string, string>>({});
   const [filterOptions, setFilterOptions] = useState<UsageFilterOptions | null>(null);
   const [prices, setPrices] = useState<ModelPrice[]>([]);
   const [aliases, setAliases] = useState<ModelPriceAlias[]>([]);
@@ -187,6 +225,24 @@ export function MonitoringPage() {
     }
   }, [buildQuery, showNotification]);
 
+  const loadApiKeyStats = useCallback(async () => {
+    try {
+      const res = await usageEventsApi.getAPIKeyStats(buildQuery());
+      setApiKeyStats(res.api_keys || []);
+    } catch (err) {
+      showNotification(getErrorMessage(err), 'error');
+    }
+  }, [buildQuery, showNotification]);
+
+  const loadApiKeyLabels = useCallback(async () => {
+    try {
+      const yaml = await configFileApi.fetchConfigYaml();
+      setApiKeyLabels(parseApiKeyLabelMap(yaml));
+    } catch {
+      // Labels are optional; keep prior map on failure.
+    }
+  }, []);
+
   const applyPricesResponse = useCallback(
     (res: { prices?: ModelPrice[]; aliases?: ModelPriceAlias[]; unpriced_models?: string[] }) => {
       setPrices(res.prices || []);
@@ -207,9 +263,11 @@ export function MonitoringPage() {
 
   const refresh = useCallback(async () => {
     await loadCore();
+    void loadApiKeyLabels();
     if (tab === 'accounts') await loadAccounts();
+    if (tab === 'api_keys') await loadApiKeyStats();
     if (tab === 'prices') await loadPrices();
-  }, [loadCore, loadAccounts, loadPrices, tab]);
+  }, [loadCore, loadAccounts, loadApiKeyStats, loadApiKeyLabels, loadPrices, tab]);
 
   useHeaderRefresh(refresh);
 
@@ -222,9 +280,10 @@ export function MonitoringPage() {
     const id = window.setInterval(() => {
       void loadCore();
       if (tab === 'accounts') void loadAccounts();
+      if (tab === 'api_keys') void loadApiKeyStats();
     }, autoMs);
     return () => window.clearInterval(id);
-  }, [autoMs, loadCore, loadAccounts, tab]);
+  }, [autoMs, loadCore, loadAccounts, loadApiKeyStats, tab]);
 
   const clearFilters = () => {
     setSearch('');
@@ -442,15 +501,36 @@ export function MonitoringPage() {
     ];
   }, [filterOptions?.sources, t]);
 
+  const formatApiKeyDisplay = useCallback(
+    (key?: string | null, hash?: string | null) => {
+      const raw = (key || '').trim();
+      if (raw) {
+        const label = apiKeyLabels[raw];
+        if (label) return label;
+        return raw;
+      }
+      return (hash || '').trim() || '—';
+    },
+    [apiKeyLabels]
+  );
+
   const apiKeyOptions = useMemo(() => {
     const values = Array.from(new Set((filterOptions?.api_keys || []).filter(Boolean))).sort(
-      (a, b) => a.localeCompare(b)
+      (a, b) => {
+        const la = formatApiKeyDisplay(a).toLowerCase();
+        const lb = formatApiKeyDisplay(b).toLowerCase();
+        return la.localeCompare(lb) || a.localeCompare(b);
+      }
     );
     return [
       { value: '', label: t('monitoring.filter_api_keys') },
-      ...values.map((k) => ({ value: k, label: k })),
+      ...values.map((k) => ({
+        value: k,
+        // Prefer config label when set; otherwise the raw key.
+        label: apiKeyLabels[k] || k,
+      })),
     ];
-  }, [filterOptions?.api_keys, t]);
+  }, [filterOptions?.api_keys, apiKeyLabels, formatApiKeyDisplay, t]);
 
   const autoOptions = useMemo(
     () =>
@@ -464,6 +544,7 @@ export function MonitoringPage() {
   const tabs: Array<[TabKey, string, number | null]> = [
     ['realtime', t('monitoring.tab_realtime'), events.length],
     ['accounts', t('monitoring.tab_accounts'), null],
+    ['api_keys', t('monitoring.tab_api_keys'), null],
     ['prices', t('monitoring.tab_prices'), null],
   ];
 
@@ -668,6 +749,7 @@ export function MonitoringPage() {
             onClick={() => {
               setTab(key);
               if (key === 'accounts') void loadAccounts();
+              if (key === 'api_keys') void loadApiKeyStats();
               if (key === 'prices') void loadPrices();
             }}
           >
@@ -716,7 +798,16 @@ export function MonitoringPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className={styles.mono}>{e.api_key || e.api_key_hash || '—'}</span>
+                      <div className={styles.cellStack}>
+                        <span className={styles.mono}>
+                          {formatApiKeyDisplay(e.api_key, e.api_key_hash)}
+                        </span>
+                        {e.api_key && apiKeyLabels[e.api_key] ? (
+                          <span className={`${styles.cellSecondary} ${styles.mono}`} title={e.api_key}>
+                            {e.api_key}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className={styles.mono}>{e.model || e.alias || '—'}</span>
@@ -809,6 +900,67 @@ export function MonitoringPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      ) : null}
+
+      {tab === 'api_keys' ? (
+        <div className={styles.tableSection}>
+          {apiKeyStats.length === 0 ? (
+            <div className={styles.emptyWrap}>
+              <EmptyState title={t('monitoring.empty_api_keys')} />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('monitoring.col_api_key_label')}</TableHead>
+                  <TableHead>{t('monitoring.col_api_key')}</TableHead>
+                  <TableHead alignRight>{t('monitoring.card_calls')}</TableHead>
+                  <TableHead alignRight>{t('monitoring.card_success')}</TableHead>
+                  <TableHead alignRight>{t('monitoring.card_failed')}</TableHead>
+                  <TableHead alignRight>{t('monitoring.card_tokens')}</TableHead>
+                  <TableHead alignRight>{t('monitoring.card_cost')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {apiKeyStats.map((row, idx) => {
+                  const key = row.api_key || '';
+                  const label = key ? apiKeyLabels[key] : '';
+                  return (
+                    <TableRow key={`${key}-${row.api_key_hash || ''}-${idx}`}>
+                      <TableCell>
+                        <span className={label ? undefined : styles.cellSecondary}>
+                          {label || '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={styles.mono} title={key || row.api_key_hash || undefined}>
+                          {key || row.api_key_hash || '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell alignRight className={styles.num}>
+                        {formatNumber(row.total_calls)}
+                      </TableCell>
+                      <TableCell alignRight className={styles.num}>
+                        {row.total_calls
+                          ? `${((row.success_calls / row.total_calls) * 100).toFixed(1)}%`
+                          : '—'}
+                      </TableCell>
+                      <TableCell alignRight className={styles.num}>
+                        {formatNumber(row.failure_calls)}
+                      </TableCell>
+                      <TableCell alignRight className={styles.num}>
+                        {formatNumber(row.total_tokens)}
+                      </TableCell>
+                      <TableCell alignRight className={styles.num}>
+                        {formatUsd(row.estimated_cost)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
