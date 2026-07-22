@@ -115,6 +115,13 @@ const normalizeApiKeyEntry = (entry: unknown): ApiKeyEntry | null => {
     apiKey: trimmed,
     proxyUrl: proxyUrl ? String(proxyUrl) : undefined,
   };
+  const priority = record?.priority;
+  if (priority !== undefined && priority !== null && String(priority).trim() !== '') {
+    const parsed = Number(priority);
+    if (Number.isFinite(parsed)) {
+      result.priority = parsed;
+    }
+  }
   if (authIndex) result.authIndex = authIndex;
   return result;
 };

@@ -1753,6 +1753,8 @@
       "showAllEntries": "顯示全部（{{count}}）",
       "showFewerEntries": "收起",
       "proxyBadge": "代理",
+      "priorityBadge": "P:{{value}}",
+      "keyPriorityHint": "僅在本提供商的金鑰之間生效；提供商優先級仍控制與其他提供商之間的排序。",
       "modelBadgeImage": "圖片",
       "modelBadgeThinking": "Thinking",
       "thinkingConfig": "Thinking 設定(JSON)",

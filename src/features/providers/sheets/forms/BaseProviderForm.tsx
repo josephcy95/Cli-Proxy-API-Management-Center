@@ -45,6 +45,7 @@ const emptyModel = (): ModelEntryInput => ({ name: '', alias: '' });
 const emptyApiKeyEntry = (): ApiKeyEntryInput => ({
   apiKey: '',
   proxyUrl: '',
+  priority: undefined,
 });
 const XAI_API_BASE_URL = 'https://api.x.ai/v1';
 
@@ -129,6 +130,7 @@ function buildInitialForm(
             apiKey: entry.apiKey ?? '',
             existingApiKey: entry.apiKey,
             proxyUrl: entry.proxyUrl ?? '',
+            priority: entry.priority,
             authIndex: entry.authIndex,
           }))
         : [emptyApiKeyEntry()],

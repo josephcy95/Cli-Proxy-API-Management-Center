@@ -1818,6 +1818,8 @@
       "showAllEntries": "Show all ({{count}})",
       "showFewerEntries": "Show fewer",
       "proxyBadge": "Proxy",
+      "priorityBadge": "P:{{value}}",
+      "keyPriorityHint": "Within this provider only. Provider Priority still controls ranking vs other providers.",
       "modelBadgeImage": "Image",
       "modelBadgeThinking": "Thinking",
       "thinkingConfig": "Thinking config (JSON)",

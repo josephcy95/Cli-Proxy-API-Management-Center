@@ -130,6 +130,14 @@ export function ApiKeyEntriesEditor({
               >
                 <span>{t('providersPage.form.apiKeyEntry', { index: idx + 1 })}</span>
                 <span className={styles.entrySummary}>
+                  {entry.priority !== undefined && Number.isFinite(entry.priority) ? (
+                    <span
+                      className={styles.entryBadge}
+                      title={t('providersPage.form.keyPriorityHint')}
+                    >
+                      {t('providersPage.form.priorityBadge', { value: entry.priority })}
+                    </span>
+                  ) : null}
                   {entry.proxyUrl.trim() ? (
                     <span className={styles.entryBadge} title={entry.proxyUrl}>
                       {t('providersPage.form.proxyBadge')}
@@ -226,15 +234,35 @@ export function ApiKeyEntriesEditor({
                     </button>
                   </div>
                 </div>
-                <div className={styles.field}>
-                  <label className={styles.label}>{t('providersPage.form.proxyUrl')}</label>
-                  <input
-                    className={styles.input}
-                    value={entry.proxyUrl}
-                    onChange={(e) => onUpdate(idx, { proxyUrl: e.target.value })}
-                    disabled={mutating}
-                    placeholder="http://127.0.0.1:7890"
-                  />
+                <div className={styles.fieldRow}>
+                  <div className={styles.field}>
+                    <label className={styles.label}>{t('providersPage.form.proxyUrl')}</label>
+                    <input
+                      className={styles.input}
+                      value={entry.proxyUrl}
+                      onChange={(e) => onUpdate(idx, { proxyUrl: e.target.value })}
+                      disabled={mutating}
+                      placeholder="http://127.0.0.1:7890"
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label}>{t('providersPage.form.priority')}</label>
+                    <input
+                      type="number"
+                      className={styles.input}
+                      value={entry.priority ?? ''}
+                      onChange={(e) =>
+                        onUpdate(idx, {
+                          priority: e.target.value === '' ? undefined : Number(e.target.value),
+                        })
+                      }
+                      disabled={mutating}
+                      placeholder="0"
+                    />
+                    <span className={styles.labelHint}>
+                      {t('providersPage.form.keyPriorityHint')}
+                    </span>
+                  </div>
                 </div>
               </div>
             ) : null}

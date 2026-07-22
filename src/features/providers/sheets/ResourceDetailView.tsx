@@ -153,6 +153,11 @@ export function ResourceDetailView({ resource, usageByProvider }: ResourceDetail
                 <div key={`${entry.apiKey}-${entryIndex}`} className={styles.apiKeyEntryCard}>
                   <span className={styles.apiKeyEntryIndex}>{entryIndex + 1}</span>
                   <span className={styles.apiKeyEntryKey}>{entry.apiKey}</span>
+                  {entry.priority !== undefined && Number.isFinite(entry.priority) ? (
+                    <span className={styles.apiKeyEntryProxy}>
+                      {t('providersPage.form.priorityBadge', { value: entry.priority })}
+                    </span>
+                  ) : null}
                   {entry.proxyUrl ? (
                     <span className={styles.apiKeyEntryProxy}>{entry.proxyUrl}</span>
                   ) : null}

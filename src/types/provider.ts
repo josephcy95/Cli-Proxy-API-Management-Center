@@ -15,6 +15,8 @@ export interface ModelAlias {
 export interface ApiKeyEntry {
   apiKey: string;
   proxyUrl?: string;
+  /** Within-provider key ranking; higher is preferred. Does not affect provider-level priority. */
+  priority?: number;
   authIndex?: string;
 }
 

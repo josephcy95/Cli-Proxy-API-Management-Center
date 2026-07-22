@@ -1727,6 +1727,8 @@
       "showAllEntries": "显示全部（{{count}}）",
       "showFewerEntries": "收起",
       "proxyBadge": "代理",
+      "priorityBadge": "P:{{value}}",
+      "keyPriorityHint": "仅在本提供商的密钥之间生效；提供商优先级仍控制与其他提供商之间的排序。",
       "modelBadgeImage": "图片",
       "modelBadgeThinking": "Thinking",
       "thinkingConfig": "Thinking 配置(JSON)",

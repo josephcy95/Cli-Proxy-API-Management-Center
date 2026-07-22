@@ -209,6 +209,10 @@ const buildOpenAIConfig = (
         return {
           apiKey: entry.apiKey.trim() || fallbackApiKey,
           proxyUrl: entry.proxyUrl.trim() || undefined,
+          priority:
+            entry.priority !== undefined && Number.isFinite(entry.priority)
+              ? entry.priority
+              : undefined,
           authIndex: entry.authIndex?.trim() || undefined,
         };
       })

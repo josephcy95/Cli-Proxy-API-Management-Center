@@ -1705,6 +1705,8 @@
       "showAllEntries": "Показать все ({{count}})",
       "showFewerEntries": "Показать меньше",
       "proxyBadge": "Прокси",
+      "priorityBadge": "P:{{value}}",
+      "keyPriorityHint": "Только среди ключей этого провайдера. Приоритет провайдера по-прежнему определяет выбор между провайдерами.",
       "modelBadgeImage": "Image",
       "modelBadgeThinking": "Thinking",
       "thinkingConfig": "Thinking config (JSON)",
