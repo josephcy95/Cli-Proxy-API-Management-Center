@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -29,6 +29,12 @@ import { IconRefreshCw } from '@/components/ui/icons';
 import { QuotaProgressBar } from '@/features/authFiles/components/QuotaProgressBar';
 import styles from '@/pages/AuthFilesPage.module.scss';
 
+export type AuthFileQuotaRefreshBinding = {
+  refresh: () => void;
+  canRefresh: boolean;
+  loading: boolean;
+};
+
 type QuotaState = { status?: string; error?: string; errorStatus?: number } | undefined;
 
 const assertNever = (value: never): never => {
@@ -51,10 +57,12 @@ export type AuthFileQuotaSectionProps = {
   quotaType: QuotaProviderType;
   disableControls: boolean;
   onAuthFileUpdated?: () => void | Promise<void>;
+  /** Host card can place refresh in its action row to avoid an extra quota row. */
+  onRefreshBindingChange?: (binding: AuthFileQuotaRefreshBinding | null) => void;
 };
 
 export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
-  const { file, quotaType, disableControls, onAuthFileUpdated } = props;
+  const { file, quotaType, disableControls, onAuthFileUpdated, onRefreshBindingChange } = props;
   const { t } = useTranslation();
   const showNotification = useNotificationStore((state) => state.showNotification);
   const showConfirmation = useNotificationStore((state) => state.showConfirmation);
@@ -245,6 +253,18 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     quota?.error || t('common.unknown_error')
   );
 
+  useEffect(() => {
+    if (!onRefreshBindingChange) return;
+    onRefreshBindingChange({
+      refresh: () => {
+        void refreshQuotaForFile();
+      },
+      canRefresh: canRefreshQuota && quotaStatus !== 'loading',
+      loading: quotaStatus === 'loading',
+    });
+    return () => onRefreshBindingChange(null);
+  }, [canRefreshQuota, onRefreshBindingChange, quotaStatus, refreshQuotaForFile]);
+
   return (
     <div className={styles.quotaSection}>
       {quotaStatus === 'loading' ? (
@@ -272,24 +292,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       ) : (
         <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.idle`)}</div>
       )}
-      {quotaStatus !== 'idle' && (
-        <div className={styles.quotaCardActions}>
-          {resetQuotaAction}
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className={styles.quotaRefreshButton}
-            onClick={() => void refreshQuotaForFile()}
-            disabled={!canRefreshQuota || quotaStatus === 'loading'}
-            loading={quotaStatus === 'loading'}
-            title={t('auth_files.quota_refresh_hint')}
-            aria-label={t('auth_files.quota_refresh_single')}
-          >
-            {quotaStatus !== 'loading' && <IconRefreshCw size={14} />}
-            {t('auth_files.quota_refresh_single')}
-          </Button>
-        </div>
+      {quotaStatus !== 'idle' && resetQuotaAction && (
+        <div className={styles.quotaCardActions}>{resetQuotaAction}</div>
       )}
     </div>
   );

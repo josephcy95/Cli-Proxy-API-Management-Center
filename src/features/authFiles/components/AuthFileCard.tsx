@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -8,6 +8,7 @@ import {
   IconDownload,
   IconInfo,
   IconModelCluster,
+  IconRefreshCw,
   IconSettings,
   IconTrash2,
 } from '@/components/ui/icons';
@@ -35,7 +36,10 @@ import {
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
 import type { AuthFileStatusBarData } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
-import { AuthFileQuotaSection } from '@/features/authFiles/components/AuthFileQuotaSection';
+import {
+  AuthFileQuotaSection,
+  type AuthFileQuotaRefreshBinding,
+} from '@/features/authFiles/components/AuthFileQuotaSection';
 import styles from '@/pages/AuthFilesPage.module.scss';
 
 const HEALTHY_STATUS_MESSAGES = new Set(['ok', 'healthy', 'ready', 'success', 'available']);
@@ -81,6 +85,13 @@ const resolveQuotaType = (file: AuthFileItem): QuotaProviderType | null => {
 // otherwise re-render every card synchronously.
 export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps) {
   const { t } = useTranslation();
+  const [quotaRefresh, setQuotaRefresh] = useState<AuthFileQuotaRefreshBinding | null>(null);
+  const handleQuotaRefreshBindingChange = useCallback(
+    (binding: AuthFileQuotaRefreshBinding | null) => {
+      setQuotaRefresh(binding);
+    },
+    []
+  );
   const {
     file,
     compact,
@@ -324,6 +335,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                 quotaType={quotaType}
                 disableControls={disableControls}
                 onAuthFileUpdated={onAuthFileUpdated}
+                onRefreshBindingChange={handleQuotaRefreshBindingChange}
               />
             )}
           </div>
@@ -385,6 +397,23 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                       <IconTrash2 className={styles.actionIcon} size={16} />
                     )}
                   </Button>
+                  {showQuotaLayout && quotaRefresh && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => quotaRefresh.refresh()}
+                      className={styles.iconButton}
+                      title={t('auth_files.quota_refresh_hint')}
+                      aria-label={t('auth_files.quota_refresh_single')}
+                      disabled={!quotaRefresh.canRefresh}
+                    >
+                      {quotaRefresh.loading ? (
+                        <LoadingSpinner size={14} />
+                      ) : (
+                        <IconRefreshCw className={styles.actionIcon} size={16} />
+                      )}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
