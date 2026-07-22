@@ -52,6 +52,8 @@ import {
   KIMI_REQUEST_HEADERS,
   QODERCN_USAGE_URL,
   QODERCN_REQUEST_HEADERS,
+  QODER_USAGE_URL,
+  QODER_REQUEST_HEADERS,
   XAI_BILLING_MONTHLY_URL,
   XAI_BILLING_WEEKLY_URL,
   XAI_REQUEST_HEADERS,
@@ -83,6 +85,7 @@ import {
   isDisabledAuthFile,
   isKimiFile,
   isQoderCNFile,
+  isQoderIntlFile,
   isXaiFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/authIndex';
@@ -92,7 +95,7 @@ import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'kimi' | 'qodercn' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codex' | 'kimi' | 'qodercn' | 'qoder' | 'xai';
 
 type AntigravityQuotaData = {
   groups: AntigravityQuotaGroup[];
@@ -1855,21 +1858,24 @@ const parseQoderCNUsagePayload = (body: unknown): QoderCNQuotaData | null => {
   };
 };
 
-const fetchQoderCNQuota = async (
+const fetchQoderQuota = async (
   file: AuthFileItem,
-  t: TFunction
+  t: TFunction,
+  usageURL: string,
+  headers: Record<string, string>,
+  i18nPrefix: string
 ): Promise<QoderCNQuotaData> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
   if (!authIndex) {
-    throw new Error(t('qodercn_quota.missing_auth_index'));
+    throw new Error(t(`${i18nPrefix}.missing_auth_index`));
   }
 
   const result = await apiCallApi.request({
     authIndex,
     method: 'GET',
-    url: QODERCN_USAGE_URL,
-    header: { ...QODERCN_REQUEST_HEADERS },
+    url: usageURL,
+    header: { ...headers },
   });
 
   if (result.statusCode < 200 || result.statusCode >= 300) {
@@ -1878,10 +1884,22 @@ const fetchQoderCNQuota = async (
 
   const payload = parseQoderCNUsagePayload(result.body ?? result.bodyText);
   if (!payload) {
-    throw new Error(t('qodercn_quota.empty_data'));
+    throw new Error(t(`${i18nPrefix}.empty_data`));
   }
   return payload;
 };
+
+const fetchQoderCNQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<QoderCNQuotaData> =>
+  fetchQoderQuota(file, t, QODERCN_USAGE_URL, QODERCN_REQUEST_HEADERS, 'qodercn_quota');
+
+const fetchQoderIntlQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<QoderCNQuotaData> =>
+  fetchQoderQuota(file, t, QODER_USAGE_URL, QODER_REQUEST_HEADERS, 'qoder_quota');
 
 const renderQoderCNBucket = (
   key: string,
@@ -1925,62 +1943,59 @@ const renderQoderCNBucket = (
   );
 };
 
-const renderQoderCNItems = (
-  quota: QoderCNQuotaState,
-  t: TFunction,
-  helpers: QuotaRenderHelpers
-): ReactNode => {
-  const { styles: styleMap } = helpers;
-  const { createElement: h } = React;
-  const data = quota.data;
-  if (!data) {
-    return h('div', { className: styleMap.quotaMessage }, t('qodercn_quota.empty_data'));
-  }
+const makeRenderQoderItems =
+  (i18nPrefix: string) =>
+  (quota: QoderCNQuotaState, t: TFunction, helpers: QuotaRenderHelpers): ReactNode => {
+    const { styles: styleMap } = helpers;
+    const { createElement: h } = React;
+    const data = quota.data;
+    if (!data) {
+      return h('div', { className: styleMap.quotaMessage }, t(`${i18nPrefix}.empty_data`));
+    }
 
-  const nodes: ReactNode[] = [];
-  if (data.userType) {
-    nodes.push(
-      h(
-        'div',
-        { key: 'plan', className: styleMap.quotaMessage },
-        t('qodercn_quota.plan_label', { plan: data.userType })
-      )
-    );
-  }
-  if (data.user) {
-    nodes.push(
-      renderQoderCNBucket('user', t('qodercn_quota.user_quota'), data.user, helpers)
-    );
-  }
-  if (data.addon) {
-    nodes.push(
-      renderQoderCNBucket('addon', t('qodercn_quota.addon_quota'), data.addon, helpers)
-    );
-  }
-  if (data.org) {
-    nodes.push(renderQoderCNBucket('org', t('qodercn_quota.org_quota'), data.org, helpers));
-  }
-  if (data.isQuotaExceeded) {
-    nodes.push(
-      h('div', { key: 'exceeded', className: styleMap.quotaWarning }, t('qodercn_quota.exceeded'))
-    );
-  }
-  if (data.expiresAt && data.expiresAt > 0) {
-    nodes.push(
-      h(
-        'div',
-        { key: 'expires', className: styleMap.quotaReset },
-        t('qodercn_quota.expires_at', {
-          time: formatDateTimeValue(data.expiresAt),
-        })
-      )
-    );
-  }
-  if (nodes.length === 0) {
-    return h('div', { className: styleMap.quotaMessage }, t('qodercn_quota.empty_data'));
-  }
-  return nodes;
-};
+    const nodes: ReactNode[] = [];
+    if (data.userType) {
+      nodes.push(
+        h(
+          'div',
+          { key: 'plan', className: styleMap.quotaMessage },
+          t(`${i18nPrefix}.plan_label`, { plan: data.userType })
+        )
+      );
+    }
+    if (data.user) {
+      nodes.push(renderQoderCNBucket('user', t(`${i18nPrefix}.user_quota`), data.user, helpers));
+    }
+    if (data.addon) {
+      nodes.push(renderQoderCNBucket('addon', t(`${i18nPrefix}.addon_quota`), data.addon, helpers));
+    }
+    if (data.org) {
+      nodes.push(renderQoderCNBucket('org', t(`${i18nPrefix}.org_quota`), data.org, helpers));
+    }
+    if (data.isQuotaExceeded) {
+      nodes.push(
+        h('div', { key: 'exceeded', className: styleMap.quotaWarning }, t(`${i18nPrefix}.exceeded`))
+      );
+    }
+    if (data.expiresAt && data.expiresAt > 0) {
+      nodes.push(
+        h(
+          'div',
+          { key: 'expires', className: styleMap.quotaReset },
+          t(`${i18nPrefix}.expires_at`, {
+            time: formatDateTimeValue(data.expiresAt),
+          })
+        )
+      );
+    }
+    if (nodes.length === 0) {
+      return h('div', { className: styleMap.quotaMessage }, t(`${i18nPrefix}.empty_data`));
+    }
+    return nodes;
+  };
+
+const renderQoderCNItems = makeRenderQoderItems('qodercn_quota');
+const renderQoderIntlItems = makeRenderQoderItems('qoder_quota');
 
 export const QODERCN_CONFIG: QuotaConfig<QoderCNQuotaState, QoderCNQuotaData> = {
   type: 'qodercn',
@@ -2000,6 +2015,27 @@ export const QODERCN_CONFIG: QuotaConfig<QoderCNQuotaState, QoderCNQuotaData> = 
   cardClassName: styles.qodercnCard,
   gridClassName: styles.qodercnGrid,
   renderQuotaItems: renderQoderCNItems,
+};
+
+export const QODER_CONFIG: QuotaConfig<QoderCNQuotaState, QoderCNQuotaData> = {
+  type: 'qoder',
+  i18nPrefix: 'qoder_quota',
+  filterFn: (file) => isQoderIntlFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchQoderIntlQuota,
+  // Same shape/store map as CN; file names (qoder-*) never collide with qodercn-*.
+  storeSelector: (state) => state.qodercnQuota,
+  storeSetter: 'setQoderCNQuota',
+  buildLoadingState: () => ({ status: 'loading', data: null }),
+  buildSuccessState: (data) => ({ status: 'success', data }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    data: null,
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.qodercnCard,
+  gridClassName: styles.qodercnGrid,
+  renderQuotaItems: renderQoderIntlItems,
 };
 
 export const XAI_CONFIG: QuotaConfig<XaiQuotaState, XaiBillingSummary> = {

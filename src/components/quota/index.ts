@@ -11,6 +11,7 @@ export {
   CODEX_CONFIG,
   KIMI_CONFIG,
   QODERCN_CONFIG,
+  QODER_CONFIG,
   XAI_CONFIG,
 } from './quotaConfigs';
 export type { QuotaConfig } from './quotaConfigs';

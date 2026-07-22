@@ -465,6 +465,24 @@
     "exceeded": "额度已用尽",
     "expires_at": "到期 {{time}}"
   },
+  "qoder_quota": {
+    "title": "Qoder（国际版）额度",
+    "empty_title": "暂无 Qoder（国际版）认证文件",
+    "empty_desc": "使用 Qoder（国际版）OAuth 登录后可查看剩余积分。",
+    "idle": "点击刷新额度",
+    "loading": "正在加载额度...",
+    "load_failed": "加载额度失败: {{message}}",
+    "missing_auth_index": "认证文件缺少 auth_index",
+    "empty_data": "暂无额度数据",
+    "refresh_button": "刷新额度",
+    "fetch_all": "全部获取",
+    "user_quota": "套餐积分",
+    "addon_quota": "附加积分",
+    "org_quota": "组织资源包",
+    "plan_label": "套餐: {{plan}}",
+    "exceeded": "额度已用尽",
+    "expires_at": "到期 {{time}}"
+  },
   "kimi_quota": {
     "title": "Kimi 额度",
     "empty_title": "暂无 Kimi 认证",

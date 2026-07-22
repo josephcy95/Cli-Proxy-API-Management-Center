@@ -115,8 +115,16 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
   const typeLabel = getTypeLabel(t, providerKey);
   const providerIcon = getAuthFileIcon(providerKey, resolvedTheme);
 
+  // When the unified Qoder pill is selected, show quota for both CN and Intl files.
+  const resolvedQuotaType = resolveQuotaType(file);
   const quotaType =
-    quotaFilterType && resolveQuotaType(file) === quotaFilterType ? quotaFilterType : null;
+    quotaFilterType &&
+    resolvedQuotaType &&
+    (resolvedQuotaType === quotaFilterType ||
+      (quotaFilterType === 'qoder' &&
+        (resolvedQuotaType === 'qoder' || resolvedQuotaType === 'qodercn')))
+      ? resolvedQuotaType
+      : null;
 
   const showQuotaLayout = Boolean(quotaType) && !isRuntimeOnly && !compact;
 
@@ -129,7 +137,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
           ? styles.codexCard
           : quotaType === 'kimi'
             ? styles.kimiCard
-            : quotaType === 'qodercn'
+            : quotaType === 'qodercn' || quotaType === 'qoder'
               ? styles.qodercnCard
               : quotaType === 'xai'
                 ? styles.xaiCard

@@ -452,6 +452,24 @@
     "exceeded": "Квота исчерпана",
     "expires_at": "Истекает {{time}}"
   },
+  "qoder_quota": {
+    "title": "Квота Qoder (международная)",
+    "empty_title": "Нет файлов Qoder (международная)",
+    "empty_desc": "Войдите через Qoder (международную версию) OAuth, чтобы увидеть остаток кредитов.",
+    "idle": "Нажмите, чтобы обновить квоту",
+    "loading": "Загрузка квоты...",
+    "load_failed": "Не удалось загрузить квоту: {{message}}",
+    "missing_auth_index": "В файле авторизации нет auth_index",
+    "empty_data": "Нет данных о квоте",
+    "refresh_button": "Обновить квоту",
+    "fetch_all": "Загрузить все",
+    "user_quota": "Кредиты плана",
+    "addon_quota": "Доп. кредиты",
+    "org_quota": "Пакет организации",
+    "plan_label": "План: {{plan}}",
+    "exceeded": "Квота исчерпана",
+    "expires_at": "Истекает {{time}}"
+  },
   "kimi_quota": {
     "title": "Квота Kimi",
     "empty_title": "Файлы авторизации Kimi отсутствуют",

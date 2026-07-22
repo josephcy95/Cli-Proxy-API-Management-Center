@@ -7,6 +7,7 @@ import {
   CODEX_CONFIG,
   KIMI_CONFIG,
   QODERCN_CONFIG,
+  QODER_CONFIG,
   XAI_CONFIG,
 } from '@/components/quota';
 import {
@@ -40,6 +41,7 @@ const getQuotaConfig = (type: QuotaProviderType) => {
   if (type === 'codex') return CODEX_CONFIG;
   if (type === 'kimi') return KIMI_CONFIG;
   if (type === 'qodercn') return QODERCN_CONFIG;
+  if (type === 'qoder') return QODER_CONFIG;
   if (type === 'xai') return XAI_CONFIG;
   return assertNever(type);
 };
@@ -63,7 +65,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'claude') return state.claudeQuota[file.name] as QuotaState;
     if (quotaType === 'codex') return state.codexQuota[file.name] as QuotaState;
     if (quotaType === 'kimi') return state.kimiQuota[file.name] as QuotaState;
-    if (quotaType === 'qodercn') return state.qodercnQuota[file.name] as QuotaState;
+    if (quotaType === 'qodercn' || quotaType === 'qoder')
+      return state.qodercnQuota[file.name] as QuotaState;
     if (quotaType === 'xai') return state.xaiQuota[file.name] as QuotaState;
     return assertNever(quotaType);
   });
@@ -75,7 +78,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       return state.setClaudeQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'codex') return state.setCodexQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'kimi') return state.setKimiQuota as unknown as (updater: unknown) => void;
-    if (quotaType === 'qodercn')
+    if (quotaType === 'qodercn' || quotaType === 'qoder')
       return state.setQoderCNQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'xai') return state.setXaiQuota as unknown as (updater: unknown) => void;
     return assertNever(quotaType);
@@ -269,8 +272,24 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       ) : (
         <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.idle`)}</div>
       )}
-      {quotaStatus !== 'idle' && resetQuotaAction && (
-        <div className={styles.quotaCardActions}>{resetQuotaAction}</div>
+      {quotaStatus !== 'idle' && (
+        <div className={styles.quotaCardActions}>
+          {resetQuotaAction}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className={styles.quotaRefreshButton}
+            onClick={() => void refreshQuotaForFile()}
+            disabled={!canRefreshQuota || quotaStatus === 'loading'}
+            loading={quotaStatus === 'loading'}
+            title={t('auth_files.quota_refresh_hint')}
+            aria-label={t('auth_files.quota_refresh_single')}
+          >
+            {quotaStatus !== 'loading' && <IconRefreshCw size={14} />}
+            {t('auth_files.quota_refresh_single')}
+          </Button>
+        </div>
       )}
     </div>
   );

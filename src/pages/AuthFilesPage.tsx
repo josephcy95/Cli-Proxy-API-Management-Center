@@ -322,11 +322,14 @@ export function AuthFilesPage() {
 
   const disableControls = connectionStatus !== 'connected';
   const normalizedFilter = normalizeProviderKey(String(filter));
-  const quotaFilterType: QuotaProviderType | null = QUOTA_PROVIDER_TYPES.has(
-    normalizedFilter as QuotaProviderType
-  )
-    ? (normalizedFilter as QuotaProviderType)
-    : null;
+  // Unified Qoder pill covers both CN and Intl; cards resolve the real per-file
+  // quota type (qodercn vs qoder) themselves via resolveQuotaType.
+  const quotaFilterType: QuotaProviderType | null =
+    normalizedFilter === 'qoder'
+      ? 'qoder'
+      : QUOTA_PROVIDER_TYPES.has(normalizedFilter as QuotaProviderType)
+        ? (normalizedFilter as QuotaProviderType)
+        : null;
   // The toggle knob reads the live value; the (expensive) card grid re-renders
   // behind it via useDeferredValue so flipping density never blocks the click.
   const gridCompactMode = useDeferredValue(compactMode);
