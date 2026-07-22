@@ -34,6 +34,8 @@ import {
   hasAuthFileStatusMessage,
   isRuntimeOnlyAuthFile,
   normalizeProviderKey,
+  canonicalAuthFileType,
+  qoderRegionOf,
   parsePriorityValue,
   type QuotaProviderType,
   type ResolvedTheme,
@@ -239,6 +241,7 @@ export function AuthFilesPage() {
   const [xaiStatusFilter, setXaiStatusFilter] = useState<XaiStatusFilter>(
     initialUi.xaiStatusFilter
   );
+  const [qoderRegionFilter, setQoderRegionFilter] = useState<'all' | 'cn' | 'intl'>('all');
   const [codexRefreshByName, setCodexRefreshByName] = useState<Record<string, CodexRefreshState>>(
     {}
   );
@@ -334,6 +337,7 @@ export function AuthFilesPage() {
   const enabledOnly = statusFilterMode === 'enabled';
   const isCodexSelected = normalizedFilter === 'codex';
   const isXaiSelected = normalizedFilter === 'xai';
+  const isQoderSelected = normalizedFilter === 'qoder';
 
   useEffect(() => {
     writeAuthFilesUiState({
@@ -564,7 +568,7 @@ export function AuthFilesPage() {
   const existingTypes = useMemo(() => {
     const types = new Set<string>(['all']);
     files.forEach((file) => {
-      const type = normalizeProviderKey(String(file.type ?? file.provider ?? ''));
+      const type = canonicalAuthFileType(String(file.type ?? file.provider ?? ''));
       if (type) types.add(type);
     });
     return Array.from(types);
@@ -624,7 +628,7 @@ export function AuthFilesPage() {
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = { all: filesMatchingStatusFilters.length };
     filesMatchingStatusFilters.forEach((file) => {
-      const type = normalizeProviderKey(String(file.type ?? file.provider ?? ''));
+      const type = canonicalAuthFileType(String(file.type ?? file.provider ?? ''));
       if (!type) return;
       counts[type] = (counts[type] || 0) + 1;
     });
@@ -638,8 +642,13 @@ export function AuthFilesPage() {
     const normalizedTerm = normalizedSearch.toLowerCase();
 
     return filesMatchingStatusFilters.filter((item) => {
-      const type = normalizeProviderKey(String(item.type ?? item.provider ?? ''));
+      const rawType = String(item.type ?? item.provider ?? '');
+      const type = canonicalAuthFileType(rawType);
       const matchType = normalizedFilter === 'all' || type === normalizedFilter;
+      const matchRegion =
+        !isQoderSelected ||
+        qoderRegionFilter === 'all' ||
+        qoderRegionOf(rawType) === qoderRegionFilter;
       const matchSearch =
         !normalizedSearch ||
         [item.name, item.type, item.provider, item.note, item.disabled_reason].some((value) => {
@@ -648,9 +657,16 @@ export function AuthFilesPage() {
             ? wildcardSearch.test(content)
             : content.toLowerCase().includes(normalizedTerm);
         });
-      return matchType && matchSearch;
+      return matchType && matchRegion && matchSearch;
     });
-  }, [filesMatchingStatusFilters, normalizedFilter, normalizedSearch, wildcardSearch]);
+  }, [
+    filesMatchingStatusFilters,
+    normalizedFilter,
+    normalizedSearch,
+    wildcardSearch,
+    isQoderSelected,
+    qoderRegionFilter,
+  ]);
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
@@ -819,6 +835,7 @@ export function AuthFilesPage() {
                   setCodexPlanFilter('all');
                 }
                 if (type !== 'xai') setXaiStatusFilter('all');
+                if (type !== 'qoder') setQoderRegionFilter('all');
                 setPage(1);
               }}
             >
@@ -937,7 +954,9 @@ export function AuthFilesPage() {
                     ? styles.filterControlsCodex
                     : isXaiSelected
                       ? styles.filterControlsXai
-                      : ''
+                      : isQoderSelected
+                        ? styles.filterControlsQoder
+                        : ''
                 }`}
               >
                 <div className={`${styles.filterItem} ${styles.filterSearchItem}`}>
@@ -1044,6 +1063,25 @@ export function AuthFilesPage() {
                         setPage(1);
                       }}
                       ariaLabel={t('auth_files.xai_status_label')}
+                      fullWidth
+                    />
+                  </div>
+                )}
+                {isQoderSelected && (
+                  <div className={`${styles.filterItem} ${styles.qoderRegionItem}`}>
+                    <label>{t('auth_files.qoder_region_label')}</label>
+                    <Select
+                      value={qoderRegionFilter}
+                      options={[
+                        { value: 'all', label: t('auth_files.qoder_region_all') },
+                        { value: 'cn', label: t('auth_files.qoder_region_cn') },
+                        { value: 'intl', label: t('auth_files.qoder_region_intl') },
+                      ]}
+                      onChange={(value) => {
+                        setQoderRegionFilter(value as 'all' | 'cn' | 'intl');
+                        setPage(1);
+                      }}
+                      ariaLabel={t('auth_files.qoder_region_label')}
                       fullWidth
                     />
                   </div>

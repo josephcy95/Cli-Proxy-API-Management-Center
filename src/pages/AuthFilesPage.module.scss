@@ -291,6 +291,34 @@
   }
 }
 
+.filterControlsQoder {
+  grid-template-columns: minmax(220px, 1fr) minmax(96px, 120px) minmax(150px, 190px) minmax(
+      180px,
+      220px
+    );
+  grid-template-areas:
+    'search page-size sort qoder-region'
+    'status status status status';
+
+  @media (max-width: 1120px) {
+    grid-template-columns: minmax(0, 1fr) minmax(104px, 132px) minmax(160px, 1fr);
+    grid-template-areas:
+      'search page-size sort'
+      'qoder-region qoder-region qoder-region'
+      'status status status';
+  }
+
+  @include mobile {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'search'
+      'page-size'
+      'sort'
+      'qoder-region'
+      'status';
+  }
+}
+
 .filterSearchItem {
   grid-area: search;
   min-width: 0;
@@ -336,6 +364,10 @@
 
 .xaiStatusItem {
   grid-area: xai-status;
+}
+
+.qoderRegionItem {
+  grid-area: qoder-region;
 }
 
 .displayOptionToggles {
@@ -1234,6 +1266,26 @@
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.qoderRegionBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, #0f7a32 42%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, #2adb5c 14%, transparent);
+  color: #0f7a32;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+:global([data-theme='dark']) .qoderRegionBadge {
+  color: #7dffa2;
+  border-color: color-mix(in srgb, #7dffa2 40%, transparent);
 }
 
 .subscriptionBadge {

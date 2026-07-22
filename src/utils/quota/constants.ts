@@ -34,6 +34,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#E8FBEF', text: '#0F7A32' },
     dark: { bg: '#0F3D1F', text: '#7DFFA2' },
   },
+  qoder: {
+    light: { bg: '#E8FBEF', text: '#0F7A32' },
+    dark: { bg: '#0F3D1F', text: '#7DFFA2' },
+  },
   antigravity: {
     light: { bg: '#e0f7fa', text: '#006064' },
     dark: { bg: '#004d40', text: '#80deea' },

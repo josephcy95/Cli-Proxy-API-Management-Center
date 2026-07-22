@@ -77,6 +77,11 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#E8FBEF', text: '#0F7A32' },
     dark: { bg: '#0F3D1F', text: '#7DFFA2' },
   },
+  // Qoder (international): same brand family as qodercn
+  qoder: {
+    light: { bg: '#E8FBEF', text: '#0F7A32' },
+    dark: { bg: '#0F3D1F', text: '#7DFFA2' },
+  },
   // Gemini logo: 多色蓝 #3186FF（偏柔和的蓝）
   gemini: {
     light: { bg: '#e3f2fd', text: '#1565c0' },
@@ -137,6 +142,7 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   iflow: iconIflow,
   kimi: { light: iconKimiDark, dark: iconKimiLight },
   qodercn: iconQoderCN,
+  qoder: iconQoderCN,
   qwen: iconQwen,
   vertex: iconVertex,
 };
@@ -155,6 +161,29 @@ export const resolveQuotaErrorMessage = (
 };
 
 export const normalizeProviderKey = normalizeOAuthProviderKey;
+
+/**
+ * Qoder ships two variants that share one provider family in the UI:
+ * - `qodercn`  → China region (qoder.com.cn)
+ * - `qoder`    → International (qoder.sh)
+ *
+ * The auth-files filter pills collapse both under a single "qoder" pill via
+ * canonicalAuthFileType; the CN/Intl distinction is surfaced through a card
+ * badge and a sub-filter instead of separate pills.
+ */
+export const canonicalAuthFileType = (type: string): string => {
+  const key = normalizeProviderKey(type);
+  return key === 'qodercn' ? 'qoder' : key;
+};
+
+/** Region of a Qoder-family auth file, or null for non-Qoder providers. */
+export type QoderRegion = 'cn' | 'intl';
+export const qoderRegionOf = (type: string): QoderRegion | null => {
+  const key = normalizeProviderKey(type);
+  if (key === 'qodercn') return 'cn';
+  if (key === 'qoder') return 'intl';
+  return null;
+};
 
 export const buildOAuthProviderOptions = (values: Iterable<unknown>): string[] => {
   const extraProviders = new Set<string>();

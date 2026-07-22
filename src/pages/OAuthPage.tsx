@@ -109,6 +109,12 @@ const PROVIDERS: BuiltInOAuthProviderCard[] = [
     titleKey: 'auth_login.qodercn_oauth_title',
     icon: iconQoderCN,
   },
+  {
+    kind: 'builtin',
+    id: 'qoder',
+    titleKey: 'auth_login.qoder_oauth_title',
+    icon: iconQoderCN,
+  },
 ];
 
 const BUILTIN_PROVIDER_IDS = new Set<string>(PROVIDERS.map((provider) => provider.id));

@@ -29,6 +29,7 @@ import {
   getTypeLabel,
   isRuntimeOnlyAuthFile,
   normalizeProviderKey,
+  qoderRegionOf,
   parsePriorityValue,
   type QuotaProviderType,
   type ResolvedTheme,
@@ -107,6 +108,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
   };
   const isRuntimeOnly = isRuntimeOnlyAuthFile(file);
   const providerKey = normalizeProviderKey(String(file.type ?? file.provider ?? 'unknown'));
+  const qoderRegion = qoderRegionOf(String(file.type ?? file.provider ?? ''));
   const isAistudio = providerKey === 'aistudio';
   const showModelsButton = !isRuntimeOnly || isAistudio;
   const typeColor = getTypeColor(providerKey, resolvedTheme);
@@ -210,6 +212,20 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                 >
                   {typeLabel}
                 </span>
+                {qoderRegion && (
+                  <span
+                    className={styles.qoderRegionBadge}
+                    title={
+                      qoderRegion === 'cn'
+                        ? t('auth_files.qoder_region_cn')
+                        : t('auth_files.qoder_region_intl')
+                    }
+                  >
+                    {qoderRegion === 'cn'
+                      ? t('auth_files.qoder_region_badge_cn')
+                      : t('auth_files.qoder_region_badge_intl')}
+                  </span>
+                )}
                 {providerKey === 'codex' && allowPrivateInstructions && (
                   <span
                     className={styles.privateInstructionsBadge}
