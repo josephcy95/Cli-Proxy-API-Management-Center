@@ -6,6 +6,7 @@ import axios from 'axios';
 import { normalizeModelList } from '@/utils/models';
 import { normalizeApiBase } from '@/utils/connection';
 import { apiCallApi, getApiCallErrorMessage } from './apiCall';
+import { apiClient } from './client';
 import { isRecord } from '@/utils/helpers';
 
 const DEFAULT_CLAUDE_BASE_URL = 'https://api.anthropic.com';
@@ -81,7 +82,55 @@ const resolveBearerTokenFromAuthorization = (headers: Record<string, string>): s
   return match?.[1]?.trim() || '';
 };
 
+export interface ModelSourceCandidate {
+  provider: string;
+  label?: string;
+  priority: number;
+  key_priority?: number;
+  auth_index?: string;
+  auth_id?: string;
+  status?: string;
+  disabled?: boolean;
+  unavailable?: boolean;
+  base_url?: string;
+  preferred?: boolean;
+}
+
+export type ModelSourcesMap = Record<string, ModelSourceCandidate[]>;
+
 export const modelsApi = {
+  /**
+   * Candidate auth pools for each model id (management API).
+   * Ordered by scheduler preference: provider priority, then key priority.
+   */
+  async fetchModelSources(): Promise<ModelSourcesMap> {
+    const data = await apiClient.get<{ models?: ModelSourcesMap }>('/model-sources');
+    if (!isRecord(data) || !isRecord(data.models)) {
+      return {};
+    }
+    const out: ModelSourcesMap = {};
+    Object.entries(data.models).forEach(([modelId, sources]) => {
+      if (!Array.isArray(sources)) return;
+      out[modelId] = sources.filter(isRecord).map((raw) => ({
+        provider: String(raw.provider ?? ''),
+        label: raw.label != null ? String(raw.label) : undefined,
+        priority: Number.isFinite(Number(raw.priority)) ? Number(raw.priority) : 0,
+        key_priority:
+          raw.key_priority !== undefined && Number.isFinite(Number(raw.key_priority))
+            ? Number(raw.key_priority)
+            : undefined,
+        auth_index: raw.auth_index != null ? String(raw.auth_index) : undefined,
+        auth_id: raw.auth_id != null ? String(raw.auth_id) : undefined,
+        status: raw.status != null ? String(raw.status) : undefined,
+        disabled: raw.disabled === true,
+        unavailable: raw.unavailable === true,
+        base_url: raw.base_url != null ? String(raw.base_url) : undefined,
+        preferred: raw.preferred === true,
+      }));
+    });
+    return out;
+  },
+
   /**
    * Fetch available models from /v1/models endpoint (for system info page)
    */

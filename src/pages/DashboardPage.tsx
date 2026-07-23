@@ -21,11 +21,12 @@ import {
   useNotificationStore,
   useThemeStore,
 } from '@/stores';
-import { authFilesApi, configApi, versionApi } from '@/services/api';
+import { authFilesApi, configApi, modelsApi, versionApi } from '@/services/api';
+import type { ModelSourceCandidate, ModelSourcesMap } from '@/services/api/models';
 import { useApiKeysForModels } from '@/hooks/useApiKeysForModels';
 import { formatDateTimeValue } from '@/utils/format';
 import { getDashboardModelsStatValue } from '@/utils/dashboard';
-import { classifyModels } from '@/utils/models';
+import { classifyModels, type ModelInfo } from '@/utils/models';
 import iconGemini from '@/assets/icons/gemini.svg';
 import iconClaude from '@/assets/icons/claude.svg';
 import iconOpenaiLight from '@/assets/icons/openai-light.svg';
@@ -129,6 +130,7 @@ export function DashboardPage() {
   const [requestLogDraft, setRequestLogDraft] = useState(false);
   const [requestLogTouched, setRequestLogTouched] = useState(false);
   const [requestLogSaving, setRequestLogSaving] = useState(false);
+  const [modelSources, setModelSources] = useState<ModelSourcesMap>({});
 
   const modelsSectionRef = useRef<HTMLElement | null>(null);
   const versionTapCount = useRef(0);
@@ -145,7 +147,11 @@ export function DashboardPage() {
       try {
         const apiKeys = await resolveApiKeysForModels({ force: forceRefresh });
         const primaryKey = apiKeys[0];
-        await fetchModelsFromStore(apiBase, primaryKey, forceRefresh);
+        const [, sources] = await Promise.all([
+          fetchModelsFromStore(apiBase, primaryKey, forceRefresh),
+          modelsApi.fetchModelSources().catch(() => ({} as ModelSourcesMap)),
+        ]);
+        setModelSources(sources);
       } catch {
         // Loading, empty, and error states are surfaced by the models store below.
       }
@@ -595,14 +601,11 @@ export function DashboardPage() {
                     </div>
                     <div className={styles.modelTags}>
                       {group.items.map((model) => (
-                        <span
+                        <ModelTagWithSources
                           key={`${model.name}-${model.alias ?? 'default'}`}
-                          className={styles.modelTag}
-                          title={model.description || ''}
-                        >
-                          <span className={styles.modelName}>{model.name}</span>
-                          {model.alias && <span className={styles.modelAlias}>{model.alias}</span>}
-                        </span>
+                          model={model}
+                          sources={resolveModelSources(model, modelSources)}
+                        />
                       ))}
                     </div>
                   </div>
@@ -647,5 +650,87 @@ export function DashboardPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+function resolveModelSources(model: ModelInfo, sources: ModelSourcesMap): ModelSourceCandidate[] {
+  const name = model.name?.trim();
+  if (name && sources[name]?.length) return sources[name];
+  const alias = model.alias?.trim();
+  if (alias && sources[alias]?.length) return sources[alias];
+  return [];
+}
+
+function ModelTagWithSources({
+  model,
+  sources,
+}: {
+  model: ModelInfo;
+  sources: ModelSourceCandidate[];
+}) {
+  const { t } = useTranslation();
+  const preferred = sources.find((s) => s.preferred) ?? sources[0];
+
+  return (
+    <span className={styles.modelTag}>
+      <span className={styles.modelName}>{model.name}</span>
+      {model.alias && <span className={styles.modelAlias}>{model.alias}</span>}
+      <span className={styles.modelSourceTooltip} role="tooltip">
+        <span className={styles.modelSourceTitle}>{t('system_info.model_sources_title')}</span>
+        {sources.length === 0 ? (
+          <span className={styles.modelSourceEmpty}>{t('system_info.model_sources_empty')}</span>
+        ) : (
+          <ul className={styles.modelSourceList}>
+            {sources.map((source, index) => {
+              const label = source.label || source.provider || source.auth_id || '—';
+              const flags: string[] = [];
+              if (source.preferred) flags.push(t('system_info.model_sources_preferred'));
+              if (source.disabled) flags.push(t('system_info.model_sources_disabled'));
+              if (source.unavailable) flags.push(t('system_info.model_sources_unavailable'));
+              return (
+                <li
+                  key={`${source.auth_id || source.auth_index || label}-${index}`}
+                  className={[
+                    styles.modelSourceItem,
+                    source.preferred ? styles.modelSourcePreferred : '',
+                    source.disabled || source.unavailable ? styles.modelSourceMuted : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  <span className={styles.modelSourceLabel}>
+                    {source.preferred ? '★ ' : ''}
+                    {label}
+                  </span>
+                  <span className={styles.modelSourceMeta}>
+                    {t('system_info.model_sources_priority', { value: source.priority ?? 0 })}
+                    {source.key_priority !== undefined && source.key_priority !== 0
+                      ? ` · ${t('system_info.model_sources_key_priority', {
+                          value: source.key_priority,
+                        })}`
+                      : ''}
+                    {source.provider ? ` · ${source.provider}` : ''}
+                    {flags.length ? ` · ${flags.join(', ')}` : ''}
+                  </span>
+                  {source.base_url ? (
+                    <span className={styles.modelSourceBase}>{source.base_url}</span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {preferred && sources.length > 0 ? (
+          <span className={styles.modelSourceHint}>
+            → {preferred.label || preferred.provider}
+            {preferred.priority !== undefined
+              ? ` (P${preferred.priority}${
+                  preferred.key_priority ? `/K${preferred.key_priority}` : ''
+                })`
+              : ''}
+          </span>
+        ) : null}
+      </span>
+    </span>
   );
 }
