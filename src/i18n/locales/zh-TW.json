@@ -1392,6 +1392,7 @@
     "model_sources_empty": "此模型尚無已註冊來源",
     "model_sources_disabled": "已停用",
     "model_sources_unavailable": "不可用",
+    "model_sources_more": "依優先級另有 {{count}} 個",
     "version_check_button": "檢查更新",
     "version_update_available": "有新版本可用：{{version}}",
     "version_is_latest": "目前已是最新版本",

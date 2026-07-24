@@ -661,6 +661,8 @@ function resolveModelSources(model: ModelInfo, sources: ModelSourcesMap): ModelS
   return [];
 }
 
+const MODEL_SOURCE_TOOLTIP_LIMIT = 5;
+
 function ModelTagWithSources({
   model,
   sources,
@@ -669,6 +671,9 @@ function ModelTagWithSources({
   sources: ModelSourceCandidate[];
 }) {
   const { t } = useTranslation();
+  // API already returns candidates sorted by scheduler preference (priority, key_priority).
+  const visibleSources = sources.slice(0, MODEL_SOURCE_TOOLTIP_LIMIT);
+  const hiddenCount = Math.max(0, sources.length - visibleSources.length);
   const preferred = sources.find((s) => s.preferred) ?? sources[0];
 
   return (
@@ -681,7 +686,7 @@ function ModelTagWithSources({
           <span className={styles.modelSourceEmpty}>{t('system_info.model_sources_empty')}</span>
         ) : (
           <ul className={styles.modelSourceList}>
-            {sources.map((source, index) => {
+            {visibleSources.map((source, index) => {
               const label = source.label || source.provider || source.auth_id || '—';
               const flags: string[] = [];
               if (source.preferred) flags.push(t('system_info.model_sources_preferred'));
@@ -720,6 +725,11 @@ function ModelTagWithSources({
             })}
           </ul>
         )}
+        {hiddenCount > 0 ? (
+          <span className={styles.modelSourceMore}>
+            {t('system_info.model_sources_more', { count: hiddenCount })}
+          </span>
+        ) : null}
         {preferred && sources.length > 0 ? (
           <span className={styles.modelSourceHint}>
             → {preferred.label || preferred.provider}

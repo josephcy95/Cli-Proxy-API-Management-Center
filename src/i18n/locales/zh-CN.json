@@ -1366,6 +1366,7 @@
     "model_sources_empty": "该模型暂无已注册来源",
     "model_sources_disabled": "已禁用",
     "model_sources_unavailable": "不可用",
+    "model_sources_more": "按优先级另有 {{count}} 个",
     "version_check_button": "检查更新",
     "version_update_available": "有新版本可用：{{version}}",
     "version_is_latest": "当前已是最新版本",

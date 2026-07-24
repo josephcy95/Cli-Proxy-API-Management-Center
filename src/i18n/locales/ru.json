@@ -1344,6 +1344,7 @@
     "model_sources_empty": "Для этой модели нет зарегистрированных источников",
     "model_sources_disabled": "отключён",
     "model_sources_unavailable": "недоступен",
+    "model_sources_more": "ещё {{count}} по приоритету",
     "version_check_button": "Проверить обновления",
     "version_update_available": "Доступно обновление: {{version}}",
     "version_is_latest": "Установлена последняя версия",

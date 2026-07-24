@@ -1457,6 +1457,7 @@
     "model_sources_empty": "No registered sources for this model",
     "model_sources_disabled": "disabled",
     "model_sources_unavailable": "unavailable",
+    "model_sources_more": "+{{count}} more by priority",
     "version_check_button": "Check for updates",
     "version_update_available": "An update is available: {{version}}",
     "version_is_latest": "You are on the latest version",
