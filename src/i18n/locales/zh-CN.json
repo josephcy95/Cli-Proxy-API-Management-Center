@@ -176,6 +176,9 @@
     "health_status_warning": "警告",
     "health_status_disabled": "已停用",
     "download_button": "下载",
+    "manual_refresh_button": "刷新 OAuth 凭证",
+    "manual_refresh_requested": "已提交 \"{{name}}\" 的凭证刷新请求",
+    "manual_refresh_failed": "提交 \"{{name}}\" 的凭证刷新请求失败：{{message}}",
     "delete_button": "删除",
     "delete_confirm": "确定要删除文件",
     "delete_all_confirm": "确定要删除所有认证文件吗？此操作不可恢复！",
@@ -1013,9 +1016,7 @@
           "timeout": "Timeout",
           "stabilize_device": "稳定设备指纹",
           "stabilize_device_desc": "固定 OS/Arch，并按凭据/API Key 稳定软件指纹",
-          "beta_features": "Beta Features",
-          "codex_identity_confuse": "Codex 身份混淆",
-          "codex_identity_confuse_desc": "在 fill-first 或会话粘性路由下，按所选认证重映射 Codex prompt_cache_key 与安装身份"
+          "beta_features": "Beta Features"
         },
         "network": {
           "title": "网络配置",
@@ -1540,7 +1541,11 @@
   },
   "sidebar": {
     "toggle_expand": "展开侧边栏",
-    "toggle_collapse": "收起侧边栏"
+    "toggle_collapse": "收起侧边栏",
+    "expand": "展开",
+    "collapse": "收起",
+    "subtitle": "CLI Proxy API 管理控制台",
+    "auth_files_count": "认证文件：{{count}} 个"
   },
   "footer": {
     "api_version": "CLI Proxy API 版本",
