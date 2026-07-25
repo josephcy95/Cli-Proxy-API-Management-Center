@@ -1807,6 +1807,8 @@
     "filter_statuses": "Статусы",
     "filter_sources": "Источник",
     "filter_api_keys": "API Key",
+    "filter_type_to_search": "Введите для фильтра…",
+    "filter_no_matches": "Нет совпадений",
     "status_success": "Успех",
     "status_failed": "Ошибка",
     "stats_disabled_hint": "Статистика использования выключена. Включите её, чтобы писать запросы в локальную БД.",

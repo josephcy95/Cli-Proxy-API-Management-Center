@@ -152,6 +152,8 @@
     "filter_statuses": "Statuses",
     "filter_sources": "Source",
     "filter_api_keys": "API Key",
+    "filter_type_to_search": "Type to filter…",
+    "filter_no_matches": "No matches",
     "status_success": "Success",
     "status_failed": "Failed",
     "stats_disabled_hint": "Usage statistics are disabled. Enable them to record requests into the local usage database.",

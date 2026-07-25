@@ -1829,6 +1829,8 @@
     "filter_statuses": "状态",
     "filter_sources": "来源",
     "filter_api_keys": "API Key",
+    "filter_type_to_search": "输入以筛选…",
+    "filter_no_matches": "无匹配项",
     "status_success": "成功",
     "status_failed": "失败",
     "stats_disabled_hint": "使用统计未启用。启用后会将请求写入本地 usage 数据库。",

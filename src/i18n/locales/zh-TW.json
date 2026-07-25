@@ -1855,6 +1855,8 @@
     "filter_statuses": "狀態",
     "filter_sources": "來源",
     "filter_api_keys": "API Key",
+    "filter_type_to_search": "輸入以篩選…",
+    "filter_no_matches": "無符合項目",
     "status_success": "成功",
     "status_failed": "失敗",
     "stats_disabled_hint": "使用統計未啟用。啟用後會將請求寫入本機 usage 資料庫。",

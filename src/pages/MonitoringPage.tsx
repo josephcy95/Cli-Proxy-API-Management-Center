@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   Table,
   TableBody,
@@ -295,6 +296,27 @@ export function MonitoringPage() {
     setRange('24h');
   };
 
+  // When cascaded options shrink, drop selections that no longer exist in the data.
+  useEffect(() => {
+    if (!filterOptions) return;
+
+    const hasValue = (values: string[] | undefined, pick: string) =>
+      Boolean(pick) && (values || []).includes(pick);
+
+    if (model && !hasValue(filterOptions.models, model)) {
+      setModel('');
+    }
+    if (provider && !hasValue(filterOptions.providers, provider)) {
+      setProvider('');
+    }
+    if (source && !hasValue(filterOptions.sources, source)) {
+      setSource('');
+    }
+    if (apiKey && !hasValue(filterOptions.api_keys, apiKey)) {
+      setApiKey('');
+    }
+  }, [filterOptions, model, provider, source, apiKey]);
+
   const enableStatistics = async () => {
     try {
       await apiClient.put('/usage-statistics-enabled', { value: true });
@@ -465,21 +487,24 @@ export function MonitoringPage() {
     ['all', t('monitoring.range_all')],
   ];
 
-  const providerOptions = useMemo(
-    () => [
+  const providerOptions = useMemo(() => {
+    const values = [...(filterOptions?.providers || [])];
+    // Keep the active selection visible for one frame before cascade auto-clear.
+    if (provider && !values.includes(provider)) values.unshift(provider);
+    return [
       { value: '', label: t('monitoring.filter_providers') },
-      ...(filterOptions?.providers || []).map((p) => ({ value: p, label: p })),
-    ],
-    [filterOptions?.providers, t]
-  );
+      ...values.map((p) => ({ value: p, label: p })),
+    ];
+  }, [filterOptions?.providers, provider, t]);
 
-  const modelOptions = useMemo(
-    () => [
+  const modelOptions = useMemo(() => {
+    const values = [...(filterOptions?.models || [])];
+    if (model && !values.includes(model)) values.unshift(model);
+    return [
       { value: '', label: t('monitoring.filter_models') },
-      ...(filterOptions?.models || []).map((m) => ({ value: m, label: m })),
-    ],
-    [filterOptions?.models, t]
-  );
+      ...values.map((m) => ({ value: m, label: m })),
+    ];
+  }, [filterOptions?.models, model, t]);
 
   const statusOptions = useMemo(
     () => [
@@ -492,14 +517,14 @@ export function MonitoringPage() {
 
   const sourceOptions = useMemo(() => {
     // Distinct emails / API keys only — skip auth_index hashes (already listed under Auth elsewhere).
-    const values = Array.from(new Set((filterOptions?.sources || []).filter(Boolean))).sort(
-      (a, b) => a.localeCompare(b)
-    );
+    const values = Array.from(new Set((filterOptions?.sources || []).filter(Boolean)));
+    if (source && !values.includes(source)) values.push(source);
+    values.sort((a, b) => a.localeCompare(b));
     return [
       { value: '', label: t('monitoring.filter_sources') },
       ...values.map((s) => ({ value: s, label: s })),
     ];
-  }, [filterOptions?.sources, t]);
+  }, [filterOptions?.sources, source, t]);
 
   const formatApiKeyDisplay = useCallback(
     (key?: string | null, hash?: string | null) => {
@@ -515,13 +540,13 @@ export function MonitoringPage() {
   );
 
   const apiKeyOptions = useMemo(() => {
-    const values = Array.from(new Set((filterOptions?.api_keys || []).filter(Boolean))).sort(
-      (a, b) => {
-        const la = formatApiKeyDisplay(a).toLowerCase();
-        const lb = formatApiKeyDisplay(b).toLowerCase();
-        return la.localeCompare(lb) || a.localeCompare(b);
-      }
-    );
+    const values = Array.from(new Set((filterOptions?.api_keys || []).filter(Boolean)));
+    if (apiKey && !values.includes(apiKey)) values.push(apiKey);
+    values.sort((a, b) => {
+      const la = formatApiKeyDisplay(a).toLowerCase();
+      const lb = formatApiKeyDisplay(b).toLowerCase();
+      return la.localeCompare(lb) || a.localeCompare(b);
+    });
     return [
       { value: '', label: t('monitoring.filter_api_keys') },
       ...values.map((k) => ({
@@ -530,7 +555,7 @@ export function MonitoringPage() {
         label: apiKeyLabels[k] || k,
       })),
     ];
-  }, [filterOptions?.api_keys, apiKeyLabels, formatApiKeyDisplay, t]);
+  }, [filterOptions?.api_keys, apiKey, apiKeyLabels, formatApiKeyDisplay, t]);
 
   const autoOptions = useMemo(
     () =>
@@ -629,39 +654,47 @@ export function MonitoringPage() {
         </div>
 
         <div className={styles.filterSecondary}>
-          <Select
+          <SearchableSelect
             className={styles.filterSelect}
             value={source}
             options={sourceOptions}
             onChange={setSource}
             ariaLabel={t('monitoring.filter_sources')}
+            searchPlaceholder={t('monitoring.filter_type_to_search')}
+            emptyMessage={t('monitoring.filter_no_matches')}
             size="sm"
             fullWidth
           />
-          <Select
+          <SearchableSelect
             className={styles.filterSelect}
             value={apiKey}
             options={apiKeyOptions}
             onChange={setApiKey}
             ariaLabel={t('monitoring.filter_api_keys')}
+            searchPlaceholder={t('monitoring.filter_type_to_search')}
+            emptyMessage={t('monitoring.filter_no_matches')}
             size="sm"
             fullWidth
           />
-          <Select
+          <SearchableSelect
             className={styles.filterSelect}
             value={provider}
             options={providerOptions}
             onChange={setProvider}
             ariaLabel={t('monitoring.filter_providers')}
+            searchPlaceholder={t('monitoring.filter_type_to_search')}
+            emptyMessage={t('monitoring.filter_no_matches')}
             size="sm"
             fullWidth
           />
-          <Select
+          <SearchableSelect
             className={styles.filterSelect}
             value={model}
             options={modelOptions}
             onChange={setModel}
             ariaLabel={t('monitoring.filter_models')}
+            searchPlaceholder={t('monitoring.filter_type_to_search')}
+            emptyMessage={t('monitoring.filter_no_matches')}
             size="sm"
             fullWidth
           />
