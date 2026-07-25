@@ -364,6 +364,13 @@ export const authFilesApi = {
       expired: buildManualRefreshExpiredAt(),
     }),
 
+  /** Clear CPA-local quota/cooldown routing for one auth index. */
+  resetQuota: (authIndex: string) =>
+    apiClient.post<{ status?: string; auth_index?: string; models?: string[] }>(
+      '/reset-quota',
+      { auth_index: authIndex }
+    ),
+
   uploadFiles: async (files: File[]): Promise<AuthFileBatchUploadResult> => {
     const requestedNames = files.map((file) => file.name);
     if (requestedNames.length === 0) {

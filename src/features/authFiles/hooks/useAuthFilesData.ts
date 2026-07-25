@@ -15,6 +15,7 @@ import {
   normalizeProviderKey,
   supportsAuthFileManualRefresh,
 } from '@/features/authFiles/constants';
+import { getAuthFileAuthIndex } from '@/features/authFiles/cooldown';
 
 type DeleteAllOptions = {
   filter: string;
@@ -38,7 +39,9 @@ export type UseAuthFilesDataResult = {
   deletingAll: boolean;
   statusUpdating: Record<string, boolean>;
   manualRefreshing: Record<string, boolean>;
+  cooldownResetting: Record<string, boolean>;
   batchStatusUpdating: boolean;
+  batchCooldownResetting: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
   loadFiles: (options?: { silent?: boolean }) => Promise<void>;
   handleUploadClick: () => void;
@@ -47,6 +50,7 @@ export type UseAuthFilesDataResult = {
   handleDeleteAll: (options: DeleteAllOptions) => void;
   handleDownload: (name: string) => Promise<void>;
   handleManualRefresh: (item: AuthFileItem) => Promise<void>;
+  handleResetCooldown: (item: AuthFileItem) => void;
   handleStatusToggle: (item: AuthFileItem, enabled: boolean) => Promise<void>;
   toggleSelect: (name: string) => void;
   selectAllVisible: (visibleFiles: AuthFileItem[]) => void;
@@ -55,6 +59,7 @@ export type UseAuthFilesDataResult = {
   batchDownload: (names: string[]) => Promise<void>;
   batchSetStatus: (names: string[], enabled: boolean) => Promise<void>;
   batchDelete: (names: string[]) => void;
+  batchResetCooldown: (files: AuthFileItem[]) => void;
 };
 
 export function useAuthFilesData(): UseAuthFilesDataResult {
@@ -69,12 +74,16 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
   const [deletingAll, setDeletingAll] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState<Record<string, boolean>>({});
   const [manualRefreshing, setManualRefreshing] = useState<Record<string, boolean>>({});
+  const [cooldownResetting, setCooldownResetting] = useState<Record<string, boolean>>({});
   const [batchStatusUpdating, setBatchStatusUpdating] = useState(false);
+  const [batchCooldownResetting, setBatchCooldownResetting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const manualRefreshPendingRef = useRef<Set<string>>(new Set());
+  const cooldownResetPendingRef = useRef<Set<string>>(new Set());
   const batchStatusPendingRef = useRef(false);
+  const batchCooldownPendingRef = useRef(false);
   const selectionCount = selectedFiles.size;
   const toggleSelect = useCallback((name: string) => {
     setSelectedFiles((prev) => {
@@ -479,6 +488,151 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
     [showNotification, t]
   );
 
+  const runResetCooldown = useCallback(async (item: AuthFileItem): Promise<boolean> => {
+    const name = item.name.trim();
+    const authIndex = getAuthFileAuthIndex(item);
+    // Visibility uses canResetAuthCooldown; the API call only needs a valid auth_index
+    // and a non-disabled file (Codex live windows may force-show the button).
+    if (!name || !authIndex || item.disabled === true || isRuntimeOnlyAuthFile(item)) {
+      return false;
+    }
+    if (cooldownResetPendingRef.current.has(name)) return false;
+
+    cooldownResetPendingRef.current.add(name);
+    setCooldownResetting((prev) => ({ ...prev, [name]: true }));
+    try {
+      await authFilesApi.resetQuota(authIndex);
+      return true;
+    } finally {
+      cooldownResetPendingRef.current.delete(name);
+      setCooldownResetting((prev) => {
+        if (!prev[name]) return prev;
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+  }, []);
+
+  const handleResetCooldown = useCallback(
+    (item: AuthFileItem) => {
+      const name = item.name.trim();
+      const authIndex = getAuthFileAuthIndex(item);
+      if (
+        !name ||
+        !authIndex ||
+        item.disabled === true ||
+        isRuntimeOnlyAuthFile(item) ||
+        cooldownResetPendingRef.current.has(name)
+      ) {
+        return;
+      }
+
+      showConfirmation({
+        title: t('auth_files.reset_cooldown_confirm_title'),
+        message: t('auth_files.reset_cooldown_confirm_message', { name }),
+        confirmText: t('auth_files.reset_cooldown_confirm_button'),
+        variant: 'primary',
+        onConfirm: async () => {
+          try {
+            const ok = await runResetCooldown(item);
+            if (!ok) {
+              showNotification(
+                t('auth_files.reset_cooldown_failed', {
+                  name,
+                  message: t('auth_files.reset_cooldown_unavailable'),
+                }),
+                'error'
+              );
+              return;
+            }
+            showNotification(t('auth_files.reset_cooldown_success', { name }), 'success');
+            notifyAuthFilesChanged();
+            await loadFiles({ silent: true });
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : t('notification.update_failed');
+            showNotification(t('auth_files.reset_cooldown_failed', { name, message }), 'error');
+          }
+        },
+      });
+    },
+    [loadFiles, runResetCooldown, showConfirmation, showNotification, t]
+  );
+
+  const batchResetCooldown = useCallback(
+    (candidates: AuthFileItem[]) => {
+      if (batchCooldownPendingRef.current) return;
+
+      // Callers pass already-filtered cooled-down files (including Codex live windows).
+      const targets = candidates.filter((file) => {
+        const name = file.name.trim();
+        return (
+          Boolean(name) &&
+          Boolean(getAuthFileAuthIndex(file)) &&
+          file.disabled !== true &&
+          !isRuntimeOnlyAuthFile(file) &&
+          !cooldownResetPendingRef.current.has(name)
+        );
+      });
+      if (targets.length === 0) {
+        showNotification(t('auth_files.reset_cooldown_batch_empty'), 'info');
+        return;
+      }
+
+      showConfirmation({
+        title: t('auth_files.reset_cooldown_batch_confirm_title'),
+        message: t('auth_files.reset_cooldown_batch_confirm_message', { count: targets.length }),
+        confirmText: t('auth_files.reset_cooldown_confirm_button'),
+        variant: 'primary',
+        onConfirm: async () => {
+          if (batchCooldownPendingRef.current) return;
+          batchCooldownPendingRef.current = true;
+          setBatchCooldownResetting(true);
+
+          let succeeded = 0;
+          let failed = 0;
+          try {
+            for (const file of targets) {
+              try {
+                const ok = await runResetCooldown(file);
+                if (ok) succeeded += 1;
+                else failed += 1;
+              } catch {
+                failed += 1;
+              }
+            }
+
+            if (succeeded > 0 && failed === 0) {
+              showNotification(
+                t('auth_files.reset_cooldown_batch_success', { count: succeeded }),
+                'success'
+              );
+            } else if (succeeded > 0) {
+              showNotification(
+                t('auth_files.reset_cooldown_batch_partial', {
+                  success: succeeded,
+                  failed,
+                }),
+                'warning'
+              );
+            } else {
+              showNotification(t('auth_files.reset_cooldown_batch_failed'), 'error');
+            }
+
+            if (succeeded > 0) {
+              notifyAuthFilesChanged();
+              await loadFiles({ silent: true });
+            }
+          } finally {
+            batchCooldownPendingRef.current = false;
+            setBatchCooldownResetting(false);
+          }
+        },
+      });
+    },
+    [loadFiles, runResetCooldown, showConfirmation, showNotification, t]
+  );
+
   const handleStatusToggle = useCallback(
     async (item: AuthFileItem, enabled: boolean) => {
       const name = item.name;
@@ -701,7 +855,9 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
     deletingAll,
     statusUpdating,
     manualRefreshing,
+    cooldownResetting,
     batchStatusUpdating,
+    batchCooldownResetting,
     fileInputRef,
     loadFiles,
     handleUploadClick,
@@ -710,6 +866,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
     handleDeleteAll,
     handleDownload,
     handleManualRefresh,
+    handleResetCooldown,
     handleStatusToggle,
     toggleSelect,
     selectAllVisible,
@@ -718,5 +875,6 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
     batchDownload,
     batchSetStatus,
     batchDelete,
+    batchResetCooldown,
   };
 }

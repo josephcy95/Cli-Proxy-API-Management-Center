@@ -10,6 +10,7 @@ import {
   IconModelCluster,
   IconRefreshCw,
   IconSettings,
+  IconTimer,
   IconTrash2,
 } from '@/components/ui/icons';
 import { ProviderStatusBar } from '@/components/providers/ProviderStatusBar';
@@ -38,6 +39,7 @@ import {
   type QuotaProviderType,
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
+import { canResetAuthCooldown } from '@/features/authFiles/cooldown';
 import type { AuthFileStatusBarData } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
 import {
   AuthFileQuotaSection,
@@ -66,12 +68,16 @@ export type AuthFileCardProps = {
   deleting: string | null;
   statusUpdating: Record<string, boolean>;
   manualRefreshing: Record<string, boolean>;
+  cooldownResetting: Record<string, boolean>;
   quotaFilterType: QuotaProviderType | null;
   statusBarCache: Map<string, AuthFileStatusBarData>;
   codexBadges?: string[];
+  /** When true, force-show reset even if static file fields look healthy. */
+  forceShowResetCooldown?: boolean;
   onShowModels: (file: AuthFileItem) => void;
   onDownload: (name: string) => void;
   onManualRefresh: (file: AuthFileItem) => void;
+  onResetCooldown: (file: AuthFileItem) => void;
   onOpenPrefixProxyEditor: (file: AuthFileItem) => void;
   onDelete: (name: string) => void;
   onToggleStatus: (file: AuthFileItem, enabled: boolean) => void;
@@ -106,12 +112,15 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
     deleting,
     statusUpdating,
     manualRefreshing,
+    cooldownResetting,
     quotaFilterType,
     statusBarCache,
     codexBadges = [],
+    forceShowResetCooldown = false,
     onShowModels,
     onDownload,
     onManualRefresh,
+    onResetCooldown,
     onOpenPrefixProxyEditor,
     onDelete,
     onToggleStatus,
@@ -130,7 +139,10 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
   const isAistudio = providerKey === 'aistudio';
   const showModelsButton = !isRuntimeOnly || isAistudio;
   const showManualRefreshButton = !isRuntimeOnly && supportsAuthFileManualRefresh(providerKey);
+  const showResetCooldownButton =
+    !isRuntimeOnly && (forceShowResetCooldown || canResetAuthCooldown(file));
   const isManualRefreshing = manualRefreshing[file.name] === true;
+  const isCooldownResetting = cooldownResetting[file.name] === true;
   const typeColor = getTypeColor(providerKey, resolvedTheme);
   const typeLabel = getTypeLabel(t, providerKey);
   const providerIcon = getAuthFileIcon(providerKey, resolvedTheme);
@@ -392,13 +404,37 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                         disableControls ||
                         file.disabled ||
                         statusUpdating[file.name] === true ||
-                        isManualRefreshing
+                        isManualRefreshing ||
+                        isCooldownResetting
                       }
                     >
                       {isManualRefreshing ? (
                         <LoadingSpinner size={14} />
                       ) : (
                         <IconRefreshCw className={styles.actionIcon} size={16} />
+                      )}
+                    </Button>
+                  )}
+                  {showResetCooldownButton && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onResetCooldown(file)}
+                      className={styles.iconButton}
+                      title={t('auth_files.reset_cooldown_button')}
+                      aria-label={t('auth_files.reset_cooldown_button')}
+                      disabled={
+                        disableControls ||
+                        file.disabled ||
+                        statusUpdating[file.name] === true ||
+                        isManualRefreshing ||
+                        isCooldownResetting
+                      }
+                    >
+                      {isCooldownResetting ? (
+                        <LoadingSpinner size={14} />
+                      ) : (
+                        <IconTimer className={styles.actionIcon} size={16} />
                       )}
                     </Button>
                   )}

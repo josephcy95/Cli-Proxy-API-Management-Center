@@ -34,6 +34,8 @@ export interface AuthFileItem {
   statusMessage?: string;
   xai_last_error_status?: number | string;
   xai_cooldown_until?: string | number;
+  next_retry_after?: string | number;
+  nextRetryAfter?: string | number;
   plan_type?: string;
   chatgpt_plan_type?: string;
   plan_checked_at?: string;

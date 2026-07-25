@@ -66,6 +66,7 @@ import {
   matchesXaiStatusFilter,
   type XaiStatusFilter,
 } from '@/features/authFiles/xaiStatus';
+import { listResettableCooldownFiles } from '@/features/authFiles/cooldown';
 import { fetchCodexUsageSnapshot } from '@/components/quota/quotaConfigs';
 import {
   isAuthFilesStatusFilterMode,
@@ -260,7 +261,9 @@ export function AuthFilesPage() {
     deletingAll,
     statusUpdating,
     manualRefreshing,
+    cooldownResetting,
     batchStatusUpdating,
+    batchCooldownResetting,
     fileInputRef,
     loadFiles,
     handleUploadClick,
@@ -269,6 +272,7 @@ export function AuthFilesPage() {
     handleDeleteAll,
     handleDownload,
     handleManualRefresh,
+    handleResetCooldown,
     handleStatusToggle,
     toggleSelect,
     selectAllVisible,
@@ -277,6 +281,7 @@ export function AuthFilesPage() {
     batchDownload,
     batchSetStatus,
     batchDelete,
+    batchResetCooldown,
   } = useAuthFilesData();
 
   const statusBarCache = useAuthFilesStatusBarCache(files);
@@ -715,6 +720,17 @@ export function AuthFilesPage() {
     () => sorted.filter((file) => !isRuntimeOnlyAuthFile(file)),
     [sorted]
   );
+  const cooldownResettableFilteredItems = useMemo(
+    () =>
+      listResettableCooldownFiles(sorted, (file) => ({
+        codexRefresh: codexRefreshByName[file.name],
+      })),
+    [codexRefreshByName, sorted]
+  );
+  const cooldownResettableNames = useMemo(
+    () => new Set(cooldownResettableFilteredItems.map((file) => file.name)),
+    [cooldownResettableFilteredItems]
+  );
   const selectedNames = useMemo(() => Array.from(selectedFiles), [selectedFiles]);
   const selectedHasStatusUpdating = useMemo(
     () => selectedNames.some((name) => statusUpdating[name] === true),
@@ -909,6 +925,23 @@ export function AuthFilesPage() {
                 {t('auth_files.codex_refresh_button')}
               </Button>
             )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => batchResetCooldown(cooldownResettableFilteredItems)}
+              disabled={
+                disableControls ||
+                loading ||
+                batchCooldownResetting ||
+                cooldownResettableFilteredItems.length === 0
+              }
+              loading={batchCooldownResetting}
+              title={t('auth_files.reset_cooldown_batch_button')}
+            >
+              {t('auth_files.reset_cooldown_batch_button_count', {
+                count: cooldownResettableFilteredItems.length,
+              })}
+            </Button>
             <Button
               size="sm"
               onClick={handleUploadClick}
@@ -1160,12 +1193,15 @@ export function AuthFilesPage() {
                     deleting={deleting}
                     statusUpdating={statusUpdating}
                     manualRefreshing={manualRefreshing}
+                    cooldownResetting={cooldownResetting}
                     quotaFilterType={quotaFilterType}
                     statusBarCache={statusBarCache}
                     codexBadges={codexBadgesByName?.get(file.name) ?? EMPTY_BADGES}
+                    forceShowResetCooldown={cooldownResettableNames.has(file.name)}
                     onShowModels={showModels}
                     onDownload={handleDownload}
                     onManualRefresh={handleManualRefresh}
+                    onResetCooldown={handleResetCooldown}
                     onOpenPrefixProxyEditor={openPrefixProxyEditor}
                     onDelete={handleDelete}
                     onToggleStatus={handleStatusToggle}
