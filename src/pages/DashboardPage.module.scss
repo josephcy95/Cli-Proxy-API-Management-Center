@@ -360,28 +360,15 @@
   display: flex;
   flex-direction: column;
   gap: $spacing-sm;
-  overflow: visible;
-  position: relative;
-  // Let hovered groups paint above later siblings so tooltips aren't buried.
-  isolation: isolate;
 }
 
 .modelGroup {
-  position: relative;
-  z-index: 0;
   border: 1px solid var(--border-color);
   border-radius: $radius-md;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: $spacing-sm;
-  overflow: visible;
-
-  // Elevate the whole group while a tag tooltip is open.
-  &:has(.modelTag:hover),
-  &:has(.modelTag:focus-within) {
-    z-index: 50;
-  }
 }
 
 .modelGroupHead {
@@ -418,8 +405,6 @@
 }
 
 .modelTag {
-  position: relative;
-  z-index: 0;
   display: inline-flex;
   align-items: center;
   gap: $spacing-xs;
@@ -431,18 +416,14 @@
   font-size: 12px;
   cursor: default;
 
-  &:hover,
-  &:focus-within {
+  &:hover {
     border-color: var(--primary-color);
-    // Beat sibling tags and groups so the tooltip is the topmost layer.
-    z-index: $z-dropdown;
+  }
 
-    .modelSourceTooltip {
-      opacity: 1;
-      visibility: visible;
-      transform: translate(-50%, 0);
-      pointer-events: auto;
-    }
+  &:focus-visible {
+    border-color: var(--primary-color);
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
   }
 }
 
@@ -456,31 +437,23 @@
   font-size: 11.5px;
 }
 
+// Rendered through a portal on <body>; position/width/z-index come from inline
+// styles resolved against the anchor rect, so no ancestor can clip or bury it.
 .modelSourceTooltip {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translate(-50%, 4px);
-  min-width: 220px;
-  max-width: min(360px, 80vw);
-  max-height: min(70vh, 420px);
+  display: block;
   overflow-y: auto;
   padding: 10px 12px;
   border-radius: $radius-md;
   border: 1px solid var(--border-color);
   background: var(--bg-elevated, var(--bg-primary));
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
-  opacity: 0;
-  visibility: hidden;
   pointer-events: none;
-  transition:
-    opacity 0.12s ease,
-    transform 0.12s ease,
-    visibility 0.12s ease;
-  // Frontmost within the elevated tag stacking context.
-  z-index: $z-dropdown + 1;
   white-space: normal;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 12px;
   text-align: left;
 }
 

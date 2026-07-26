@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
@@ -149,7 +158,7 @@ export function DashboardPage() {
         const primaryKey = apiKeys[0];
         const [, sources] = await Promise.all([
           fetchModelsFromStore(apiBase, primaryKey, forceRefresh),
-          modelsApi.fetchModelSources().catch(() => ({} as ModelSourcesMap)),
+          modelsApi.fetchModelSources().catch(() => ({}) as ModelSourcesMap),
         ]);
         setModelSources(sources);
       } catch {
@@ -661,7 +670,52 @@ function resolveModelSources(model: ModelInfo, sources: ModelSourcesMap): ModelS
   return [];
 }
 
-const MODEL_SOURCE_TOOLTIP_LIMIT = 5;
+const MODEL_SOURCE_TOOLTIP_LIMIT = 3;
+const TOOLTIP_VIEWPORT_MARGIN = 8;
+const TOOLTIP_OFFSET = 8;
+const TOOLTIP_WIDTH = 300;
+const TOOLTIP_MAX_HEIGHT = 420;
+// Above the modal layer so the tooltip is never buried by page chrome.
+const TOOLTIP_Z_INDEX = 2010;
+
+const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+// The tooltip is portaled to <body>, so it must be positioned against the
+// anchor rect in viewport coordinates instead of relying on the chip's
+// stacking context (which page shells clip with overflow:hidden).
+function resolveTooltipStyle(anchor: HTMLElement): CSSProperties {
+  const rect = anchor.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const width = Math.min(TOOLTIP_WIDTH, Math.max(0, viewportWidth - TOOLTIP_VIEWPORT_MARGIN * 2));
+  const left = clampValue(
+    rect.left + rect.width / 2 - width / 2,
+    TOOLTIP_VIEWPORT_MARGIN,
+    Math.max(TOOLTIP_VIEWPORT_MARGIN, viewportWidth - width - TOOLTIP_VIEWPORT_MARGIN)
+  );
+  const spaceAbove = rect.top - TOOLTIP_VIEWPORT_MARGIN - TOOLTIP_OFFSET;
+  const spaceBelow = viewportHeight - rect.bottom - TOOLTIP_VIEWPORT_MARGIN - TOOLTIP_OFFSET;
+  const openUp = spaceAbove >= spaceBelow;
+  const maxHeight = Math.max(0, Math.min(TOOLTIP_MAX_HEIGHT, openUp ? spaceAbove : spaceBelow));
+
+  return openUp
+    ? {
+        position: 'fixed',
+        bottom: viewportHeight - rect.top + TOOLTIP_OFFSET,
+        left,
+        width,
+        maxHeight,
+        zIndex: TOOLTIP_Z_INDEX,
+      }
+    : {
+        position: 'fixed',
+        top: rect.bottom + TOOLTIP_OFFSET,
+        left,
+        width,
+        maxHeight,
+        zIndex: TOOLTIP_Z_INDEX,
+      };
+}
 
 function ModelTagWithSources({
   model,
@@ -671,76 +725,135 @@ function ModelTagWithSources({
   sources: ModelSourceCandidate[];
 }) {
   const { t } = useTranslation();
+  const anchorRef = useRef<HTMLSpanElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const [open, setOpen] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<CSSProperties | null>(null);
   // API already returns candidates sorted by scheduler preference (priority, key_priority).
   const visibleSources = sources.slice(0, MODEL_SOURCE_TOOLTIP_LIMIT);
   const hiddenCount = Math.max(0, sources.length - visibleSources.length);
   const preferred = sources.find((s) => s.preferred) ?? sources[0];
 
+  const updateTooltipStyle = useCallback(() => {
+    if (!anchorRef.current) return;
+    setTooltipStyle(resolveTooltipStyle(anchorRef.current));
+  }, []);
+
+  const scheduleTooltipStyleUpdate = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (rafRef.current !== null) {
+      window.cancelAnimationFrame(rafRef.current);
+    }
+    rafRef.current = window.requestAnimationFrame(() => {
+      rafRef.current = null;
+      updateTooltipStyle();
+    });
+  }, [updateTooltipStyle]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      if (rafRef.current !== null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      return;
+    }
+
+    updateTooltipStyle();
+
+    const handleViewportChange = () => {
+      scheduleTooltipStyleUpdate();
+    };
+
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [open, scheduleTooltipStyleUpdate, updateTooltipStyle]);
+
+  const tooltip = (
+    <span className={styles.modelSourceTooltip} role="tooltip" style={tooltipStyle ?? undefined}>
+      <span className={styles.modelSourceTitle}>{t('system_info.model_sources_title')}</span>
+      {sources.length === 0 ? (
+        <span className={styles.modelSourceEmpty}>{t('system_info.model_sources_empty')}</span>
+      ) : (
+        <ul className={styles.modelSourceList}>
+          {visibleSources.map((source, index) => {
+            const label = source.label || source.provider || source.auth_id || '—';
+            const flags: string[] = [];
+            if (source.preferred) flags.push(t('system_info.model_sources_preferred'));
+            if (source.disabled) flags.push(t('system_info.model_sources_disabled'));
+            if (source.unavailable) flags.push(t('system_info.model_sources_unavailable'));
+            return (
+              <li
+                key={`${source.auth_id || source.auth_index || label}-${index}`}
+                className={[
+                  styles.modelSourceItem,
+                  source.preferred ? styles.modelSourcePreferred : '',
+                  source.disabled || source.unavailable ? styles.modelSourceMuted : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                <span className={styles.modelSourceLabel}>
+                  {source.preferred ? '★ ' : ''}
+                  {label}
+                </span>
+                <span className={styles.modelSourceMeta}>
+                  {t('system_info.model_sources_priority', { value: source.priority ?? 0 })}
+                  {source.key_priority !== undefined && source.key_priority !== 0
+                    ? ` · ${t('system_info.model_sources_key_priority', {
+                        value: source.key_priority,
+                      })}`
+                    : ''}
+                  {source.provider ? ` · ${source.provider}` : ''}
+                  {flags.length ? ` · ${flags.join(', ')}` : ''}
+                </span>
+                {source.base_url ? (
+                  <span className={styles.modelSourceBase}>{source.base_url}</span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {hiddenCount > 0 ? (
+        <span className={styles.modelSourceMore}>
+          {t('system_info.model_sources_more', { count: hiddenCount })}
+        </span>
+      ) : null}
+      {preferred && sources.length > 0 ? (
+        <span className={styles.modelSourceHint}>
+          → {preferred.label || preferred.provider}
+          {preferred.priority !== undefined
+            ? ` (P${preferred.priority}${preferred.key_priority ? `/K${preferred.key_priority}` : ''})`
+            : ''}
+        </span>
+      ) : null}
+    </span>
+  );
+
   return (
-    <span className={styles.modelTag}>
+    <span
+      ref={anchorRef}
+      className={styles.modelTag}
+      tabIndex={0}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
       <span className={styles.modelName}>{model.name}</span>
       {model.alias && <span className={styles.modelAlias}>{model.alias}</span>}
-      <span className={styles.modelSourceTooltip} role="tooltip">
-        <span className={styles.modelSourceTitle}>{t('system_info.model_sources_title')}</span>
-        {sources.length === 0 ? (
-          <span className={styles.modelSourceEmpty}>{t('system_info.model_sources_empty')}</span>
-        ) : (
-          <ul className={styles.modelSourceList}>
-            {visibleSources.map((source, index) => {
-              const label = source.label || source.provider || source.auth_id || '—';
-              const flags: string[] = [];
-              if (source.preferred) flags.push(t('system_info.model_sources_preferred'));
-              if (source.disabled) flags.push(t('system_info.model_sources_disabled'));
-              if (source.unavailable) flags.push(t('system_info.model_sources_unavailable'));
-              return (
-                <li
-                  key={`${source.auth_id || source.auth_index || label}-${index}`}
-                  className={[
-                    styles.modelSourceItem,
-                    source.preferred ? styles.modelSourcePreferred : '',
-                    source.disabled || source.unavailable ? styles.modelSourceMuted : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                >
-                  <span className={styles.modelSourceLabel}>
-                    {source.preferred ? '★ ' : ''}
-                    {label}
-                  </span>
-                  <span className={styles.modelSourceMeta}>
-                    {t('system_info.model_sources_priority', { value: source.priority ?? 0 })}
-                    {source.key_priority !== undefined && source.key_priority !== 0
-                      ? ` · ${t('system_info.model_sources_key_priority', {
-                          value: source.key_priority,
-                        })}`
-                      : ''}
-                    {source.provider ? ` · ${source.provider}` : ''}
-                    {flags.length ? ` · ${flags.join(', ')}` : ''}
-                  </span>
-                  {source.base_url ? (
-                    <span className={styles.modelSourceBase}>{source.base_url}</span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {hiddenCount > 0 ? (
-          <span className={styles.modelSourceMore}>
-            {t('system_info.model_sources_more', { count: hiddenCount })}
-          </span>
-        ) : null}
-        {preferred && sources.length > 0 ? (
-          <span className={styles.modelSourceHint}>
-            → {preferred.label || preferred.provider}
-            {preferred.priority !== undefined
-              ? ` (P${preferred.priority}${
-                  preferred.key_priority ? `/K${preferred.key_priority}` : ''
-                })`
-              : ''}
-          </span>
-        ) : null}
-      </span>
+      {/* Portaled to <body> so page shells with overflow:hidden cannot clip it. */}
+      {open && typeof document !== 'undefined' ? createPortal(tooltip, document.body) : null}
     </span>
   );
 }
