@@ -110,6 +110,7 @@
     "plugins": "Plugins",
     "plugin_store": "Plugin Store",
     "config_management": "Config Panel",
+    "model_context": "Model Context",
     "logs": "Logs Viewer",
     "system_info": "Management Center Info"
   },
@@ -138,6 +139,7 @@
     "plugin_store": "Discover & install plugins",
     "logs": "Request tracing",
     "config_management": "Gateway configuration",
+    "model_context": "Manual context window sizes",
     "system_info": "Runtime & diagnostics"
   },
   "monitoring": {
@@ -1604,6 +1606,31 @@
     "template_missing": "That template is no longer in the list. Refresh and try again.",
     "template_import_draft": "Loaded “{{name}}” into the editor draft. Save when ready.",
     "template_import_failed": "Failed to import template"
+  },
+  "model_context": {
+    "title": "Model Context Windows",
+    "description": "Context windows are matched against the bundled model catalog by exact model ID, so custom providers with non-standard names end up advertising none. Set them manually here so clients that size requests from the advertised window work correctly.",
+    "reload": "Reload",
+    "save": "Save overrides",
+    "save_success": "Model context windows saved",
+    "filter_missing": "Missing",
+    "filter_overridden": "Overridden",
+    "filter_all": "All models",
+    "search_placeholder": "Search model, provider or name",
+    "missing_hint": "{{count}} model(s) have no context window. Clients that read the advertised window may misbehave until a value is set.",
+    "empty_missing": "Every registered model has a context window.",
+    "empty_filtered": "No models match the current filter.",
+    "context_length_label": "Context window (tokens)",
+    "max_completion_label": "Max output (tokens)",
+    "value_unset": "Not set",
+    "badge_override": "Override",
+    "badge_missing": "No context window",
+    "provider_unknown": "Unknown provider",
+    "status_loading": "Loading models...",
+    "status_loaded": "Loaded",
+    "status_dirty": "Unsaved changes",
+    "status_saving": "Saving...",
+    "status_load_failed": "Failed to load"
   },
   "xai_config": {
     "title": "xAI Failure Policy",

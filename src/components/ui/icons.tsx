@@ -436,6 +436,8 @@ export function IconSidebarQuickStart({ size = 20, ...props }: IconProps) {
 
 export const IconSidebarConfig = IconSlidersHorizontal;
 
+export const IconSidebarModelContext = IconMaximize2;
+
 export function IconSidebarInstructions({ size = 20, ...props }: IconProps) {
   return (
     <svg {...baseSvgProps} width={size} height={size} {...props}>

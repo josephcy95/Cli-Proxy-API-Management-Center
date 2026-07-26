@@ -109,6 +109,7 @@
     "plugins": "插件管理",
     "plugin_store": "插件商店",
     "config_management": "配置面板",
+    "model_context": "模型上下文",
     "logs": "日志查看",
     "system_info": "中心信息",
     "monitoring": "请求监控"
@@ -137,6 +138,7 @@
     "plugin_store": "发现并安装插件",
     "logs": "请求追踪与排查",
     "config_management": "网关基础配置",
+    "model_context": "手动设置上下文窗口",
     "system_info": "运行与诊断信息",
     "monitoring": "实时请求、费用与 Token"
   },
@@ -1511,6 +1513,31 @@
     "template_missing": "该模板已不在列表中，请刷新后重试。",
     "template_import_draft": "已将「{{name}}」载入编辑器草稿。确认后请保存。",
     "template_import_failed": "导入模板失败"
+  },
+  "model_context": {
+    "title": "模型上下文窗口",
+    "description": "上下文窗口通过精确的模型 ID 与内置模型目录匹配，因此使用非标准名称的自定义提供商不会公布上下文窗口。可在此手动设置，使依赖公布值来计算请求大小的客户端正常工作。",
+    "reload": "重新加载",
+    "save": "保存覆盖值",
+    "save_success": "模型上下文窗口已保存",
+    "filter_missing": "缺失",
+    "filter_overridden": "已覆盖",
+    "filter_all": "全部模型",
+    "search_placeholder": "搜索模型、提供商或名称",
+    "missing_hint": "有 {{count}} 个模型没有上下文窗口。在设置数值之前，读取该值的客户端可能出现异常。",
+    "empty_missing": "所有已注册模型都有上下文窗口。",
+    "empty_filtered": "没有符合当前筛选条件的模型。",
+    "context_length_label": "上下文窗口（tokens）",
+    "max_completion_label": "最大输出（tokens）",
+    "value_unset": "未设置",
+    "badge_override": "覆盖",
+    "badge_missing": "无上下文窗口",
+    "provider_unknown": "未知提供商",
+    "status_loading": "正在加载模型...",
+    "status_loaded": "已加载",
+    "status_dirty": "有未保存更改",
+    "status_saving": "正在保存...",
+    "status_load_failed": "加载失败"
   },
   "xai_config": {
     "title": "xAI 失败策略",

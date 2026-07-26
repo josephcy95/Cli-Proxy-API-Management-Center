@@ -19,6 +19,7 @@ import {
   IconSidebarConfig,
   IconSidebarDashboard,
   IconSidebarLogs,
+  IconSidebarModelContext,
   IconSidebarOauth,
   IconSidebarPlugins,
   IconSidebarProviders,
@@ -64,6 +65,7 @@ const sidebarIcons: Record<string, ReactNode> = {
   plugins: <IconSidebarPlugins size={18} />,
   pluginStore: <IconSidebarStore size={18} />,
   config: <IconSidebarConfig size={18} />,
+  modelContext: <IconSidebarModelContext size={18} />,
   logs: <IconSidebarLogs size={18} />,
 };
 
@@ -516,6 +518,11 @@ export function MainLayout() {
           path: '/config',
           labelKey: 'nav.config_management',
           icon: sidebarIcons.config,
+        },
+        {
+          path: '/model-context',
+          labelKey: 'nav.model_context',
+          icon: sidebarIcons.modelContext,
         },
       ],
     },
