@@ -100,7 +100,27 @@ export interface ClaudeExtraUsage {
   utilization: number | null;
 }
 
+/**
+ * One entry of the generic `limits[]` array returned by Anthropic's usage
+ * endpoint. This is the forward-compatible shape: scoped/per-model limits only
+ * appear here, and Anthropic adds new kinds over time, so prefer it over the
+ * named top-level windows.
+ */
+export interface ClaudeUsageLimit {
+  kind?: string | null;
+  group?: string | null;
+  percent?: number | null;
+  severity?: string | null;
+  resets_at?: string | null;
+  is_active?: boolean | null;
+  scope?: {
+    model?: { id?: string | null; display_name?: string | null } | null;
+    surface?: string | null;
+  } | null;
+}
+
 export interface ClaudeUsagePayload {
+  limits?: ClaudeUsageLimit[] | null;
   five_hour?: ClaudeUsageWindow | null;
   seven_day?: ClaudeUsageWindow | null;
   seven_day_oauth_apps?: ClaudeUsageWindow | null;

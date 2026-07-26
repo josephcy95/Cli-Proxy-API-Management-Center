@@ -15,6 +15,7 @@ import type {
   ClaudeProfileResponse,
   ClaudeQuotaState,
   ClaudeQuotaWindow,
+  ClaudeUsageLimit,
   ClaudeUsagePayload,
   CodexRateLimitInfo,
   CodexRateLimitResetCredit,
@@ -1084,13 +1085,58 @@ const renderCodexItems = (
   return h(Fragment, null, ...nodes);
 };
 
-const buildClaudeQuotaWindows = (
+// Label for one entry of the generic `limits[]` array. Anthropic scopes some
+// limits to a specific model (e.g. Fable) and keeps adding new ones, so derive
+// the label from the payload instead of hardcoding a key list. Falls back to a
+// translated kind/group when no scope is present.
+const claudeLimitLabel = (limit: ClaudeUsageLimit, t: TFunction): string => {
+  const modelName = limit.scope?.model?.display_name?.trim();
+  if (modelName) return modelName;
+  const kind = limit.kind?.trim();
+  if (kind) {
+    // Reuse an existing translation when we have one; otherwise humanize the key
+    // so a brand-new limit kind still renders something sensible.
+    const key = `claude_quota.limit_kind_${kind}`;
+    const translated = t(key);
+    if (translated !== key) return translated;
+    return kind.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return t('claude_quota.limit_kind_unknown');
+};
+
+export const buildClaudeQuotaWindows = (
   payload: ClaudeUsagePayload,
   t: TFunction
 ): ClaudeQuotaWindow[] => {
   const windows: ClaudeQuotaWindow[] = [];
+  const seen = new Set<string>();
+
+  // Preferred source: the generic limits[] array. It carries scoped, per-model
+  // limits (the named top-level fields do not) and is what the Claude UI itself
+  // renders, so new limit types appear here without a code change.
+  if (Array.isArray(payload.limits)) {
+    payload.limits.forEach((limit, index) => {
+      if (!limit || typeof limit !== 'object') return;
+      const usedPercent = normalizeNumberValue(limit.percent);
+      // An inactive limit with no usage is noise (e.g. an unstarted session).
+      if (limit.is_active === false && (usedPercent === null || usedPercent === 0)) return;
+      const id = `limit-${limit.kind ?? 'unknown'}-${index}`;
+      seen.add(id);
+      windows.push({
+        id,
+        label: claudeLimitLabel(limit, t),
+        usedPercent,
+        resetLabel: formatQuotaResetTime(limit.resets_at ?? ''),
+      });
+    });
+  }
+
+  // Fall back to the legacy named windows only when limits[] gave us nothing,
+  // so older backends keep working.
+  if (windows.length > 0) return windows;
 
   for (const { key, id, labelKey } of CLAUDE_USAGE_WINDOW_KEYS) {
+    if (seen.has(id)) continue;
     const window = payload[key as keyof ClaudeUsagePayload];
     if (!window || typeof window !== 'object' || !('utilization' in window)) continue;
     const typedWindow = window as { utilization: number; resets_at: string };
@@ -1889,11 +1935,8 @@ const toQoderCNBucket = (raw: unknown): QoderCNQuotaBucket | null => {
   const data = raw as Record<string, unknown>;
   const total = normalizeNumberValue(data.total) ?? 0;
   const used = normalizeNumberValue(data.used) ?? 0;
-  const remaining =
-    normalizeNumberValue(data.remaining) ?? Math.max(0, total - used);
-  const percentage =
-    normalizeNumberValue(data.percentage) ??
-    (total > 0 ? used / total : 0);
+  const remaining = normalizeNumberValue(data.remaining) ?? Math.max(0, total - used);
+  const percentage = normalizeNumberValue(data.percentage) ?? (total > 0 ? used / total : 0);
   const unit = normalizeStringValue(data.unit) ?? 'credits';
   if (total <= 0 && used <= 0 && remaining <= 0) return null;
   return { used, total, remaining, percentage, unit };
@@ -1917,9 +1960,7 @@ const parseQoderCNUsagePayload = (body: unknown): QoderCNQuotaData | null => {
 
   const user = toQoderCNBucket(payload.userQuota ?? payload.user_quota);
   const addon = toQoderCNBucket(payload.addOnQuota ?? payload.addonQuota ?? payload.add_on_quota);
-  const org = toQoderCNBucket(
-    payload.orgResourcePackage ?? payload.org_resource_package
-  );
+  const org = toQoderCNBucket(payload.orgResourcePackage ?? payload.org_resource_package);
   if (!user && !addon && !org) return null;
 
   return {
@@ -1967,16 +2008,10 @@ const fetchQoderQuota = async (
   return payload;
 };
 
-const fetchQoderCNQuota = async (
-  file: AuthFileItem,
-  t: TFunction
-): Promise<QoderCNQuotaData> =>
+const fetchQoderCNQuota = async (file: AuthFileItem, t: TFunction): Promise<QoderCNQuotaData> =>
   fetchQoderQuota(file, t, QODERCN_USAGE_URL, QODERCN_REQUEST_HEADERS, 'qodercn_quota');
 
-const fetchQoderIntlQuota = async (
-  file: AuthFileItem,
-  t: TFunction
-): Promise<QoderCNQuotaData> =>
+const fetchQoderIntlQuota = async (file: AuthFileItem, t: TFunction): Promise<QoderCNQuotaData> =>
   fetchQoderQuota(file, t, QODER_USAGE_URL, QODER_REQUEST_HEADERS, 'qoder_quota');
 
 const renderQoderCNBucket = (
