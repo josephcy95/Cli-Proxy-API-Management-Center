@@ -32,6 +32,7 @@ import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import iconCodex from '@/assets/icons/codex.svg';
 import iconGrok from '@/assets/icons/grok.svg';
 import iconGrokDark from '@/assets/icons/grok-dark.svg';
+import iconQoderCN from '@/assets/icons/qodercn.svg';
 import {
   useAuthStore,
   useConfigStore,
@@ -530,6 +531,11 @@ export function MainLayout() {
       id: 'provider-specific',
       labelKey: 'nav_groups.provider_specific',
       items: [
+        {
+          path: '/qoder-config',
+          labelKey: 'nav.qoder_config',
+          icon: <BrandNavIcon src={iconQoderCN} alt="Qoder" />,
+        },
         {
           path: '/codex-instructions',
           labelKey: 'nav.codex_config',

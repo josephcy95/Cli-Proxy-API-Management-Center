@@ -7,8 +7,10 @@ import type {
   CodexFailureConfig,
   CodexInstructionsConfig,
   Config,
+  QoderConfig,
   RawCodexFailureConfig,
   RawCodexInstructionsConfig,
+  RawQoderConfig,
   RawXAIConfig,
   XAIConfig,
 } from '@/types';
@@ -28,6 +30,11 @@ const DEFAULT_CODEX_INSTRUCTIONS: CodexInstructionsConfig = {
     prefixes: ['private/'],
     suffixes: ['-private'],
   },
+};
+
+const DEFAULT_QODER_CONFIG: QoderConfig = {
+  autoDisableInactiveToken: true,
+  queuedForbiddenCooldownMinutes: 5,
 };
 
 const DEFAULT_XAI_CONFIG: XAIConfig = {
@@ -118,6 +125,26 @@ function serializeCodexInstructions(config: CodexInstructionsConfig): RawCodexIn
 function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   return Math.max(0, Math.floor(value));
+}
+
+export function normalizeQoderConfigResponse(raw: RawQoderConfig): QoderConfig {
+  return {
+    autoDisableInactiveToken:
+      typeof raw['auto-disable-inactive-token'] === 'boolean'
+        ? raw['auto-disable-inactive-token']
+        : raw.autoDisableInactiveToken !== false,
+    queuedForbiddenCooldownMinutes: normalizeNonNegativeInteger(
+      raw['queued-403-cooldown-minutes'] ?? raw.queuedForbiddenCooldownMinutes,
+      DEFAULT_QODER_CONFIG.queuedForbiddenCooldownMinutes
+    ),
+  };
+}
+
+function serializeQoderConfig(config: QoderConfig): RawQoderConfig {
+  return {
+    'auto-disable-inactive-token': config.autoDisableInactiveToken,
+    'queued-403-cooldown-minutes': Math.max(0, Math.floor(config.queuedForbiddenCooldownMinutes)),
+  };
 }
 
 export function normalizeXAIConfigResponse(raw: RawXAIConfig): XAIConfig {
@@ -223,6 +250,16 @@ export const configApi = {
    */
   async updateCodexInstructions(config: CodexInstructionsConfig): Promise<CodexInstructionsConfig> {
     await apiClient.put('/codex-instructions', serializeCodexInstructions(config));
+    return config;
+  },
+
+  async getQoderConfig(): Promise<QoderConfig> {
+    const raw = await apiClient.get<RawQoderConfig>('/qoder-config');
+    return normalizeQoderConfigResponse(raw ?? {});
+  },
+
+  async updateQoderConfig(config: QoderConfig): Promise<QoderConfig> {
+    await apiClient.put('/qoder-config', serializeQoderConfig(config));
     return config;
   },
 

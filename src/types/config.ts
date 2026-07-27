@@ -77,6 +77,18 @@ export interface RawCodexInstructionsConfig {
   };
 }
 
+export interface QoderConfig {
+  autoDisableInactiveToken: boolean;
+  queuedForbiddenCooldownMinutes: number;
+}
+
+export interface RawQoderConfig {
+  'auto-disable-inactive-token'?: boolean;
+  autoDisableInactiveToken?: boolean;
+  'queued-403-cooldown-minutes'?: number;
+  queuedForbiddenCooldownMinutes?: number;
+}
+
 export interface XAIConfig {
   autoDisablePermissionDenied: boolean;
   otherForbiddenCooldownHours: number;
