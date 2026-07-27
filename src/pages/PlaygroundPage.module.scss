@@ -1,0 +1,291 @@
+@use '../styles/variables' as *;
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+  width: 100%;
+  min-width: 0;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-md;
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  color: var(--text-primary);
+}
+
+.routePanel,
+.chatPanel {
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  background: var(--bg-primary);
+  box-shadow: var(--shadow);
+}
+
+.routePanel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $spacing-md;
+  padding: $spacing-lg;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+
+    > span {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 650;
+    }
+  }
+
+  :global(button[class*='trigger']) {
+    height: 38px;
+  }
+}
+
+.routeSummary {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  min-height: 34px;
+  padding: 0 $spacing-md;
+  border-radius: $radius-md;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-family: $font-mono;
+  font-size: 12px;
+  overflow: hidden;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  b {
+    color: var(--text-tertiary);
+  }
+}
+
+.chatPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  overflow: hidden;
+}
+
+.chatHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 $spacing-lg;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: $spacing-md;
+  min-height: 260px;
+  max-height: min(56vh, 640px);
+  padding: $spacing-lg;
+  overflow-y: auto;
+}
+
+.emptyState {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  min-height: 220px;
+  color: var(--text-tertiary);
+  text-align: center;
+
+  strong {
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  span {
+    max-width: 440px;
+    font-size: 12px;
+  }
+}
+
+.message {
+  width: fit-content;
+  max-width: min(78%, 760px);
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+}
+
+.userMessage {
+  align-self: flex-end;
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--primary-contrast);
+
+  .messageRole,
+  .messageMeta {
+    color: color-mix(in srgb, var(--primary-contrast) 68%, transparent);
+  }
+}
+
+.assistantMessage {
+  align-self: flex-start;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.messageRole {
+  margin-bottom: 5px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.messageContent {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.messageMeta {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-family: $font-mono;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.thinking {
+  align-self: flex-start;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.error {
+  margin: 0 $spacing-lg $spacing-sm;
+  padding: 10px 12px;
+  border: 1px solid var(--failure-badge-border);
+  border-radius: $radius-md;
+  background: var(--failure-badge-bg);
+  color: var(--failure-badge-text);
+  font-size: 12px;
+}
+
+.composer {
+  margin: 0 $spacing-lg $spacing-lg;
+  border: 1px solid var(--border-primary);
+  border-radius: $radius-lg;
+  background: var(--bg-secondary);
+  transition: border-color $transition-fast;
+
+  &:focus-within {
+    border-color: var(--primary-color);
+  }
+
+  textarea {
+    display: block;
+    width: 100%;
+    min-height: 82px;
+    padding: 13px 14px;
+    border: 0;
+    outline: 0;
+    resize: vertical;
+    box-sizing: border-box;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    line-height: 1.5;
+
+    &::placeholder {
+      color: var(--text-tertiary);
+    }
+  }
+}
+
+.composerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  padding: 0 10px 10px 14px;
+
+  > span {
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+}
+
+@media (max-width: $breakpoint-mobile) {
+  .routePanel {
+    grid-template-columns: 1fr;
+    padding: $spacing-md;
+  }
+
+  .routeSummary {
+    grid-column: 1;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .message {
+    max-width: 90%;
+  }
+
+  .messages,
+  .chatHeader {
+    padding-left: $spacing-md;
+    padding-right: $spacing-md;
+  }
+
+  .composer {
+    margin: 0 $spacing-md $spacing-md;
+  }
+
+  .composerFooter > span {
+    display: none;
+  }
+
+  .composerFooter {
+    justify-content: flex-end;
+  }
+}

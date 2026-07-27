@@ -25,6 +25,7 @@ import {
   IconSidebarProviders,
   IconSidebarQuota,
   IconSidebarStore,
+  IconBot,
   IconSatellite,
   IconChevronDown,
 } from '@/components/ui/icons';
@@ -58,6 +59,7 @@ function BrandNavIcon({ src, alt }: { src: string; alt: string }) {
 
 const sidebarIcons: Record<string, ReactNode> = {
   dashboard: <IconSidebarDashboard size={18} />,
+  playground: <IconBot size={18} />,
   aiProviders: <IconSidebarProviders size={18} />,
   authFiles: <IconSidebarAuthFiles size={18} />,
   oauth: <IconSidebarOauth size={18} />,
@@ -466,6 +468,11 @@ export function MainLayout() {
           path: '/',
           labelKey: 'nav.dashboard',
           icon: sidebarIcons.dashboard,
+        },
+        {
+          path: '/playground',
+          labelKey: 'nav.playground',
+          icon: sidebarIcons.playground,
         },
       ],
     },

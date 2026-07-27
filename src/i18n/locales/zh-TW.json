@@ -98,6 +98,7 @@
   },
   "nav": {
     "dashboard": "儀表板",
+    "playground": "遊樂場",
     "quick_start": "快速開始",
     "ai_providers": "AI 供應商",
     "auth_files": "驗證檔案",
@@ -1914,6 +1915,40 @@
     "modelCatalog": {
       "notLoaded": "未載入"
     }
+  },
+  "playground": {
+    "title": "遊樂場",
+    "description": "透過指定的模型、供應商和憑證快速傳送測試訊息。",
+    "route": "請求路由",
+    "model": "模型",
+    "provider": "供應商",
+    "credential": "憑證",
+    "select_model": "選擇模型",
+    "select_provider": "選擇供應商",
+    "select_credential": "選擇憑證",
+    "type_to_search": "輸入以搜尋…",
+    "no_models": "沒有可用模型",
+    "no_providers": "沒有可用供應商",
+    "no_credentials": "沒有可用憑證",
+    "unavailable": "不可用",
+    "key_number": "金鑰 {{number}}",
+    "credential_number": "憑證 {{number}}",
+    "no_route": "請選擇可用路由後開始聊天。",
+    "conversation": "對話",
+    "new_chat": "新對話",
+    "empty_title": "可以開始快速測試",
+    "empty_hint": "訊息僅保留在此頁面，離開頁面後會被清除。",
+    "you": "你",
+    "assistant": "助理",
+    "waiting": "正在等待回覆…",
+    "message_placeholder": "向所選模型傳送訊息…",
+    "send_hint": "Enter 傳送 · Shift+Enter 換行",
+    "send": "傳送",
+    "send_failed": "訊息傳送失敗。",
+    "load_failed": "無法載入模型目錄。",
+    "change_route_title": "變更路由？",
+    "change_route_message": "變更模型、供應商或憑證將清除此對話。",
+    "change_route_confirm": "變更並清除"
   },
   "monitoring": {
     "range_24h": "24h",

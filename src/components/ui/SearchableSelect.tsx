@@ -16,6 +16,7 @@ import styles from './SearchableSelect.module.scss';
 export interface SearchableSelectOption {
   value: string;
   label: string;
+  disabled?: boolean;
 }
 
 interface SearchableSelectProps {
@@ -43,11 +44,7 @@ const DROPDOWN_Z_INDEX = 2010;
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const tokenize = (query: string): string[] =>
-  query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
+  query.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
 const matchesQuery = (option: SearchableSelectOption, tokens: string[]): boolean => {
   if (tokens.length === 0) return true;
@@ -59,7 +56,10 @@ const resolveDropdownStyle = (element: HTMLElement): CSSProperties => {
   const rect = element.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const width = Math.min(Math.max(rect.width, 180), Math.max(0, viewportWidth - VIEWPORT_MARGIN * 2));
+  const width = Math.min(
+    Math.max(rect.width, 180),
+    Math.max(0, viewportWidth - VIEWPORT_MARGIN * 2)
+  );
   const left = clamp(
     rect.left,
     VIEWPORT_MARGIN,
@@ -127,9 +127,7 @@ export function SearchableSelect({
     // Always keep the empty "All" option visible so users can clear without
     // wiping the search box first.
     const emptyOptions = options.filter((option) => option.value === '');
-    const matched = options.filter(
-      (option) => option.value !== '' && matchesQuery(option, tokens)
-    );
+    const matched = options.filter((option) => option.value !== '' && matchesQuery(option, tokens));
     return tokens.length === 0 ? options.slice() : [...emptyOptions, ...matched];
   }, [options, tokens]);
 
@@ -141,14 +139,19 @@ export function SearchableSelect({
   const displayText = selected?.label ?? placeholder ?? '';
   const isPlaceholder = !selected && Boolean(placeholder);
 
+  const firstEnabledIndex = filteredOptions.findIndex((option) => !option.disabled);
   const resolvedHighlightedIndex =
-    highlightedIndex >= 0 && highlightedIndex < filteredOptions.length
+    highlightedIndex >= 0 &&
+    highlightedIndex < filteredOptions.length &&
+    !filteredOptions[highlightedIndex]?.disabled
       ? highlightedIndex
       : filteredOptions.length > 0
-        ? Math.max(
-            0,
-            filteredOptions.findIndex((option) => option.value === value)
-          )
+        ? (() => {
+            const selectedFiltered = filteredOptions.findIndex(
+              (option) => option.value === value && !option.disabled
+            );
+            return selectedFiltered >= 0 ? selectedFiltered : firstEnabledIndex;
+          })()
         : -1;
 
   useEffect(() => {
@@ -234,10 +237,12 @@ export function SearchableSelect({
     setHighlightedIndex((prev) => {
       if (filteredOptions.length === 0) return -1;
       if (prev >= 0 && prev < filteredOptions.length) return prev;
-      const selectedFiltered = filteredOptions.findIndex((option) => option.value === value);
-      return selectedFiltered >= 0 ? selectedFiltered : 0;
+      const selectedFiltered = filteredOptions.findIndex(
+        (option) => option.value === value && !option.disabled
+      );
+      return selectedFiltered >= 0 ? selectedFiltered : firstEnabledIndex;
     });
-  }, [filteredOptions, isOpen, value]);
+  }, [filteredOptions, firstEnabledIndex, isOpen, value]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -248,7 +253,7 @@ export function SearchableSelect({
   const commitSelection = useCallback(
     (nextIndex: number) => {
       const nextOption = filteredOptions[nextIndex];
-      if (!nextOption) return;
+      if (!nextOption || nextOption.disabled) return;
       onChange(nextOption.value);
       close();
     },
@@ -258,11 +263,18 @@ export function SearchableSelect({
   const moveHighlight = useCallback(
     (direction: 1 | -1) => {
       if (filteredOptions.length === 0) return;
-      const base = resolvedHighlightedIndex >= 0 ? resolvedHighlightedIndex : direction > 0 ? -1 : 0;
-      const nextIndex = (base + direction + filteredOptions.length) % filteredOptions.length;
-      setHighlightedIndex(nextIndex);
+      const base =
+        resolvedHighlightedIndex >= 0 ? resolvedHighlightedIndex : direction > 0 ? -1 : 0;
+      for (let offset = 1; offset <= filteredOptions.length; offset += 1) {
+        const nextIndex =
+          (base + direction * offset + filteredOptions.length) % filteredOptions.length;
+        if (!filteredOptions[nextIndex]?.disabled) {
+          setHighlightedIndex(nextIndex);
+          return;
+        }
+      }
     },
-    [filteredOptions.length, resolvedHighlightedIndex]
+    [filteredOptions, resolvedHighlightedIndex]
   );
 
   const handleTriggerKeyDown = useCallback(
@@ -345,12 +357,7 @@ export function SearchableSelect({
 
   const dropdown =
     isOpen && dropdownStyle ? (
-      <div
-        ref={dropdownRef}
-        className={styles.dropdown}
-        style={dropdownStyle}
-        role="presentation"
-      >
+      <div ref={dropdownRef} className={styles.dropdown} style={dropdownStyle} role="presentation">
         <div className={styles.searchWrap}>
           <input
             ref={searchRef}
@@ -371,12 +378,7 @@ export function SearchableSelect({
             spellCheck={false}
           />
         </div>
-        <div
-          className={styles.options}
-          id={listboxId}
-          role="listbox"
-          aria-label={ariaLabel}
-        >
+        <div className={styles.options} id={listboxId} role="listbox" aria-label={ariaLabel}>
           {filteredOptions.length === 0 ? (
             <div className={styles.empty}>{emptyMessage}</div>
           ) : (
@@ -390,8 +392,11 @@ export function SearchableSelect({
                   type="button"
                   role="option"
                   aria-selected={active}
-                  className={`${styles.option} ${active ? styles.optionActive : ''} ${highlighted ? styles.optionHighlighted : ''}`.trim()}
-                  onMouseEnter={() => setHighlightedIndex(index)}
+                  className={`${styles.option} ${active ? styles.optionActive : ''} ${highlighted ? styles.optionHighlighted : ''} ${opt.disabled ? styles.optionDisabled : ''}`.trim()}
+                  disabled={opt.disabled}
+                  onMouseEnter={() => {
+                    if (!opt.disabled) setHighlightedIndex(index);
+                  }}
                   onClick={() => commitSelection(index)}
                 >
                   {opt.label}

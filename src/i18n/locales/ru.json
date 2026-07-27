@@ -98,6 +98,7 @@
   },
   "nav": {
     "dashboard": "Панель",
+    "playground": "Песочница",
     "quick_start": "Быстрый старт",
     "ai_providers": "Поставщики AI",
     "auth_files": "Файлы аутентификации",
@@ -1867,6 +1868,40 @@
     "modelCatalog": {
       "notLoaded": "Не загружено"
     }
+  },
+  "playground": {
+    "title": "Песочница",
+    "description": "Быстрая проверка выбранной модели, провайдера и учётных данных.",
+    "route": "Маршрут запроса",
+    "model": "Модель",
+    "provider": "Провайдер",
+    "credential": "Учётные данные",
+    "select_model": "Выберите модель",
+    "select_provider": "Выберите провайдера",
+    "select_credential": "Выберите учётные данные",
+    "type_to_search": "Введите для поиска…",
+    "no_models": "Нет доступных моделей",
+    "no_providers": "Нет доступных провайдеров",
+    "no_credentials": "Нет доступных учётных данных",
+    "unavailable": "Недоступно",
+    "key_number": "Ключ {{number}}",
+    "credential_number": "Учётные данные {{number}}",
+    "no_route": "Выберите доступный маршрут, чтобы начать чат.",
+    "conversation": "Диалог",
+    "new_chat": "Новый чат",
+    "empty_title": "Готово к быстрой проверке",
+    "empty_hint": "Сообщения хранятся только на этой странице и удаляются при выходе.",
+    "you": "Вы",
+    "assistant": "Ассистент",
+    "waiting": "Ожидание ответа…",
+    "message_placeholder": "Сообщение выбранной модели…",
+    "send_hint": "Enter — отправить · Shift+Enter — новая строка",
+    "send": "Отправить",
+    "send_failed": "Не удалось отправить сообщение.",
+    "load_failed": "Не удалось загрузить каталог моделей.",
+    "change_route_title": "Изменить маршрут?",
+    "change_route_message": "Изменение модели, провайдера или учётных данных очистит диалог.",
+    "change_route_confirm": "Изменить и очистить"
   },
   "monitoring": {
     "range_24h": "24h",

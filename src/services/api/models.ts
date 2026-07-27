@@ -90,6 +90,7 @@ export interface ModelSourceCandidate {
   auth_index?: string;
   auth_id?: string;
   status?: string;
+  reason?: string;
   disabled?: boolean;
   unavailable?: boolean;
   base_url?: string;
@@ -122,6 +123,7 @@ export const modelsApi = {
         auth_index: raw.auth_index != null ? String(raw.auth_index) : undefined,
         auth_id: raw.auth_id != null ? String(raw.auth_id) : undefined,
         status: raw.status != null ? String(raw.status) : undefined,
+        reason: raw.reason != null ? String(raw.reason) : undefined,
         disabled: raw.disabled === true,
         unavailable: raw.unavailable === true,
         base_url: raw.base_url != null ? String(raw.base_url) : undefined,

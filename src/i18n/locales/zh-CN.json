@@ -98,6 +98,7 @@
   },
   "nav": {
     "dashboard": "仪表盘",
+    "playground": "游乐场",
     "quick_start": "快速开始",
     "ai_providers": "AI 提供商",
     "auth_files": "认证文件",
@@ -1889,6 +1890,40 @@
     "modelCatalog": {
       "notLoaded": "未加载"
     }
+  },
+  "playground": {
+    "title": "游乐场",
+    "description": "通过指定的模型、提供商和凭证快速发送测试消息。",
+    "route": "请求路由",
+    "model": "模型",
+    "provider": "提供商",
+    "credential": "凭证",
+    "select_model": "选择模型",
+    "select_provider": "选择提供商",
+    "select_credential": "选择凭证",
+    "type_to_search": "输入以搜索…",
+    "no_models": "没有可用模型",
+    "no_providers": "没有可用提供商",
+    "no_credentials": "没有可用凭证",
+    "unavailable": "不可用",
+    "key_number": "密钥 {{number}}",
+    "credential_number": "凭证 {{number}}",
+    "no_route": "请选择可用路由后开始聊天。",
+    "conversation": "对话",
+    "new_chat": "新对话",
+    "empty_title": "可以开始快速测试",
+    "empty_hint": "消息仅保留在此页面，离开页面后会被清除。",
+    "you": "你",
+    "assistant": "助手",
+    "waiting": "正在等待回复…",
+    "message_placeholder": "向所选模型发送消息…",
+    "send_hint": "Enter 发送 · Shift+Enter 换行",
+    "send": "发送",
+    "send_failed": "消息发送失败。",
+    "load_failed": "无法加载模型目录。",
+    "change_route_title": "更改路由？",
+    "change_route_message": "更改模型、提供商或凭证将清除此对话。",
+    "change_route_confirm": "更改并清除"
   },
   "monitoring": {
     "range_24h": "24h",
