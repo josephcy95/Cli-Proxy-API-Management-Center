@@ -80,6 +80,7 @@ function buildInitialForm(
       headers: [emptyHeader()],
       excludedModelsText: '',
       websockets: brand === 'codex' || brand === 'xai' ? false : undefined,
+      allowPrivateInstructions: brand === 'codex' ? false : undefined,
       cloak: isClaudeLikeBrand(brand)
         ? { mode: '', strictMode: false, sensitiveWordsText: '', cacheUserId: false }
         : undefined,
@@ -169,6 +170,8 @@ function buildInitialForm(
       brand === 'codex' || brand === 'xai'
         ? (cfg as ProviderKeyConfig).websockets === true
         : undefined,
+    allowPrivateInstructions:
+      brand === 'codex' ? (cfg as ProviderKeyConfig).allowPrivateInstructions === true : undefined,
     cloak: isClaudeLikeBrand(brand)
       ? {
           mode: (cfg as ProviderKeyConfig).cloak?.mode ?? '',
@@ -644,6 +647,22 @@ export function BaseProviderForm({
             />
             <span className={styles.checkboxText}>
               <span>{t('providersPage.form.websockets')}</span>
+            </span>
+          </label>
+        ) : null}
+
+        {brand === 'codex' ? (
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              className={styles.checkboxBox}
+              checked={form.allowPrivateInstructions ?? false}
+              disabled={mutating}
+              onChange={(e) => updateField('allowPrivateInstructions', e.target.checked)}
+            />
+            <span className={styles.checkboxText}>
+              <span>{t('providersPage.form.allowPrivateInstructions')}</span>
+              <small>{t('providersPage.form.allowPrivateInstructionsHint')}</small>
             </span>
           </label>
         ) : null}

@@ -75,6 +75,10 @@ function providerKeyToResource(
   if (brand === 'codex' || brand === 'xai') {
     flags.websockets = (config as ProviderKeyConfig).websockets === true;
   }
+  if (brand === 'codex') {
+    flags.allowPrivateInstructions =
+      (config as ProviderKeyConfig).allowPrivateInstructions === true;
+  }
   if (brand === 'claude' || brand === 'claudeApi') {
     const cloak = (config as ProviderKeyConfig).cloak;
     flags.cloakEnabled = Boolean(cloak?.mode?.trim());

@@ -151,6 +151,10 @@ const normalizeProviderKeyConfig = (item: unknown): ProviderKeyConfig | null => 
   if (proxyUrl) config.proxyUrl = String(proxyUrl);
   const disableCooling = normalizeBoolean(record?.['disable-cooling']);
   if (disableCooling !== undefined) config.disableCooling = disableCooling;
+  const allowPrivateInstructions = normalizeBoolean(record?.allow_private_instructions);
+  if (allowPrivateInstructions !== undefined) {
+    config.allowPrivateInstructions = allowPrivateInstructions;
+  }
   const headers = normalizeHeaders(record?.headers);
   if (headers) config.headers = headers;
   const models = normalizeModelAliases(record?.models);

@@ -168,6 +168,9 @@ const buildProviderKeyConfig = (
   if ((brand === 'codex' || brand === 'xai') && input.websockets !== undefined) {
     next.websockets = input.websockets;
   }
+  if (brand === 'codex') {
+    next.allowPrivateInstructions = input.allowPrivateInstructions === true;
+  }
   if (brand === 'claude' && input.cloak) {
     next.cloak = {
       mode: input.cloak.mode.trim() || undefined,
