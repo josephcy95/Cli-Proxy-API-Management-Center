@@ -28,20 +28,43 @@ Use 2-space indentation, semicolons, single quotes, ES5 trailing commas, and 100
 ## Testing
 Tests use Bun's built-in test runner and are colocated under `tests/` as `*.test.ts`. Run `bun run test` for focused work and `bun run verify` before handoff. For UI changes, verify the affected route in the browser.
 
-## Upstream sync
+## Upstream sync (preserve this fork’s UI)
+
+This fork exists to keep **custom Management Center design and features**. Upstream is for bug fixes and additive features — not to restyle or replace the fork’s product UI.
+
+### How to sync
 - Prefer a real merge of upstream so GitHub is not left N commits behind.
-- On conflicts: **keep fork features**; take upstream when it is the more robust fix; combine when both matter.
-- **Skip** promotional / ads / decorative splash / recommended-provider marketing chrome unless the user asks for it.
 - After merge: `bun run verify` before any release.
 - Backend contract changes (new management routes, provider keys, auth-file fields) usually land in `../cliproxyapi-forked` first — inspect that repo before renaming routes or provider ids here.
 
+### Take upstream only when
+1. It **fixes a real bug** in the same behavior the fork already has (or a clear defect), or
+2. It adds a **feature** that does not require discarding fork-owned layout/design, or
+3. It is **security / deploy-blocking** in the same code path.
+
+When both sides touch the same feature, **keep fork behavior**; combine only if upstream’s fix is more robust **and** fork semantics survive.
+
+### Never take without asking the user first
+- Dashboard redesigns, motion/animation packs, layout/theme-only polish
+- Rewrites that move or replace fork pages (e.g. `src/pages/DashboardPage*` ↔ `src/features/dashboard/*`) for cosmetics
+- Promo / ads / splash / recommended-provider marketing chrome
+- Any upstream diff that is “UI only” with no bug fix or user-requested feature
+- Anything that would break fork features listed below
+
+**If the merge would change how the product looks or would drop fork-only UI, stop, summarize, and wait for explicit approval.** Do not “just merge and keep going.”
+
+### Incident note (do not repeat)
+`b336b83` pulled an upstream dashboard overhaul that replaced the fork dashboard. That was wrong. It was reverted in `cbf0a14`. Future agents must not re-adopt upstream dashboard chrome unless the user explicitly asks.
+
 ## Fork features / UI surfaces to preserve
+- **Fork-owned design**: dashboard (`src/pages/DashboardPage*`), overall layout/theming, and any custom page chrome the fork already ships — do not replace with upstream redesigns
 - Monitoring page → `/v0/management/usage-*` endpoints (events, summary, filter-options, account-stats, api-key-stats)
 - Model prices / aliases / sync controls
 - Qoder CN and Qoder international OAuth entry points (`/qodercn-auth-url`, `/qoder-auth-url`) and provider cards
-- Codex private-instructions / instructions config UI if present
+- Codex private-instructions / instructions config UI (auth files + Codex AI provider Jailbreak allow)
 - xAI / Codex failure-policy config surfaces
 - Model context overrides management
+- Playground and other fork-only management surfaces
 - Do not reintroduce upstream promo/ads chrome
 
 ## Ship policy
