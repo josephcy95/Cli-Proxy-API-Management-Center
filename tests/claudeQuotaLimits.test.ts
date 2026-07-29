@@ -36,14 +36,11 @@ describe('buildClaudeQuotaWindows', () => {
 
     const windows = buildClaudeQuotaWindows(payload, t);
 
-    // Inactive unused session is noise; Fable is promoted to the dedicated weekly window.
-    // Named five_hour (0%) from the payload is still shown when present.
-    expect(windows.some((w) => w.id === 'limit-session-0')).toBe(false);
-    const fable = windows.find((w) => w.id === 'seven-day-fable');
-    expect(fable).toBeTruthy();
-    expect(fable?.usedPercent).toBe(8);
-    expect(fable?.labelKey).toBe('claude_quota.seven_day_fable');
-    expect(fable?.resetLabel).not.toBe('-');
+    // The inactive, unused session limit is dropped as noise; Fable remains.
+    expect(windows).toHaveLength(1);
+    expect(windows[0].label).toBe('Fable');
+    expect(windows[0].usedPercent).toBe(8);
+    expect(windows[0].resetLabel).not.toBe('-');
   });
 
   test('keeps an active limit even at 0 percent', () => {

@@ -90,7 +90,14 @@ export interface CodexUsagePayload {
 // Claude API payload types
 export interface ClaudeUsageWindow {
   utilization: number;
-  resets_at: string | null;
+  resets_at: string;
+}
+
+export interface ClaudeExtraUsage {
+  is_enabled: boolean;
+  monthly_limit: number;
+  used_credits: number;
+  utilization: number | null;
 }
 
 /**
@@ -110,13 +117,6 @@ export interface ClaudeUsageLimit {
     model?: { id?: string | null; display_name?: string | null } | null;
     surface?: string | null;
   } | null;
-}
-
-export interface ClaudeExtraUsage {
-  is_enabled: boolean;
-  monthly_limit: number;
-  used_credits: number;
-  utilization: number | null;
 }
 
 export interface ClaudeUsagePayload {

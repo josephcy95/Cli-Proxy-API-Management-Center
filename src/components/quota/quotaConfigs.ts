@@ -1085,7 +1085,6 @@ const renderCodexItems = (
   return h(Fragment, null, ...nodes);
 };
 
-
 // Label for one entry of the generic `limits[]` array. Anthropic scopes some
 // limits to a specific model (e.g. Fable) and keeps adding new ones, so derive
 // the label from the payload instead of hardcoding a key list. Falls back to a
@@ -1105,78 +1104,23 @@ const claudeLimitLabel = (limit: ClaudeUsageLimit, t: TFunction): string => {
   return t('claude_quota.limit_kind_unknown');
 };
 
-const isFableModelName = (name: string | null | undefined): boolean => {
-  const normalized = (name ?? '').trim().toLowerCase();
-  return normalized === 'fable' || normalized === 'fable 5';
-};
-
-// Pick the best weekly-scoped Fable entry from limits[] (prefer active + valid percent).
-const findFableUsageLimit = (payload: ClaudeUsagePayload): ClaudeUsageLimit | null => {
-  if (!Array.isArray(payload.limits)) return null;
-  const candidates = payload.limits.filter((limit) => {
-    if (!limit || typeof limit !== 'object') return false;
-    const kind = (limit.kind ?? '').trim().toLowerCase();
-    const modelName = limit.scope?.model?.display_name;
-    return kind === 'weekly_scoped' && isFableModelName(modelName) && normalizeNumberValue(limit.percent) !== null;
-  });
-  return candidates.find((limit) => limit.is_active === true) ?? candidates[0] ?? null;
-};
-
 export const buildClaudeQuotaWindows = (
   payload: ClaudeUsagePayload,
   t: TFunction
 ): ClaudeQuotaWindow[] => {
   const windows: ClaudeQuotaWindow[] = [];
   const seen = new Set<string>();
-  const fableLimit = findFableUsageLimit(payload);
 
-  // Named top-level windows (5h / 7d / …). Skip the legacy Fable field when
-  // limits[] already has a modern weekly-scoped Fable entry.
-  for (const { key, id, labelKey } of CLAUDE_USAGE_WINDOW_KEYS) {
-    if (key === 'iguana_necktie' && fableLimit) continue;
-    if (seen.has(id)) continue;
-    const window = payload[key as keyof ClaudeUsagePayload];
-    if (!window || typeof window !== 'object' || !('utilization' in window)) continue;
-    const typedWindow = window as { utilization: number; resets_at: string | null };
-    const usedPercent = normalizeNumberValue(typedWindow.utilization);
-    const resetLabel = formatQuotaResetTime(typedWindow.resets_at ?? undefined);
-    seen.add(id);
-    windows.push({
-      id,
-      label: t(labelKey),
-      labelKey,
-      usedPercent,
-      resetLabel,
-    });
-  }
-
-  if (fableLimit) {
-    const usedPercent = normalizeNumberValue(fableLimit.percent);
-    if (usedPercent !== null) {
-      windows.push({
-        id: 'seven-day-fable',
-        label: t('claude_quota.seven_day_fable'),
-        labelKey: 'claude_quota.seven_day_fable',
-        usedPercent,
-        resetLabel: formatQuotaResetTime(fableLimit.resets_at ?? undefined),
-      });
-      seen.add('seven-day-fable');
-    }
-  }
-
-  // Other scoped / future limits from limits[] (non-Fable weekly_scoped, session, …).
+  // Preferred source: the generic limits[] array. It carries scoped, per-model
+  // limits (the named top-level fields do not) and is what the Claude UI itself
+  // renders, so new limit types appear here without a code change.
   if (Array.isArray(payload.limits)) {
     payload.limits.forEach((limit, index) => {
       if (!limit || typeof limit !== 'object') return;
       const usedPercent = normalizeNumberValue(limit.percent);
-      if (usedPercent === null) return;
-      if (limit.is_active === false && usedPercent === 0) return;
-      const kind = (limit.kind ?? '').trim().toLowerCase();
-      const modelName = limit.scope?.model?.display_name;
-      // Already rendered via the dedicated Fable window above.
-      if (kind === 'weekly_scoped' && isFableModelName(modelName)) return;
+      // An inactive limit with no usage is noise (e.g. an unstarted session).
+      if (limit.is_active === false && (usedPercent === null || usedPercent === 0)) return;
       const id = `limit-${limit.kind ?? 'unknown'}-${index}`;
-      if (seen.has(id)) return;
       seen.add(id);
       windows.push({
         id,
@@ -1184,6 +1128,26 @@ export const buildClaudeQuotaWindows = (
         usedPercent,
         resetLabel: formatQuotaResetTime(limit.resets_at ?? ''),
       });
+    });
+  }
+
+  // Fall back to the legacy named windows only when limits[] gave us nothing,
+  // so older backends keep working.
+  if (windows.length > 0) return windows;
+
+  for (const { key, id, labelKey } of CLAUDE_USAGE_WINDOW_KEYS) {
+    if (seen.has(id)) continue;
+    const window = payload[key as keyof ClaudeUsagePayload];
+    if (!window || typeof window !== 'object' || !('utilization' in window)) continue;
+    const typedWindow = window as { utilization: number; resets_at: string };
+    const usedPercent = normalizeNumberValue(typedWindow.utilization);
+    const resetLabel = formatQuotaResetTime(typedWindow.resets_at);
+    windows.push({
+      id,
+      label: t(labelKey),
+      labelKey,
+      usedPercent,
+      resetLabel,
     });
   }
 
