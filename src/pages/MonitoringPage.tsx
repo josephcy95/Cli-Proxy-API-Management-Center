@@ -469,14 +469,15 @@ export function MonitoringPage() {
 
   const statsOff = statsEnabledHint === false;
 
-  // The recorded input_tokens is the full prompt; for OpenAI-compatible providers
-  // it already includes cache-read tokens. Show the net (uncached) input so the
-  // Input / Cache read / Cache write / Output cards don't overlap. When input is
-  // already net (Anthropic-style, input < cache read) there is nothing to subtract.
+  // Prefer backend net_input_tokens (per-row billable input, summed in SQL).
+  // Deriving net as aggregate(input) - aggregate(cache_read) under-counts longer
+  // ranges when rows mix OpenAI-style inclusive input with Anthropic-style net input.
   const netInputTokens = summary
-    ? summary.input_tokens >= summary.cache_read_tokens
-      ? summary.input_tokens - summary.cache_read_tokens
-      : summary.input_tokens
+    ? summary.net_input_tokens !== undefined && summary.net_input_tokens !== null
+      ? summary.net_input_tokens
+      : summary.input_tokens >= summary.cache_read_tokens
+        ? summary.input_tokens - summary.cache_read_tokens
+        : summary.input_tokens
     : undefined;
 
   const rangeOptions: Array<[RangeKey, string]> = [

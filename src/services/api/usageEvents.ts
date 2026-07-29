@@ -43,6 +43,8 @@ export interface UsageSummary {
   failure_calls: number;
   success_rate: number;
   input_tokens: number;
+  /** Per-row uncached/billable input, summed in SQL. Prefer over input - cache_read. */
+  net_input_tokens?: number;
   output_tokens: number;
   reasoning_tokens: number;
   cached_tokens: number;
