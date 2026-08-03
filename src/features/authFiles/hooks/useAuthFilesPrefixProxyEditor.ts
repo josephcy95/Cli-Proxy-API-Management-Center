@@ -8,11 +8,18 @@ import {
   applyAuthFileUsingApi,
   normalizeProviderKey,
   parsePriorityValue,
+  readAuthFileDisableCooling,
   readAuthFileWebsockets,
   readAuthFileUsingApi,
   supportsAuthFileWebsockets,
   supportsAuthFileUsingApi,
 } from '@/features/authFiles/constants';
+import {
+  parseCredentialWeightText,
+  readCredentialWeight,
+  validateCredentialWeightText,
+  type CredentialWeightError,
+} from '@/utils/credentialWeight';
 
 type AuthFileHeaders = Record<string, string>;
 type AuthFileHeadersErrorKey =
@@ -22,14 +29,19 @@ type AuthFileHeadersErrorKey =
 type AuthFileContentErrorKey =
   | 'auth_files.prefix_proxy_invalid_json'
   | 'auth_files.prefix_proxy_html_challenge';
+type AuthFileWeightErrorKey = 'auth_files.weight_invalid_integer' | 'auth_files.weight_invalid_max';
+type AuthFileEditorErrorKey = AuthFileHeadersErrorKey | AuthFileWeightErrorKey;
 
 export type PrefixProxyEditorField =
   | 'prefix'
   | 'proxyUrl'
   | 'priority'
+  | 'weight'
+  | 'disableCooling'
   | 'websockets'
   | 'usingApi'
   | 'note'
+  | 'excludedModelsText'
   | 'allowPrivateInstructions'
   | 'headersText';
 
@@ -49,12 +61,18 @@ export type PrefixProxyEditorState = {
   prefix: string;
   proxyUrl: string;
   priority: string;
+  weight: string;
+  weightError: string | null;
+  disableCooling: boolean;
+  disableCoolingTouched: boolean;
   websockets: boolean;
   websocketsTouched: boolean;
   usingApi: boolean;
   usingApiTouched: boolean;
   note: string;
   noteTouched: boolean;
+  excludedModelsText: string;
+  excludedModelsTouched: boolean;
   allowPrivateInstructions: boolean;
   allowPrivateInstructionsTouched: boolean;
   headersText: string;
@@ -117,6 +135,39 @@ const parseHeadersText = (
 
 const normalizeTextField = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
+
+const normalizeExcludedModels = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  value.forEach((item) => {
+    if (typeof item !== 'string') return;
+    const model = item.trim();
+    const key = model.toLowerCase();
+    if (!model || seen.has(key)) return;
+    seen.add(key);
+    result.push(model);
+  });
+  return result;
+};
+
+const parseExcludedModelsText = (value: string): string[] =>
+  normalizeExcludedModels(value.split(/\r?\n/));
+
+const readExcludedModels = (value: Record<string, unknown>): string[] =>
+  normalizeExcludedModels(
+    value.excluded_models !== undefined ? value.excluded_models : value['excluded-models']
+  );
+
+const getExcludedModelsField = (
+  value: Record<string, unknown>
+): 'excluded_models' | 'excluded-models' =>
+  value.excluded_models === undefined && value['excluded-models'] !== undefined
+    ? 'excluded-models'
+    : 'excluded_models';
+
+const credentialWeightErrorKey = (error: CredentialWeightError): AuthFileWeightErrorKey =>
+  error === 'max' ? 'auth_files.weight_invalid_max' : 'auth_files.weight_invalid_integer';
 
 const INVALID_CONTENT_PREVIEW_LIMIT = 1000;
 
@@ -222,9 +273,9 @@ const applyHeadersPatch = (
   }
 };
 
-const buildAuthFileFieldsPatch = (
+export const buildAuthFileFieldsPatch = (
   editor: PrefixProxyEditorState,
-  resolveHeadersError: (key: AuthFileHeadersErrorKey) => string
+  resolveError: (key: AuthFileEditorErrorKey) => string
 ): AuthFileFieldsPatch => {
   const original = editor.json ?? {};
   const patch: AuthFileFieldsPatch = {};
@@ -258,11 +309,43 @@ const buildAuthFileFieldsPatch = (
     }
   }
 
+  const weightError = validateCredentialWeightText(editor.weight);
+  if (weightError) {
+    throw new Error(resolveError(credentialWeightErrorKey(weightError)));
+  }
+  const originalWeight = readCredentialWeight(original.weight);
+  const nextWeight = parseCredentialWeightText(editor.weight);
+  if (nextWeight === undefined) {
+    if (originalWeight !== undefined) patch.weight = null;
+  } else if (nextWeight !== originalWeight) {
+    patch.weight = nextWeight;
+  }
+
+  if (editor.disableCoolingTouched) {
+    const originalDisableCooling = readAuthFileDisableCooling(original);
+    const nextDisableCooling = Boolean(editor.disableCooling);
+    if (nextDisableCooling !== originalDisableCooling) {
+      const field =
+        original.disable_cooling === undefined && original['disable-cooling'] !== undefined
+          ? 'disable-cooling'
+          : 'disable_cooling';
+      patch[field] = nextDisableCooling;
+    }
+  }
+
   if (editor.noteTouched) {
     const originalNote = normalizeTextField(original.note);
     const nextNote = editor.note.trim();
     if (nextNote !== originalNote) {
       patch.note = nextNote;
+    }
+  }
+
+  if (editor.excludedModelsTouched) {
+    const originalExcludedModels = readExcludedModels(original);
+    const nextExcludedModels = parseExcludedModelsText(editor.excludedModelsText);
+    if (JSON.stringify(nextExcludedModels) !== JSON.stringify(originalExcludedModels)) {
+      patch[getExcludedModelsField(original)] = nextExcludedModels;
     }
   }
 
@@ -293,7 +376,7 @@ const buildAuthFileFieldsPatch = (
   if (editor.headersTouched) {
     const { value: parsedHeaders, errorKey } = parseHeadersText(editor.headersText);
     if (errorKey) {
-      throw new Error(resolveHeadersError(errorKey));
+      throw new Error(resolveError(errorKey));
     }
     const headersPatch = buildHeadersPatch(
       normalizeHeaders(original.headers),
@@ -309,10 +392,10 @@ const buildAuthFileFieldsPatch = (
 
 const buildPrefixProxyUpdatedText = (
   editor: PrefixProxyEditorState | null,
-  resolveHeadersError: (key: AuthFileHeadersErrorKey) => string
+  resolveError: (key: AuthFileEditorErrorKey) => string
 ): string => {
   if (!editor?.json) return editor?.rawText ?? '';
-  const patch = buildAuthFileFieldsPatch(editor, resolveHeadersError);
+  const patch = buildAuthFileFieldsPatch(editor, resolveError);
   let next: Record<string, unknown> = { ...editor.json };
   if (patch.prefix !== undefined) {
     if (patch.prefix) {
@@ -337,12 +420,30 @@ const buildPrefixProxyUpdatedText = (
     }
   }
 
+  if (patch.weight !== undefined) {
+    if (patch.weight === null) {
+      delete next.weight;
+    } else {
+      next.weight = patch.weight;
+    }
+  }
+
+  if (patch.disable_cooling !== undefined) next.disable_cooling = patch.disable_cooling;
+  if (patch['disable-cooling'] !== undefined) {
+    next['disable-cooling'] = patch['disable-cooling'];
+  }
+
   if (patch.note !== undefined) {
     if (patch.note) {
       next.note = patch.note;
     } else if ('note' in next) {
       delete next.note;
     }
+  }
+
+  if (patch.excluded_models !== undefined) next.excluded_models = patch.excluded_models;
+  if (patch['excluded-models'] !== undefined) {
+    next['excluded-models'] = patch['excluded-models'];
   }
 
   if (patch.allow_private_instructions !== undefined) {
@@ -376,7 +477,8 @@ export function useAuthFilesPrefixProxyEditor(
   const [prefixProxyEditor, setPrefixProxyEditor] = useState<PrefixProxyEditorState | null>(null);
 
   const hasBlockingValidationError = Boolean(
-    prefixProxyEditor?.headersTouched && prefixProxyEditor.headersError
+    (prefixProxyEditor?.headersTouched && prefixProxyEditor.headersError) ||
+    prefixProxyEditor?.weightError
   );
   const prefixProxyUpdatedText =
     prefixProxyEditor && !hasBlockingValidationError
@@ -418,12 +520,18 @@ export function useAuthFilesPrefixProxyEditor(
       prefix: '',
       proxyUrl: '',
       priority: '',
+      weight: '',
+      weightError: null,
+      disableCooling: false,
+      disableCoolingTouched: false,
       websockets: false,
       websocketsTouched: false,
       usingApi: false,
       usingApiTouched: false,
       note: '',
       noteTouched: false,
+      excludedModelsText: '',
+      excludedModelsTouched: false,
       allowPrivateInstructions: false,
       allowPrivateInstructionsTouched: false,
       headersText: '',
@@ -468,11 +576,14 @@ export function useAuthFilesPrefixProxyEditor(
       const prefix = typeof json.prefix === 'string' ? json.prefix : '';
       const proxyUrl = typeof json.proxy_url === 'string' ? json.proxy_url : '';
       const priority = parsePriorityValue(json.priority);
+      const weight = readCredentialWeight(json.weight);
+      const disableCooling = readAuthFileDisableCooling(json);
       const websockets = supportsAuthFileWebsockets(providerKey)
         ? readAuthFileWebsockets(json)
         : false;
       const usingApi = supportsAuthFileUsingApi(providerKey) ? readAuthFileUsingApi(json) : false;
       const note = typeof json.note === 'string' ? json.note : '';
+      const excludedModelsText = readExcludedModels(json).join('\n');
       const allowPrivateInstructions = Boolean(json.allow_private_instructions);
       const headers = json.headers;
       let headersText = '';
@@ -496,12 +607,18 @@ export function useAuthFilesPrefixProxyEditor(
           prefix,
           proxyUrl,
           priority: priority !== undefined ? String(priority) : '',
+          weight: weight !== undefined ? String(weight) : '',
+          weightError: null,
+          disableCooling,
+          disableCoolingTouched: false,
           websockets,
           websocketsTouched: false,
           usingApi,
           usingApiTouched: false,
           note,
           noteTouched: false,
+          excludedModelsText,
+          excludedModelsTouched: false,
           allowPrivateInstructions,
           allowPrivateInstructionsTouched: false,
           headersText,
@@ -529,6 +646,22 @@ export function useAuthFilesPrefixProxyEditor(
       if (field === 'prefix') return { ...prev, prefix: String(value) };
       if (field === 'proxyUrl') return { ...prev, proxyUrl: String(value) };
       if (field === 'priority') return { ...prev, priority: String(value) };
+      if (field === 'weight') {
+        const weight = String(value);
+        const error = validateCredentialWeightText(weight);
+        return {
+          ...prev,
+          weight,
+          weightError: error ? t(credentialWeightErrorKey(error)) : null,
+        };
+      }
+      if (field === 'disableCooling') {
+        return {
+          ...prev,
+          disableCooling: Boolean(value),
+          disableCoolingTouched: true,
+        };
+      }
       if (field === 'websockets') {
         return { ...prev, websockets: Boolean(value), websocketsTouched: true };
       }
@@ -536,6 +669,13 @@ export function useAuthFilesPrefixProxyEditor(
         return { ...prev, usingApi: Boolean(value), usingApiTouched: true };
       }
       if (field === 'note') return { ...prev, note: String(value), noteTouched: true };
+      if (field === 'excludedModelsText') {
+        return {
+          ...prev,
+          excludedModelsText: String(value),
+          excludedModelsTouched: true,
+        };
+      }
       if (field === 'allowPrivateInstructions') {
         return {
           ...prev,

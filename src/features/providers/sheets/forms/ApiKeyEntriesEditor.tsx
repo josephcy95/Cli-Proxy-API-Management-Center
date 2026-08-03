@@ -8,6 +8,7 @@ import {
   IconPlus,
   IconX,
 } from '@/components/ui/icons';
+import { MAX_CREDENTIAL_WEIGHT } from '@/utils/credentialWeight';
 import type { ApiKeyEntryInput } from '../../types';
 import type { ConnectivityState, ConnectivityStatus } from './useConnectivityTest';
 import { ConnectivityStatusIcon } from './ConnectivityStatusIcon';
@@ -261,6 +262,26 @@ export function ApiKeyEntriesEditor({
                     />
                     <span className={styles.labelHint}>
                       {t('providersPage.form.keyPriorityHint')}
+                    </span>
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label}>{t('providersPage.form.weight')}</label>
+                    <input
+                      type="number"
+                      step="1"
+                      max={MAX_CREDENTIAL_WEIGHT}
+                      className={styles.input}
+                      value={entry.weight ?? ''}
+                      onChange={(e) =>
+                        onUpdate(idx, {
+                          weight: e.target.value === '' ? undefined : Number(e.target.value),
+                        })
+                      }
+                      disabled={mutating}
+                      placeholder="1"
+                    />
+                    <span className={styles.labelHint}>
+                      {t('providersPage.form.weightHint')}
                     </span>
                   </div>
                 </div>

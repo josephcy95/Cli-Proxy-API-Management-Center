@@ -16,9 +16,14 @@ export type AuthFileFieldsPatch = {
   proxy_url?: string;
   headers?: Record<string, string>;
   priority?: number;
+  weight?: number | null;
+  disable_cooling?: boolean;
+  'disable-cooling'?: boolean;
   websockets?: boolean;
   using_api?: boolean;
   note?: string;
+  excluded_models?: string[];
+  'excluded-models'?: string[];
   allow_private_instructions?: boolean;
   plan_type?: string;
   chatgpt_plan_type?: string;

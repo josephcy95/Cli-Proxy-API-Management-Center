@@ -112,6 +112,7 @@ type AntigravityQuotaData = {
 
 type CodexResetCreditsData = {
   availableCount: number | null;
+  applicableAvailableCount: number | null;
   credits: CodexRateLimitResetCredit[];
   error: string;
 };
@@ -120,6 +121,7 @@ type CodexQuotaData = {
   planType: string | null;
   subscriptionActiveUntil: string | number | null;
   rateLimitResetCreditsAvailableCount: number | null;
+  rateLimitResetCreditsApplicableAvailableCount: number | null;
   rateLimitResetCredits: CodexRateLimitResetCredit[];
   rateLimitResetCreditsError: string;
   windows: CodexQuotaWindow[];
@@ -127,7 +129,11 @@ type CodexQuotaData = {
 
 export type CodexUsageSnapshot = Pick<
   CodexQuotaData,
-  'planType' | 'subscriptionActiveUntil' | 'rateLimitResetCreditsAvailableCount' | 'windows'
+  | 'planType'
+  | 'subscriptionActiveUntil'
+  | 'rateLimitResetCreditsAvailableCount'
+  | 'rateLimitResetCreditsApplicableAvailableCount'
+  | 'windows'
 >;
 
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
@@ -578,6 +584,7 @@ const fetchCodexResetCredits = async (
     if (result.statusCode < 200 || result.statusCode >= 300) {
       return {
         availableCount: null,
+        applicableAvailableCount: null,
         credits: [],
         error: getApiCallErrorMessage(result),
       };
@@ -587,6 +594,7 @@ const fetchCodexResetCredits = async (
     if (summary.invalidPayload) {
       return {
         availableCount: null,
+        applicableAvailableCount: null,
         credits: [],
         error: t('codex_quota.reset_credits_invalid_payload'),
       };
@@ -594,12 +602,14 @@ const fetchCodexResetCredits = async (
 
     return {
       availableCount: summary.availableCount,
+      applicableAvailableCount: summary.applicableAvailableCount,
       credits: summary.credits,
       error: '',
     };
   } catch (err: unknown) {
     return {
       availableCount: null,
+      applicableAvailableCount: null,
       credits: [],
       error: err instanceof Error ? err.message : t('common.unknown_error'),
     };
@@ -644,6 +654,9 @@ export const fetchCodexUsageSnapshot = async (
     rateLimitResetCreditsAvailableCount: normalizeNumberValue(
       resetCredits?.available_count ?? resetCredits?.availableCount
     ),
+    rateLimitResetCreditsApplicableAvailableCount: normalizeNumberValue(
+      resetCredits?.applicable_available_count ?? resetCredits?.applicableAvailableCount
+    ),
     windows: buildCodexQuotaWindows(payload, t),
   };
 };
@@ -664,10 +677,15 @@ const fetchCodexQuota = async (file: AuthFileItem, t: TFunction): Promise<CodexQ
     resetCreditsData.availableCount ??
     resetCreditsCountFromDetails ??
     snapshot.rateLimitResetCreditsAvailableCount;
+  const rateLimitResetCreditsApplicableAvailableCount =
+    snapshot.rateLimitResetCreditsApplicableAvailableCount ??
+    resetCreditsData.applicableAvailableCount ??
+    rateLimitResetCreditsAvailableCount;
   return {
     planType: snapshot.planType,
     subscriptionActiveUntil: snapshot.subscriptionActiveUntil,
     rateLimitResetCreditsAvailableCount,
+    rateLimitResetCreditsApplicableAvailableCount,
     rateLimitResetCredits: resetCreditsData.credits,
     rateLimitResetCreditsError: resetCreditsData.error,
     windows: snapshot.windows,
@@ -1407,7 +1425,10 @@ export const CODEX_CONFIG: QuotaConfig<CodexQuotaState, CodexQuotaData> = {
   filterFn: (file) => isCodexFile(file) && !isDisabledAuthFile(file),
   fetchQuota: fetchCodexQuota,
   resetQuota: resetCodexQuota,
-  canResetQuota: (quota) => (quota.rateLimitResetCreditsAvailableCount ?? 0) > 0,
+  canResetQuota: (quota) =>
+    (quota.rateLimitResetCreditsApplicableAvailableCount ??
+      quota.rateLimitResetCreditsAvailableCount ??
+      0) > 0,
   storeSelector: (state) => state.codexQuota,
   storeSetter: 'setCodexQuota',
   buildLoadingState: () => ({
@@ -1422,6 +1443,8 @@ export const CODEX_CONFIG: QuotaConfig<CodexQuotaState, CodexQuotaData> = {
     planType: data.planType,
     subscriptionActiveUntil: data.subscriptionActiveUntil,
     rateLimitResetCreditsAvailableCount: data.rateLimitResetCreditsAvailableCount,
+    rateLimitResetCreditsApplicableAvailableCount:
+      data.rateLimitResetCreditsApplicableAvailableCount,
     rateLimitResetCredits: data.rateLimitResetCredits,
     rateLimitResetCreditsError: data.rateLimitResetCreditsError,
   }),

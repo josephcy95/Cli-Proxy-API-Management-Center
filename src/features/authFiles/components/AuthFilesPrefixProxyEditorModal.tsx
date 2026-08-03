@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Input } from '@/components/ui/Input';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { MAX_CREDENTIAL_WEIGHT } from '@/utils/credentialWeight';
 import type {
   PrefixProxyEditorField,
   PrefixProxyEditorFieldValue,
@@ -76,6 +77,7 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
               !dirty ||
               !editor?.json ||
               Boolean(editor?.headersTouched && editor.headersError)
+              || Boolean(editor?.weightError)
             }
           >
             {t('common.save')}
@@ -146,6 +148,28 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                     disabled={disableControls || editor.saving || !editor.json}
                     onChange={(e) => onChange('priority', e.target.value)}
                   />
+                  <Input
+                    label={t('auth_files.weight_label')}
+                    type="number"
+                    step="1"
+                    max={MAX_CREDENTIAL_WEIGHT}
+                    value={editor.weight}
+                    placeholder="1"
+                    hint={t('auth_files.weight_hint')}
+                    error={editor.weightError ?? undefined}
+                    disabled={disableControls || editor.saving || !editor.json}
+                    onChange={(e) => onChange('weight', e.target.value)}
+                  />
+                  <div className="form-group">
+                    <label>{t('auth_files.disable_cooling_label')}</label>
+                    <ToggleSwitch
+                      checked={editor.disableCooling}
+                      onChange={(value) => onChange('disableCooling', value)}
+                      disabled={disableControls || editor.saving || !editor.json}
+                      ariaLabel={t('auth_files.disable_cooling_label')}
+                    />
+                    <div className="hint">{t('auth_files.disable_cooling_hint')}</div>
+                  </div>
                   {supportsAuthFileWebsockets(editor.providerKey) && (
                     <div className="form-group">
                       <label>{t('auth_files.websockets_label')}</label>
@@ -170,6 +194,18 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                       <div className="hint">{t('auth_files.using_api_hint')}</div>
                     </div>
                   )}
+                  <div className="form-group">
+                    <label>{t('auth_files.excluded_models_label')}</label>
+                    <textarea
+                      className="input"
+                      value={editor.excludedModelsText}
+                      placeholder={t('auth_files.excluded_models_placeholder')}
+                      rows={4}
+                      disabled={disableControls || editor.saving || !editor.json}
+                      onChange={(e) => onChange('excludedModelsText', e.target.value)}
+                    />
+                    <div className="hint">{t('auth_files.excluded_models_hint')}</div>
+                  </div>
                   <div className="form-group">
                     <label>{t('auth_files.headers_label')}</label>
                     <textarea

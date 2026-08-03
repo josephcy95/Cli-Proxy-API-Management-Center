@@ -273,6 +273,7 @@
     "codex_plan_all": "全部套餐",
     "codex_plan_unknown": "未知套餐",
     "priority_display": "优先级",
+    "weight_display": "WRR 权重",
     "page_size_label": "单页数量",
     "view_mode_paged": "按页显示",
     "view_mode_all": "显示全部",
@@ -338,6 +339,12 @@
     "priority_label": "优先级（priority）",
     "priority_placeholder": "例如: 10 或 -1",
     "priority_hint": "仅支持整数；非法值会被忽略。数值越大优先级越高。",
+    "weight_label": "调度权重（weight）",
+    "weight_hint": "默认值为 1；小于或等于 0 时不参与加权调度；最大值为 1,000,000。",
+    "weight_invalid_integer": "权重必须是整数。",
+    "weight_invalid_max": "权重不能超过 1,000,000。",
+    "disable_cooling_label": "禁用指数冷却（disable_cooling）",
+    "disable_cooling_hint": "仅为此凭据跳过失败冷却和指数退避；其他凭据不受影响。",
     "websockets_label": "WebSockets（websockets）",
     "websockets_hint": "为该凭证开启 Responses API 的 websocket 传输。",
     "using_api_label": "使用官方 API（using_api）",
@@ -345,6 +352,9 @@
     "note_label": "备注（note）",
     "note_placeholder": "输入备注信息，例如：张三的账号",
     "note_hint": "可选，用于标记凭证用途或归属；留空则不写入。",
+    "excluded_models_label": "排除模型（excluded_models）",
+    "excluded_models_placeholder": "model-1\nmodel-2\nmodel-prefix-*",
+    "excluded_models_hint": "每行一个模型匹配规则。支持通配符（*）；匹配的模型不会通过此凭据路由。",
     "note_display": "备注",
     "headers_label": "自定义请求头（headers）",
     "headers_placeholder": "{\n  \"Header-Name\": \"value\"\n}",
@@ -1060,6 +1070,7 @@
           "routing_strategy": "路由策略",
           "routing_strategy_hint": "选择凭据选择策略",
           "strategy_round_robin": "轮询 (Round Robin)",
+          "strategy_weighted_round_robin": "加权轮询 (Weighted Round Robin)",
           "strategy_fill_first": "填充优先 (Fill First)",
           "session_affinity_ttl": "会话粘性 TTL",
           "force_model_prefix": "强制模型前缀",
@@ -1668,6 +1679,7 @@
     },
     "providerNames": {
       "gemini": "Gemini",
+      "interactions": "Interactions API",
       "codex": "Codex",
       "xai": "xAI",
       "claude": "Claude",
@@ -1802,6 +1814,8 @@
       "proxyUrl": "代理 URL",
       "prefix": "前缀",
       "priority": "优先级",
+      "weight": "调度权重",
+      "weightHint": "默认 1 · ≤ 0 时不参与 · 最大 1,000,000",
       "disabled": "停用此条目",
       "disabledHint": "停用后不会被网关使用",
       "websockets": "启用 WebSockets",
@@ -1847,7 +1861,9 @@
       "validation": {
         "nameRequired": "名称必填",
         "apiKeyRequired": "至少填写一个 API 密钥",
-        "baseUrlRequired": "服务地址必填"
+        "baseUrlRequired": "服务地址必填",
+        "weightInteger": "调度权重必须是整数",
+        "weightMax": "调度权重不能超过 {{max}}"
       }
     },
     "delete": {

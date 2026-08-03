@@ -27,4 +27,17 @@ describe('Kimi quota ordering', () => {
     expect(rows[0]?.labelParams).toEqual({ duration: '5h' });
     expect(rows[1]?.labelKey).toBe('kimi_quota.weekly_limit');
   });
+
+  test('formats explicit week windows from the Kimi API', () => {
+    const rows = buildKimiQuotaRows({
+      limits: [
+        {
+          detail: { used: 1, limit: 10 },
+          window: { duration: 1, timeUnit: 'TIME_UNIT_WEEK' },
+        },
+      ],
+    });
+
+    expect(rows[0]?.labelParams).toEqual({ duration: '1w' });
+  });
 });

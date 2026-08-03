@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { hasDisableAllModelsRule } from '@/components/providers/utils';
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import type { ModelInfo } from '@/utils/models';
+import { MAX_CREDENTIAL_WEIGHT } from '@/utils/credentialWeight';
 import { PROVIDER_DESCRIPTORS } from '../../descriptors';
 import type {
   ApiKeyEntryInput,
@@ -46,6 +47,7 @@ const emptyApiKeyEntry = (): ApiKeyEntryInput => ({
   apiKey: '',
   proxyUrl: '',
   priority: undefined,
+  weight: undefined,
 });
 const XAI_API_BASE_URL = 'https://api.x.ai/v1';
 
@@ -76,6 +78,7 @@ function buildInitialForm(
       disabled: false,
       disableCooling: false,
       priority: undefined,
+      weight: undefined,
       models: [emptyModel()],
       headers: [emptyHeader()],
       excludedModelsText: '',
@@ -90,7 +93,8 @@ function buildInitialForm(
         brand === 'codex' ||
         brand === 'xai' ||
         isClaudeLikeBrand(brand) ||
-        brand === 'gemini'
+        brand === 'gemini' ||
+        brand === 'interactions'
           ? ''
           : undefined,
       apiKeyEntries: brand === 'openaiCompatibility' ? [emptyApiKeyEntry()] : undefined,
@@ -109,6 +113,7 @@ function buildInitialForm(
       disabled: cfg.disabled === true,
       disableCooling: cfg.disableCooling === true,
       priority: cfg.priority,
+      weight: undefined,
       models: cfg.models?.length
         ? cfg.models.map((m) => ({
             name: m.name,
@@ -132,6 +137,7 @@ function buildInitialForm(
             existingApiKey: entry.apiKey,
             proxyUrl: entry.proxyUrl ?? '',
             priority: entry.priority,
+            weight: entry.weight,
             authIndex: entry.authIndex,
           }))
         : [emptyApiKeyEntry()],
@@ -154,6 +160,7 @@ function buildInitialForm(
     disabled,
     disableCooling: cfg.disableCooling === true,
     priority: cfg.priority,
+    weight: cfg.weight,
     models: cfg.models?.length
       ? cfg.models.map((m) => ({
           name: m.name,
@@ -184,7 +191,11 @@ function buildInitialForm(
       ? (cfg as ProviderKeyConfig).experimentalCchSigning === true
       : undefined,
     testModel:
-      brand === 'codex' || brand === 'xai' || isClaudeLikeBrand(brand) || brand === 'gemini'
+      brand === 'codex' ||
+      brand === 'xai' ||
+      isClaudeLikeBrand(brand) ||
+      brand === 'gemini' ||
+      brand === 'interactions'
         ? ''
         : undefined,
   };
@@ -382,6 +393,18 @@ export function BaseProviderForm({
     if (descriptor.baseUrlRequired && !form.baseUrl.trim()) {
       return t('providersPage.form.validation.baseUrlRequired');
     }
+    const weights = [
+      ...(brand === 'openaiCompatibility'
+        ? (form.apiKeyEntries ?? []).map((entry) => entry.weight)
+        : []),
+      ...(brand !== 'openaiCompatibility' ? [form.weight] : []),
+    ];
+    if (weights.some((weight) => weight !== undefined && !Number.isSafeInteger(weight))) {
+      return t('providersPage.form.validation.weightInteger');
+    }
+    if (weights.some((weight) => weight !== undefined && weight > MAX_CREDENTIAL_WEIGHT)) {
+      return t('providersPage.form.validation.weightMax', { max: MAX_CREDENTIAL_WEIGHT });
+    }
     return null;
   };
 
@@ -418,6 +441,7 @@ export function BaseProviderForm({
   const actualApiKeyEntries = form.apiKeyEntries ?? [];
   const supportsDisableCooling =
     brand === 'gemini' ||
+    brand === 'interactions' ||
     brand === 'codex' ||
     brand === 'xai' ||
     isClaudeLikeBrand(brand) ||
@@ -426,7 +450,7 @@ export function BaseProviderForm({
   const singleConnectivity =
     brand === 'codex' || brand === 'xai'
       ? { status: connectivity.codexStatus, run: connectivity.runCodex }
-      : brand === 'gemini'
+      : brand === 'gemini' || brand === 'interactions'
         ? { status: connectivity.geminiStatus, run: connectivity.runGemini }
         : isClaudeLikeBrand(brand)
           ? { status: connectivity.claudeStatus, run: connectivity.runClaude }
@@ -585,6 +609,28 @@ export function BaseProviderForm({
           </div>
         ) : null}
 
+        {brand !== 'openaiCompatibility' ? (
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor={`${fid}-weight`}>
+              {t('providersPage.form.weight')}
+            </label>
+            <input
+              id={`${fid}-weight`}
+              type="number"
+              step="1"
+              max={MAX_CREDENTIAL_WEIGHT}
+              className={styles.input}
+              value={form.weight ?? ''}
+              placeholder="1"
+              onChange={(e) =>
+                updateField('weight', e.target.value === '' ? undefined : Number(e.target.value))
+              }
+              disabled={mutating}
+            />
+            <span className={styles.labelHint}>{t('providersPage.form.weightHint')}</span>
+          </div>
+        ) : null}
+
         {descriptor.supportsTestModel ? (
           <div className={styles.field}>
             <label className={styles.label} htmlFor={`${fid}-testModel`}>
@@ -592,7 +638,8 @@ export function BaseProviderForm({
               {brand === 'codex' ||
               brand === 'xai' ||
               isClaudeLikeBrand(brand) ||
-              brand === 'gemini' ? (
+              brand === 'gemini' ||
+              brand === 'interactions' ? (
                 <span className={styles.labelHint}>
                   {' '}
                   · {t('providersPage.form.testModelClaudeHint')}

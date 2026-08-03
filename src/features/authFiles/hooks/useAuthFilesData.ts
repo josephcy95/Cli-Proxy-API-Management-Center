@@ -80,6 +80,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadPendingRef = useRef(false);
   const manualRefreshPendingRef = useRef<Set<string>>(new Set());
   const cooldownResetPendingRef = useRef<Set<string>>(new Set());
   const batchStatusPendingRef = useRef(false);
@@ -191,6 +192,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
   }, [t]);
 
   const handleUploadClick = useCallback(() => {
+    if (uploadPendingRef.current) return;
     fileInputRef.current?.click();
   }, []);
 
@@ -231,6 +233,12 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
         return;
       }
 
+      if (uploadPendingRef.current) {
+        event.target.value = '';
+        return;
+      }
+
+      uploadPendingRef.current = true;
       setUploading(true);
       try {
         const result = await authFilesApi.uploadFiles(validFiles);
@@ -254,6 +262,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         showNotification(`${t('notification.upload_failed')}: ${errorMessage}`, 'error');
       } finally {
+        uploadPendingRef.current = false;
         setUploading(false);
         event.target.value = '';
       }

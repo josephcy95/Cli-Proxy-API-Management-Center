@@ -65,6 +65,8 @@ export interface CodexAdditionalRateLimit {
 export interface CodexRateLimitResetCredits {
   available_count?: number | string;
   availableCount?: number | string;
+  applicable_available_count?: number | string;
+  applicableAvailableCount?: number | string;
 }
 
 export interface CodexRateLimitResetCredit {
@@ -217,6 +219,7 @@ export interface CodexQuotaState {
   planType?: string | null;
   subscriptionActiveUntil?: string | number | null;
   rateLimitResetCreditsAvailableCount?: number | null;
+  rateLimitResetCreditsApplicableAvailableCount?: number | null;
   rateLimitResetCredits?: CodexRateLimitResetCredit[];
   rateLimitResetCreditsError?: string;
   error?: string;

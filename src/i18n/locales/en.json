@@ -400,6 +400,7 @@
     "codex_plan_all": "All plans",
     "codex_plan_unknown": "Unknown plan",
     "priority_display": "Priority",
+    "weight_display": "WRR weight",
     "page_size_label": "Per page",
     "view_mode_paged": "Paged",
     "view_mode_all": "Show all",
@@ -465,6 +466,12 @@
     "priority_label": "Priority (priority)",
     "priority_placeholder": "e.g. 10 or -1",
     "priority_hint": "Integers only. Invalid values are ignored. Larger value means higher priority.",
+    "weight_label": "Scheduling weight (weight)",
+    "weight_hint": "Defaults to 1. Values at or below 0 exclude this credential from weighted scheduling; maximum 1,000,000.",
+    "weight_invalid_integer": "Weight must be an integer.",
+    "weight_invalid_max": "Weight cannot exceed 1,000,000.",
+    "disable_cooling_label": "Disable exponential cooldown (disable_cooling)",
+    "disable_cooling_hint": "Skip failure cooldown and exponential backoff only for this credential; other credentials are unaffected.",
     "websockets_label": "WebSockets (websockets)",
     "websockets_hint": "Enable Responses API websocket transport for this credential.",
     "using_api_label": "Use official API (using_api)",
@@ -472,6 +479,9 @@
     "note_label": "Note",
     "note_placeholder": "Enter a note, e.g.: John's account",
     "note_hint": "Optional. Used to describe the purpose or owner of this credential; leave empty to omit.",
+    "excluded_models_label": "Excluded models (excluded_models)",
+    "excluded_models_placeholder": "model-1\nmodel-2\nmodel-prefix-*",
+    "excluded_models_hint": "One model pattern per line. Wildcards (*) are supported; matching models won't be routed through this credential.",
     "note_display": "Note",
     "headers_label": "Custom Headers (headers)",
     "headers_placeholder": "{\n  \"Header-Name\": \"value\"\n}",
@@ -1188,6 +1198,7 @@
           "routing_strategy": "Routing Strategy",
           "routing_strategy_hint": "Select credential selection strategy",
           "strategy_round_robin": "Round Robin",
+          "strategy_weighted_round_robin": "Weighted Round Robin",
           "strategy_fill_first": "Fill First",
           "session_affinity_ttl": "Session Affinity TTL",
           "force_model_prefix": "Force Model Prefix",
@@ -1795,6 +1806,7 @@
     },
     "providerNames": {
       "gemini": "Gemini",
+      "interactions": "Interactions API",
       "codex": "Codex",
       "xai": "xAI",
       "claude": "Claude",
@@ -1929,6 +1941,8 @@
       "proxyUrl": "Proxy URL",
       "prefix": "Prefix",
       "priority": "Priority",
+      "weight": "Scheduling weight",
+      "weightHint": "Default 1 · ≤ 0 is excluded · maximum 1,000,000",
       "disabled": "Disable this entry",
       "disabledHint": "Disabled entries won't be used by the gateway",
       "websockets": "Enable WebSockets",
@@ -1974,7 +1988,9 @@
       "validation": {
         "nameRequired": "Name is required",
         "apiKeyRequired": "At least one API key is required",
-        "baseUrlRequired": "Base URL is required"
+        "baseUrlRequired": "Base URL is required",
+        "weightInteger": "Scheduling weight must be an integer",
+        "weightMax": "Scheduling weight cannot exceed {{max}}"
       }
     },
     "delete": {

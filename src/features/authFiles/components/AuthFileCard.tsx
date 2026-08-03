@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/icons';
 import { ProviderStatusBar } from '@/components/providers/ProviderStatusBar';
 import type { AuthFileItem } from '@/types';
+import { readCredentialWeight } from '@/utils/credentialWeight';
 import { resolveAuthProvider } from '@/utils/quota';
 import {
   normalizeRecentRequestAuthIndex,
@@ -187,6 +188,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
     Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
 
   const priorityValue = parsePriorityValue(file.priority ?? file['priority']);
+  const weightValue = readCredentialWeight(file.weight ?? file['weight']);
   const noteValue = typeof file.note === 'string' ? file.note.trim() : '';
   const disabledReason =
     typeof file.disabled_reason === 'string' ? file.disabled_reason.trim() : '';
@@ -324,6 +326,12 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
               <span className={styles.metaLabel}>{t('auth_files.priority_display')}</span>
               <span className={`${styles.metaValue} ${styles.priorityValue}`}>
                 {priorityValue ?? '-'}
+              </span>
+            </div>
+            <div className={`${styles.metaItem} ${styles.priorityBadge}`}>
+              <span className={styles.metaLabel}>{t('auth_files.weight_display')}</span>
+              <span className={`${styles.metaValue} ${styles.priorityValue}`}>
+                {weightValue ?? '-'}
               </span>
             </div>
             <div className={styles.metaItem}>
