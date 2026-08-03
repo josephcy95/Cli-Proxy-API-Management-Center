@@ -13,12 +13,13 @@ import type {
   CodexFailureConfig,
   CodexInstructionsConfig,
   CodexInstructionsMode,
+  CodexRoutingConfig,
 } from '@/types';
 import styles from './CodexInstructionsPage.module.scss';
 
 const LazyMarkdownSourceEditor = lazy(() => import('@/components/config/MarkdownSourceEditor'));
 
-type CodexConfigTab = 'error_handling' | 'instructions';
+type CodexConfigTab = 'error_handling' | 'routing' | 'instructions';
 
 /** Public Codex-X example instruction templates (list + raw content). */
 const CODEX_X_EXAMPLES_API =
@@ -51,6 +52,10 @@ const DEFAULT_FAILURE: CodexFailureConfig = {
   authFailureDisableAfter: 1,
   usageLimitDisableAfter: 3,
   usageLimitCooldownFallbackHours: 1,
+};
+
+const DEFAULT_ROUTING: CodexRoutingConfig = {
+  preferFreeForSharedModels: false,
 };
 
 function parseModels(value: string): string[] {
@@ -119,6 +124,13 @@ export function CodexInstructionsPage() {
   const [failureSaving, setFailureSaving] = useState(false);
   const [failureError, setFailureError] = useState('');
 
+  // --- Account routing state ---
+  const [routingDraft, setRoutingDraft] = useState<CodexRoutingConfig>(DEFAULT_ROUTING);
+  const [routingSaved, setRoutingSaved] = useState<CodexRoutingConfig>(DEFAULT_ROUTING);
+  const [routingLoading, setRoutingLoading] = useState(true);
+  const [routingSaving, setRoutingSaving] = useState(false);
+  const [routingError, setRoutingError] = useState('');
+
   // --- Instructions state ---
   const [instrDraft, setInstrDraft] = useState<CodexInstructionsConfig>(DEFAULT_INSTRUCTIONS);
   const [instrSaved, setInstrSaved] = useState<CodexInstructionsConfig>(DEFAULT_INSTRUCTIONS);
@@ -157,6 +169,24 @@ export function CodexInstructionsPage() {
         : failureDirty
           ? t('codex_config.failure.status_dirty')
           : t('codex_config.failure.status_loaded');
+
+  const routingDisabled = connectionStatus !== 'connected' || routingLoading || routingSaving;
+  const routingDirty =
+    routingDraft.preferFreeForSharedModels !== routingSaved.preferFreeForSharedModels;
+  const routingStatusClass = routingError
+    ? styles.error
+    : routingDirty
+      ? styles.modified
+      : styles.saved;
+  const routingStatusText = routingError
+    ? t('codex_config.routing.status_load_failed')
+    : routingLoading
+      ? t('codex_config.routing.status_loading')
+      : routingSaving
+        ? t('codex_config.routing.status_saving')
+        : routingDirty
+          ? t('codex_config.routing.status_dirty')
+          : t('codex_config.routing.status_loaded');
 
   const effectiveInstrDraft = useMemo(
     () => ({
@@ -212,7 +242,12 @@ export function CodexInstructionsPage() {
     [t, templates, templatesLoading]
   );
 
-  const activeDirty = activeTab === 'error_handling' ? failureDirty : instrDirty;
+  const activeDirty =
+    activeTab === 'error_handling'
+      ? failureDirty
+      : activeTab === 'routing'
+        ? routingDirty
+        : instrDirty;
   const unsavedChangesDialog = useMemo(
     () => ({
       title: t('common.unsaved_changes_title'),
@@ -224,7 +259,7 @@ export function CodexInstructionsPage() {
   );
 
   useUnsavedChangesGuard({
-    shouldBlock: failureDirty || instrDirty,
+    shouldBlock: failureDirty || routingDirty || instrDirty,
     dialog: unsavedChangesDialog,
   });
 
@@ -251,6 +286,20 @@ export function CodexInstructionsPage() {
     setSuffixMarkersInput(nextConfig.requestMarkers.suffixes.join('\n'));
   }, []);
 
+  const loadRouting = useCallback(async () => {
+    setRoutingLoading(true);
+    setRoutingError('');
+    try {
+      const next = await configApi.getCodexRoutingConfig();
+      setRoutingDraft(next);
+      setRoutingSaved(next);
+    } catch (err: unknown) {
+      setRoutingError(err instanceof Error ? err.message : t('notification.refresh_failed'));
+    } finally {
+      setRoutingLoading(false);
+    }
+  }, [t]);
+
   const loadInstructions = useCallback(async () => {
     setInstrLoading(true);
     setInstrError('');
@@ -266,8 +315,9 @@ export function CodexInstructionsPage() {
 
   useEffect(() => {
     void loadFailure();
+    void loadRouting();
     void loadInstructions();
-  }, [loadFailure, loadInstructions]);
+  }, [loadFailure, loadInstructions, loadRouting]);
 
   const loadTemplates = useCallback(async () => {
     setTemplatesLoading(true);
@@ -413,6 +463,37 @@ export function CodexInstructionsPage() {
     }
   }, [failureDraft, showNotification, t]);
 
+  const handleRoutingReload = useCallback(() => {
+    if (!routingDirty) {
+      void loadRouting();
+      return;
+    }
+    showConfirmation({
+      title: t('common.unsaved_changes_title'),
+      message: t('codex_config.routing.reload_confirm_message'),
+      confirmText: t('codex_config.routing.reload'),
+      cancelText: t('common.cancel'),
+      variant: 'danger',
+      onConfirm: async () => {
+        await loadRouting();
+      },
+    });
+  }, [loadRouting, routingDirty, showConfirmation, t]);
+
+  const handleRoutingSave = useCallback(async () => {
+    setRoutingSaving(true);
+    try {
+      await configApi.updateCodexRoutingConfig(routingDraft);
+      setRoutingSaved(routingDraft);
+      showNotification(t('codex_config.routing.save_success'), 'success');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
+      showNotification(`${t('notification.save_failed')}: ${message}`, 'error');
+    } finally {
+      setRoutingSaving(false);
+    }
+  }, [routingDraft, showNotification, t]);
+
   const handleInstrReload = useCallback(() => {
     if (!instrDirty) {
       void loadInstructions();
@@ -466,6 +547,15 @@ export function CodexInstructionsPage() {
           <button
             type="button"
             role="tab"
+            aria-selected={activeTab === 'routing'}
+            className={`${styles.tabItem} ${activeTab === 'routing' ? styles.tabActive : ''}`}
+            onClick={() => handleTabChange('routing')}
+          >
+            {t('codex_config.tabs.routing')}
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={activeTab === 'instructions'}
             className={`${styles.tabItem} ${activeTab === 'instructions' ? styles.tabActive : ''}`}
             onClick={() => handleTabChange('instructions')}
@@ -493,6 +583,27 @@ export function CodexInstructionsPage() {
                 loading={failureSaving}
               >
                 {t('codex_config.failure.save')}
+              </Button>
+            </>
+          ) : activeTab === 'routing' ? (
+            <>
+              <span className={`${styles.statusBadge} ${routingStatusClass}`}>
+                {routingStatusText}
+              </span>
+              <Button
+                variant="secondary"
+                onClick={handleRoutingReload}
+                disabled={routingLoading || routingSaving}
+              >
+                <IconRefreshCw size={16} />
+                {t('codex_config.routing.reload')}
+              </Button>
+              <Button
+                onClick={handleRoutingSave}
+                disabled={routingDisabled || !routingDirty}
+                loading={routingSaving}
+              >
+                {t('codex_config.routing.save')}
               </Button>
             </>
           ) : (
@@ -620,6 +731,44 @@ export function CodexInstructionsPage() {
                   {t('codex_config.failure.rate_limit_note')}
                 </div>
               </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'routing' && (
+        <div role="tabpanel" aria-label={t('codex_config.tabs.routing')}>
+          {routingError && <div className="error-box">{routingError}</div>}
+
+          <div
+            className={`${styles.policyStrip} ${styles.routingFlow}`}
+            aria-label={t('codex_config.routing.flow_summary')}
+          >
+            <span>{t('codex_config.routing.flow_request')}</span>
+            <span>{t('codex_config.routing.flow_free')}</span>
+            <span>{t('codex_config.routing.flow_paid')}</span>
+          </div>
+
+          <section
+            className={styles.failureSettings}
+            aria-label={t('codex_config.routing.settings_title')}
+          >
+            <div className={styles.settingCard}>
+              <div className={styles.settingHeader}>
+                <div>
+                  <h2>{t('codex_config.routing.prefer_free_label')}</h2>
+                  <p className={styles.settingHint}>{t('codex_config.routing.prefer_free_hint')}</p>
+                </div>
+                <ToggleSwitch
+                  checked={routingDraft.preferFreeForSharedModels}
+                  onChange={(preferFreeForSharedModels) =>
+                    setRoutingDraft({ preferFreeForSharedModels })
+                  }
+                  disabled={routingDisabled}
+                  ariaLabel={t('codex_config.routing.prefer_free_label')}
+                />
+              </div>
+              <div className={styles.reasonNote}>{t('codex_config.routing.fallback_note')}</div>
             </div>
           </section>
         </div>

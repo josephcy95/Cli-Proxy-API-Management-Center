@@ -129,6 +129,16 @@ export interface RawCodexFailureConfig {
   usageLimitCooldownFallbackHours?: number;
 }
 
+/** Codex account-tier routing policy (management /codex-routing-config). */
+export interface CodexRoutingConfig {
+  preferFreeForSharedModels: boolean;
+}
+
+export interface RawCodexRoutingConfig {
+  'prefer-free-for-shared-models'?: boolean;
+  preferFreeForSharedModels?: boolean;
+}
+
 export type RawConfigSection =
   | 'debug'
   | 'proxy-url'

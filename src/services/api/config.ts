@@ -6,10 +6,12 @@ import { apiClient } from './client';
 import type {
   CodexFailureConfig,
   CodexInstructionsConfig,
+  CodexRoutingConfig,
   Config,
   QoderConfig,
   RawCodexFailureConfig,
   RawCodexInstructionsConfig,
+  RawCodexRoutingConfig,
   RawQoderConfig,
   RawXAIConfig,
   XAIConfig,
@@ -211,6 +213,23 @@ export function normalizeCodexFailureConfigResponse(
   };
 }
 
+export function normalizeCodexRoutingConfigResponse(
+  raw: RawCodexRoutingConfig
+): CodexRoutingConfig {
+  return {
+    preferFreeForSharedModels:
+      typeof raw['prefer-free-for-shared-models'] === 'boolean'
+        ? raw['prefer-free-for-shared-models']
+        : Boolean(raw.preferFreeForSharedModels),
+  };
+}
+
+function serializeCodexRoutingConfig(config: CodexRoutingConfig): RawCodexRoutingConfig {
+  return {
+    'prefer-free-for-shared-models': config.preferFreeForSharedModels,
+  };
+}
+
 function serializeCodexFailureConfig(config: CodexFailureConfig): RawCodexFailureConfig {
   return {
     'auto-disable-auth-failures': config.autoDisableAuthFailures,
@@ -280,6 +299,16 @@ export const configApi = {
 
   async updateCodexFailureConfig(config: CodexFailureConfig): Promise<CodexFailureConfig> {
     await apiClient.put('/codex-failure-config', serializeCodexFailureConfig(config));
+    return config;
+  },
+
+  async getCodexRoutingConfig(): Promise<CodexRoutingConfig> {
+    const raw = await apiClient.get<RawCodexRoutingConfig>('/codex-routing-config');
+    return normalizeCodexRoutingConfigResponse(raw ?? {});
+  },
+
+  async updateCodexRoutingConfig(config: CodexRoutingConfig): Promise<CodexRoutingConfig> {
+    await apiClient.put('/codex-routing-config', serializeCodexRoutingConfig(config));
     return config;
   },
 };

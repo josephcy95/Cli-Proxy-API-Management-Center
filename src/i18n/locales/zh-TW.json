@@ -1454,6 +1454,7 @@
     "description": "設定 Codex OAuth 驗證檔案的上游失敗處理策略，並為符合條件的模型注入私人指令。",
     "tabs": {
       "error_handling": "錯誤處理",
+      "routing": "帳號路由",
       "instructions": "Codex 指令"
     },
     "tab_switch_dirty_message": "目前分頁有未儲存的變更，確定要切換嗎？",
@@ -1486,6 +1487,25 @@
       "status_loaded": "策略已載入",
       "status_dirty": "有未儲存變更",
       "status_saving": "正在儲存策略...",
+      "status_load_failed": "載入失敗"
+    },
+    "routing": {
+      "settings_title": "Codex 帳號路由",
+      "prefer_free_label": "支援的模型優先使用免費帳號",
+      "prefer_free_hint": "當可用的免費帳號支援所請求的模型時，Codex 會先使用免費帳號池，再使用較高等級的帳號。",
+      "fallback_note": "Plus、Pro、Team、K12、API 金鑰和未知等級帳號會自動作為後備。僅付費帳號支援的模型會略過免費帳號池。",
+      "flow_summary": "免費帳號優先路由順序",
+      "flow_request": "共用模型請求",
+      "flow_free": "先使用可用的免費帳號",
+      "flow_paid": "較高等級帳號作為後備",
+      "reload": "重新載入",
+      "reload_confirm_message": "重新載入將捨棄未儲存的帳號路由變更。是否繼續？",
+      "save": "儲存路由",
+      "save_success": "Codex 帳號路由已儲存",
+      "status_loading": "正在載入路由...",
+      "status_loaded": "路由已載入",
+      "status_dirty": "有未儲存的變更",
+      "status_saving": "正在儲存路由...",
       "status_load_failed": "載入失敗"
     }
   },

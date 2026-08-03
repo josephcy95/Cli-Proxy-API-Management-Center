@@ -1556,6 +1556,7 @@
     "description": "Configure how Codex OAuth auth files handle upstream failures, and inject private instructions for eligible models.",
     "tabs": {
       "error_handling": "Error Handling",
+      "routing": "Account Routing",
       "instructions": "Codex Instructions"
     },
     "tab_switch_dirty_message": "You have unsaved changes on this tab. Switch anyway?",
@@ -1588,6 +1589,25 @@
       "status_loaded": "Policy loaded",
       "status_dirty": "Unsaved changes",
       "status_saving": "Saving policy...",
+      "status_load_failed": "Failed to load"
+    },
+    "routing": {
+      "settings_title": "Codex account routing",
+      "prefer_free_label": "Prefer Free accounts for supported models",
+      "prefer_free_hint": "When a ready Free account supports the requested model, Codex uses the Free pool before higher-tier accounts.",
+      "fallback_note": "Plus, Pro, Team, K12, API-key, and unknown-tier accounts remain automatic fallback. Paid-only models skip the Free pool.",
+      "flow_summary": "Free-first routing order",
+      "flow_request": "Shared model request",
+      "flow_free": "Ready Free accounts first",
+      "flow_paid": "Higher tiers as fallback",
+      "reload": "Reload",
+      "reload_confirm_message": "Reloading will discard your unsaved account-routing changes. Do you want to continue?",
+      "save": "Save routing",
+      "save_success": "Codex account routing saved",
+      "status_loading": "Loading routing...",
+      "status_loaded": "Routing loaded",
+      "status_dirty": "Unsaved changes",
+      "status_saving": "Saving routing...",
       "status_load_failed": "Failed to load"
     }
   },

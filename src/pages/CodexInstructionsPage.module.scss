@@ -12,11 +12,11 @@
 
 .tabBar {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
-  min-width: min(100%, 280px);
-  width: min(100%, 360px);
+  min-width: min(100%, 420px);
+  width: min(100%, 540px);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: color-mix(in srgb, var(--bg-primary) 72%, transparent);
@@ -78,6 +78,10 @@
   background: var(--bg-secondary);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.routingFlow {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .failureSettings {
@@ -447,11 +451,19 @@
     width: 100%;
   }
 
+  .tabItem {
+    min-height: 36px;
+    padding: 0 6px;
+    font-size: 12px;
+    white-space: normal;
+  }
+
   .templateImportMain {
     grid-template-columns: 1fr;
   }
 
   .policyStrip,
+  .routingFlow,
   .cooldownGrid {
     grid-template-columns: 1fr;
   }

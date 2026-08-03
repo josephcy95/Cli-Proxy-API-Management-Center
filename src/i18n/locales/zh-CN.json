@@ -1429,6 +1429,7 @@
     "description": "配置 Codex OAuth 认证文件的上游失败处理策略，并为符合条件的模型注入私人指令。",
     "tabs": {
       "error_handling": "错误处理",
+      "routing": "账号路由",
       "instructions": "Codex 指令"
     },
     "tab_switch_dirty_message": "当前标签页有未保存的更改，确定要切换吗？",
@@ -1461,6 +1462,25 @@
       "status_loaded": "策略已加载",
       "status_dirty": "有未保存更改",
       "status_saving": "正在保存策略...",
+      "status_load_failed": "加载失败"
+    },
+    "routing": {
+      "settings_title": "Codex 账号路由",
+      "prefer_free_label": "支持的模型优先使用免费账号",
+      "prefer_free_hint": "当可用的免费账号支持所请求的模型时，Codex 会先使用免费账号池，再使用更高等级的账号。",
+      "fallback_note": "Plus、Pro、Team、K12、API 密钥和未知等级账号会自动作为后备。仅付费账号支持的模型会跳过免费账号池。",
+      "flow_summary": "免费账号优先路由顺序",
+      "flow_request": "共享模型请求",
+      "flow_free": "先使用可用的免费账号",
+      "flow_paid": "更高等级账号作为后备",
+      "reload": "重新加载",
+      "reload_confirm_message": "重新加载将丢弃未保存的账号路由更改。是否继续？",
+      "save": "保存路由",
+      "save_success": "Codex 账号路由已保存",
+      "status_loading": "正在加载路由...",
+      "status_loaded": "路由已加载",
+      "status_dirty": "有未保存的更改",
+      "status_saving": "正在保存路由...",
       "status_load_failed": "加载失败"
     }
   },
