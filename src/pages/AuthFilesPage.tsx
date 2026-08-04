@@ -248,6 +248,7 @@ export function AuthFilesPage() {
   );
   const [codexRefreshing, setCodexRefreshing] = useState(false);
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
+  const [batchPriorityInput, setBatchPriorityInput] = useState('');
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -264,6 +265,7 @@ export function AuthFilesPage() {
     cooldownResetting,
     batchStatusUpdating,
     batchCooldownResetting,
+    batchFieldsSaving,
     fileInputRef,
     loadFiles,
     handleUploadClick,
@@ -282,6 +284,8 @@ export function AuthFilesPage() {
     batchSetStatus,
     batchDelete,
     batchResetCooldown,
+    batchSetPriority,
+    batchSetJailbreak,
   } = useAuthFilesData();
 
   const statusBarCache = useAuthFilesStatusBarCache(files);
@@ -741,6 +745,27 @@ export function AuthFilesPage() {
     selectedNames.length === 0 ||
     batchStatusUpdating ||
     selectedHasStatusUpdating;
+  const batchFieldsButtonsDisabled =
+    disableControls || selectedNames.length === 0 || batchFieldsSaving;
+  const selectedCodexCount = useMemo(() => {
+    if (selectedNames.length === 0) return 0;
+    const selectedSet = new Set(selectedNames);
+    return files.filter(
+      (file) =>
+        selectedSet.has(file.name) &&
+        !isRuntimeOnlyAuthFile(file) &&
+        normalizeProviderKey(String(file.type ?? file.provider ?? '')) === 'codex'
+    ).length;
+  }, [files, selectedNames]);
+
+  const applyBatchPriority = useCallback(() => {
+    const parsed = parsePriorityValue(batchPriorityInput);
+    if (parsed === undefined) {
+      showNotification(t('auth_files.batch_priority_invalid'), 'error');
+      return;
+    }
+    void batchSetPriority(selectedNames, parsed);
+  }, [batchPriorityInput, batchSetPriority, selectedNames, showNotification, t]);
 
   // Precomputed per file so AuthFileCard props stay referentially stable and
   // React.memo can skip untouched cards.
@@ -1339,6 +1364,58 @@ export function AuthFilesPage() {
                   >
                     {t('auth_files.batch_download')}
                   </Button>
+                  <div className={styles.batchPriorityGroup}>
+                    <input
+                      type="number"
+                      step={1}
+                      className={styles.batchPriorityInput}
+                      value={batchPriorityInput}
+                      placeholder={t('auth_files.batch_priority_placeholder')}
+                      aria-label={t('auth_files.priority_display')}
+                      disabled={batchFieldsButtonsDisabled}
+                      onChange={(event) => setBatchPriorityInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.currentTarget.blur();
+                          applyBatchPriority();
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={applyBatchPriority}
+                      disabled={batchFieldsButtonsDisabled || !batchPriorityInput.trim()}
+                      loading={batchFieldsSaving}
+                      title={t('auth_files.batch_priority_title')}
+                    >
+                      {t('auth_files.batch_priority_button')}
+                    </Button>
+                  </div>
+                  {selectedCodexCount > 0 && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void batchSetJailbreak(selectedNames, true)}
+                        disabled={batchFieldsButtonsDisabled}
+                        loading={batchFieldsSaving}
+                        title={t('auth_files.batch_jailbreak_title_enable')}
+                      >
+                        {t('auth_files.batch_jailbreak_enable')}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void batchSetJailbreak(selectedNames, false)}
+                        disabled={batchFieldsButtonsDisabled}
+                        loading={batchFieldsSaving}
+                        title={t('auth_files.batch_jailbreak_title_disable')}
+                      >
+                        {t('auth_files.batch_jailbreak_disable')}
+                      </Button>
+                    </>
+                  )}
                   <Button
                     size="sm"
                     onClick={() => batchSetStatus(selectedNames, true)}

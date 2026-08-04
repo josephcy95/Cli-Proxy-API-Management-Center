@@ -42,6 +42,7 @@ export type UseAuthFilesDataResult = {
   cooldownResetting: Record<string, boolean>;
   batchStatusUpdating: boolean;
   batchCooldownResetting: boolean;
+  batchFieldsSaving: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
   loadFiles: (options?: { silent?: boolean }) => Promise<void>;
   handleUploadClick: () => void;
@@ -60,6 +61,8 @@ export type UseAuthFilesDataResult = {
   batchSetStatus: (names: string[], enabled: boolean) => Promise<void>;
   batchDelete: (names: string[]) => void;
   batchResetCooldown: (files: AuthFileItem[]) => void;
+  batchSetPriority: (names: string[], priority: number) => Promise<void>;
+  batchSetJailbreak: (names: string[], allow: boolean) => Promise<void>;
 };
 
 export function useAuthFilesData(): UseAuthFilesDataResult {
@@ -77,6 +80,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
   const [cooldownResetting, setCooldownResetting] = useState<Record<string, boolean>>({});
   const [batchStatusUpdating, setBatchStatusUpdating] = useState(false);
   const [batchCooldownResetting, setBatchCooldownResetting] = useState(false);
+  const [batchFieldsSaving, setBatchFieldsSaving] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -85,6 +89,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
   const cooldownResetPendingRef = useRef<Set<string>>(new Set());
   const batchStatusPendingRef = useRef(false);
   const batchCooldownPendingRef = useRef(false);
+  const batchFieldsPendingRef = useRef(false);
   const selectionCount = selectedFiles.size;
   const toggleSelect = useCallback((name: string) => {
     setSelectedFiles((prev) => {
@@ -775,6 +780,145 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
     [deselectAll, files, showNotification, statusUpdating, t]
   );
 
+  const batchSetPriority = useCallback(
+    async (names: string[], priority: number) => {
+      if (batchFieldsPendingRef.current) return;
+
+      const requestedNames = Array.from(
+        new Set(names.map((name) => name.trim()).filter(Boolean))
+      );
+      if (requestedNames.length === 0) return;
+      // Runtime-only entries have no backing file fields to patch.
+      const targetNames = files
+        .filter((file) => requestedNames.includes(file.name) && !isRuntimeOnlyAuthFile(file))
+        .map((file) => file.name);
+      if (targetNames.length === 0) return;
+
+      batchFieldsPendingRef.current = true;
+      setBatchFieldsSaving(true);
+      try {
+        const results = await Promise.allSettled(
+          targetNames.map((name) => authFilesApi.patchFields(name, { priority }))
+        );
+
+        let successCount = 0;
+        let failCount = 0;
+        const succeededNames = new Set<string>();
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            successCount += 1;
+            succeededNames.add(targetNames[index]);
+          } else {
+            failCount += 1;
+          }
+        });
+
+        if (successCount > 0) {
+          setFiles((prev) =>
+            prev.map((file) => (succeededNames.has(file.name) ? { ...file, priority } : file))
+          );
+          notifyAuthFilesChanged();
+        }
+
+        if (failCount === 0) {
+          showNotification(
+            t('auth_files.batch_priority_success', { count: successCount, priority }),
+            'success'
+          );
+        } else {
+          showNotification(
+            t('auth_files.batch_priority_partial', { success: successCount, failed: failCount }),
+            'warning'
+          );
+        }
+
+        await loadFiles({ silent: true });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : '';
+        showNotification(`${t('notification.update_failed')}: ${message}`, 'error');
+      } finally {
+        batchFieldsPendingRef.current = false;
+        setBatchFieldsSaving(false);
+      }
+    },
+    [files, loadFiles, showNotification, t]
+  );
+
+  const batchSetJailbreak = useCallback(
+    async (names: string[], allow: boolean) => {
+      if (batchFieldsPendingRef.current) return;
+
+      const requestedNames = new Set(names.map((name) => name.trim()).filter(Boolean));
+      if (requestedNames.size === 0) return;
+      // allow_private_instructions is a Codex-only gate; skip other providers.
+      const targetNames = files
+        .filter(
+          (file) =>
+            requestedNames.has(file.name) &&
+            !isRuntimeOnlyAuthFile(file) &&
+            normalizeProviderKey(String(file.type ?? file.provider ?? '')) === 'codex'
+        )
+        .map((file) => file.name);
+      if (targetNames.length === 0) return;
+
+      batchFieldsPendingRef.current = true;
+      setBatchFieldsSaving(true);
+      try {
+        const results = await Promise.allSettled(
+          targetNames.map((name) =>
+            authFilesApi.patchFields(name, { allow_private_instructions: allow })
+          )
+        );
+
+        let successCount = 0;
+        let failCount = 0;
+        const succeededNames = new Set<string>();
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            successCount += 1;
+            succeededNames.add(targetNames[index]);
+          } else {
+            failCount += 1;
+          }
+        });
+
+        if (successCount > 0) {
+          setFiles((prev) =>
+            prev.map((file) =>
+              succeededNames.has(file.name)
+                ? { ...file, allow_private_instructions: allow }
+                : file
+            )
+          );
+          notifyAuthFilesChanged();
+        }
+
+        if (failCount === 0) {
+          showNotification(
+            allow
+              ? t('auth_files.batch_jailbreak_enable_success', { count: successCount })
+              : t('auth_files.batch_jailbreak_disable_success', { count: successCount }),
+            'success'
+          );
+        } else {
+          showNotification(
+            t('auth_files.batch_jailbreak_partial', { success: successCount, failed: failCount }),
+            'warning'
+          );
+        }
+
+        await loadFiles({ silent: true });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : '';
+        showNotification(`${t('notification.update_failed')}: ${message}`, 'error');
+      } finally {
+        batchFieldsPendingRef.current = false;
+        setBatchFieldsSaving(false);
+      }
+    },
+    [files, loadFiles, showNotification, t]
+  );
+
   const batchDownload = useCallback(
     async (names: string[]) => {
       const uniqueNames = Array.from(new Set(names));
@@ -867,6 +1011,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
     cooldownResetting,
     batchStatusUpdating,
     batchCooldownResetting,
+    batchFieldsSaving,
     fileInputRef,
     loadFiles,
     handleUploadClick,
@@ -885,5 +1030,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
     batchSetStatus,
     batchDelete,
     batchResetCooldown,
+    batchSetPriority,
+    batchSetJailbreak,
   };
 }

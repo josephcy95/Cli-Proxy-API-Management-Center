@@ -6,6 +6,7 @@ import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import {
   IconDownload,
+  IconGauge,
   IconInfo,
   IconModelCluster,
   IconRefreshCw,
@@ -385,18 +386,12 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                   variant="secondary"
                   size="sm"
                   onClick={() => onShowModels(file)}
-                  className={`${styles.primaryActionButton} ${styles.modelsActionButton}`}
+                  className={styles.iconButton}
                   title={t('auth_files.models_button', { defaultValue: '模型' })}
+                  aria-label={t('auth_files.models_button', { defaultValue: '模型' })}
                   disabled={disableControls}
                 >
-                  <>
-                    <span className={styles.modelsActionIconWrap}>
-                      <IconModelCluster className={styles.actionIcon} size={16} />
-                    </span>
-                    <span className={styles.actionButtonLabel}>
-                      {t('auth_files.models_button', { defaultValue: '模型' })}
-                    </span>
-                  </>
+                  <IconModelCluster className={styles.actionIcon} size={16} />
                 </Button>
               )}
               {!isRuntimeOnly && (
@@ -484,16 +479,25 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => quotaRefresh.refresh()}
-                      className={styles.iconButton}
-                      title={t('auth_files.quota_refresh_hint')}
-                      aria-label={t('auth_files.quota_refresh_single')}
-                      disabled={!quotaRefresh.canRefresh}
-                    >
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => quotaRefresh.refresh()}
+                    className={styles.iconButton}
+                    title={t("auth_files.quota_refresh_hint")}
+                    aria-label={t("auth_files.quota_refresh_single")}
+                    disabled={!quotaRefresh.canRefresh}
+                  >
+                    {quotaRefresh.loading ? (
+                      <LoadingSpinner size={14} />
+                    ) : (
+                      <IconTimer className={styles.actionIcon} size={16} />
+                    )}
+                  </Button>
                       {quotaRefresh.loading ? (
                         <LoadingSpinner size={14} />
                       ) : (
-                        <IconRefreshCw className={styles.actionIcon} size={16} />
+                        <IconGauge className={styles.actionIcon} size={16} />
                       )}
                     </Button>
                   )}

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   getCodexAccountStatus,
   getCodexPlanSortRank,
+  isPurposefullyDisabled,
   matchesCodexPlanFilter,
   matchesCodexStatusFilter,
   type CodexRefreshState,
@@ -127,5 +128,47 @@ describe('Codex auth-file status', () => {
     };
     expect(getCodexAccountStatus(file, refreshed).kind).toBe('working');
     expect(matchesCodexStatusFilter('working', file, refreshed)).toBe(true);
+  });
+
+  test('counts manually disabled accounts without a failure reason as working', () => {
+    // Management toggle disable writes no disabled_reason; the credential is parked on purpose.
+    const parked = {
+      ...file,
+      disabled: true,
+      status_message: 'disabled via management API',
+    };
+    expect(isPurposefullyDisabled(parked)).toBe(true);
+    expect(getCodexAccountStatus(parked).kind).toBe('working');
+    expect(matchesCodexStatusFilter('working', parked)).toBe(true);
+  });
+
+  test('keeps auto-disabled accounts out of the working filter', () => {
+    const denied = {
+      ...file,
+      disabled: true,
+      disabled_reason: 'invalid_token: token has been invalidated',
+    };
+    expect(isPurposefullyDisabled(denied)).toBe(false);
+    expect(getCodexAccountStatus(denied).kind).toBe('denied');
+    expect(matchesCodexStatusFilter('working', denied)).toBe(false);
+
+    const exhausted = {
+      ...file,
+      disabled: true,
+      disabled_reason: 'Codex auth failure (counter=2, threshold=2)',
+    };
+    expect(getCodexAccountStatus(exhausted).kind).toBe('other');
+    expect(matchesCodexStatusFilter('working', exhausted)).toBe(false);
+  });
+
+  test('manual disable does not hide quota exhaustion', () => {
+    const refreshed: CodexRefreshState = {
+      status: 'success',
+      planType: 'plus',
+      windows: [{ id: 'five-hour', label: '5h', usedPercent: 100, resetLabel: 'later' }],
+    };
+    const parked = { ...file, disabled: true };
+    expect(getCodexAccountStatus(parked, refreshed).kind).toBe('cooldown');
+    expect(matchesCodexStatusFilter('working', parked, refreshed)).toBe(false);
   });
 });

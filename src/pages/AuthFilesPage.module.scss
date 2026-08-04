@@ -1096,12 +1096,6 @@
     gap: 4px;
   }
 
-  .primaryActionButton:global(.btn.btn-sm) {
-    flex: 0 1 auto;
-    min-width: 0;
-    padding-inline: 8px;
-  }
-
   .cardUtilityActions {
     gap: 2px;
     padding: 2px;
@@ -1912,43 +1906,6 @@
   flex: 1;
 }
 
-.primaryActionButton:global(.btn.btn-sm) {
-  min-width: 0;
-  padding-inline: 10px;
-}
-
-.modelsActionButton:global(.btn.btn-sm) {
-  background: color-mix(in srgb, var(--primary-color) 10%, var(--bg-secondary));
-  border-color: color-mix(in srgb, var(--primary-color) 20%, var(--border-color));
-}
-
-.modelsActionButton:global(.btn.btn-sm):hover {
-  border-color: color-mix(in srgb, var(--primary-color) 35%, var(--border-color));
-  background: color-mix(in srgb, var(--primary-color) 14%, var(--bg-secondary));
-}
-
-.modelsActionButton:global(.btn.btn-sm) > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.modelsActionIconWrap {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--primary-color) 16%, transparent);
-}
-
-.actionButtonLabel {
-  @include text-ellipsis;
-}
-
 .cardUtilityActions {
   display: flex;
   align-items: center;
@@ -1982,6 +1939,18 @@
   gap: 0;
 }
 
+// Quota refresh reads as "quota" (gauge icon + amber tint), not another OAuth
+// refresh arrow. Same footprint as the other icon buttons.
+.quotaRefreshIconButton:global(.btn.btn-sm) {
+  border-color: color-mix(in srgb, var(--quota-medium-color, #d9a514) 45%, var(--border-primary));
+  color: color-mix(in srgb, var(--quota-medium-color, #d9a514) 72%, var(--text-primary));
+}
+
+.quotaRefreshIconButton:global(.btn.btn-sm):hover:not(:disabled) {
+  border-color: var(--quota-medium-color, #d9a514);
+  color: var(--quota-medium-color, #d9a514);
+}
+
 .actionIcon {
   display: block;
 }
@@ -1994,11 +1963,6 @@
   .cardActionsMain {
     flex-wrap: wrap;
     width: 100%;
-  }
-
-  .primaryActionButton:global(.btn.btn-sm) {
-    flex: 1 1 auto;
-    min-width: 0;
   }
 
   .statusToggle {
@@ -2063,6 +2027,29 @@
   font-weight: 600;
   color: var(--text-primary);
   margin-right: 2px;
+}
+
+.batchPriorityGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.batchPriorityInput {
+  width: 84px;
+  min-height: $control-height-sm;
+  padding: 2px 8px;
+  font-size: 12.5px;
+  border: 1px solid var(--border-primary);
+  border-radius: $radius-sm;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
 }
 
 @include mobile {

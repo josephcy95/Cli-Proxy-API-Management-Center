@@ -485,7 +485,7 @@ export function IconSidebarOauth({ size = 20, ...props }: IconProps) {
   );
 }
 
-export function IconSidebarQuota({ size = 20, ...props }: IconProps) {
+export function IconGauge({ size = 20, ...props }: IconProps) {
   return (
     <svg {...baseSvgProps} width={size} height={size} {...props}>
       <path d="m12 14 4-4" />
@@ -493,6 +493,8 @@ export function IconSidebarQuota({ size = 20, ...props }: IconProps) {
     </svg>
   );
 }
+
+export const IconSidebarQuota = IconGauge;
 
 export const IconSidebarLogs = IconScrollText;
 
