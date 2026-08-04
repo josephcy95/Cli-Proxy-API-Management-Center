@@ -146,11 +146,21 @@ const resolveHttpStatus = (file: AuthFileItem, refreshed?: CodexRefreshState): n
 };
 
 /**
+ * The management API marks an intentional manual disable with this status message.
+ * It is different from an automatic disable, which carries a failure in disabled_reason.
+ */
+export const isPurposefullyDisabled = (file: AuthFileItem): boolean =>
+  file.disabled === true &&
+  String(file.status_message ?? file.statusMessage ?? '')
+    .trim()
+    .toLowerCase() === 'disabled via management api';
+
+/**
  * Classify Codex auth similar to xAI:
  * - denied: 401/402/403 or known auth-death messages (invalid token, deactivated workspace, …)
  * - cooldown: any quota window at 100% (rate/usage limit)
- * - working: enabled, no hard auth failure, no full quota
- * - other: disabled/unavailable or other errors
+ * - working: healthy, no hard auth failure, no full quota (manual disables included)
+ * - other: unavailable or other errors
  */
 export const getCodexAccountStatus = (
   file: AuthFileItem,
@@ -194,7 +204,7 @@ export const getCodexAccountStatus = (
   }
 
   if (
-    file.disabled !== true &&
+    (file.disabled !== true || isPurposefullyDisabled(file)) &&
     file.unavailable !== true &&
     refreshed?.status !== 'error' &&
     (statusCode === null || statusCode < 400)

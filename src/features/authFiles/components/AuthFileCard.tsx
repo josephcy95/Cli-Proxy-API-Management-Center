@@ -479,21 +479,12 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                     <Button
                       variant="secondary"
                       size="sm"
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => quotaRefresh.refresh()}
-                    className={styles.iconButton}
-                    title={t("auth_files.quota_refresh_hint")}
-                    aria-label={t("auth_files.quota_refresh_single")}
-                    disabled={!quotaRefresh.canRefresh}
-                  >
-                    {quotaRefresh.loading ? (
-                      <LoadingSpinner size={14} />
-                    ) : (
-                      <IconTimer className={styles.actionIcon} size={16} />
-                    )}
-                  </Button>
+                      onClick={() => quotaRefresh.refresh()}
+                      className={`${styles.iconButton} ${styles.quotaRefreshIconButton}`}
+                      title={t('auth_files.quota_refresh_hint')}
+                      aria-label={t('auth_files.quota_refresh_single')}
+                      disabled={!quotaRefresh.canRefresh}
+                    >
                       {quotaRefresh.loading ? (
                         <LoadingSpinner size={14} />
                       ) : (
