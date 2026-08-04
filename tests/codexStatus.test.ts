@@ -142,6 +142,31 @@ describe('Codex auth-file status', () => {
     expect(matchesCodexStatusFilter('working', parked)).toBe(true);
   });
 
+  test('treats legacy manual disables without a status marker as working', () => {
+    const parked = { ...file, disabled: true };
+
+    expect(isPurposefullyDisabled(parked)).toBe(true);
+    expect(getCodexAccountStatus(parked).kind).toBe('working');
+    expect(matchesCodexStatusFilter('working', parked)).toBe(true);
+  });
+
+  test('keeps manual disables working through non-auth refresh errors', () => {
+    const parked = { ...file, disabled: true };
+    const refreshError: CodexRefreshState = {
+      status: 'error',
+      planType: null,
+      windows: [],
+      error: 'temporary quota service unavailable',
+      errorStatus: 503,
+    };
+
+    expect(getCodexAccountStatus(parked, refreshError).kind).toBe('working');
+    expect(
+      getCodexAccountStatus(parked, { ...refreshError, error: 'invalid token', errorStatus: 401 })
+        .kind
+    ).toBe('denied');
+  });
+
   test('keeps auto-disabled accounts out of the working filter', () => {
     const denied = {
       ...file,

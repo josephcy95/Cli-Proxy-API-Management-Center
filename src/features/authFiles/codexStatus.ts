@@ -13,13 +13,7 @@ export const CODEX_PLAN_FILTERS = [
 ] as const;
 
 /** Status filters aligned with xAI: working / cooldown / denied / other. */
-export const CODEX_STATUS_FILTERS = [
-  'all',
-  'working',
-  'cooldown',
-  'denied',
-  'other',
-] as const;
+export const CODEX_STATUS_FILTERS = ['all', 'working', 'cooldown', 'denied', 'other'] as const;
 
 export type CodexPlanFilter = (typeof CODEX_PLAN_FILTERS)[number];
 export type CodexStatusFilter = (typeof CODEX_STATUS_FILTERS)[number];
@@ -147,13 +141,15 @@ const resolveHttpStatus = (file: AuthFileItem, refreshed?: CodexRefreshState): n
 
 /**
  * The management API marks an intentional manual disable with this status message.
- * It is different from an automatic disable, which carries a failure in disabled_reason.
+ * Older records may not have that marker, so a disabled file with no failure reason is
+ * treated as manually parked. Automatic disables carry a failure in disabled_reason.
  */
 export const isPurposefullyDisabled = (file: AuthFileItem): boolean =>
   file.disabled === true &&
-  String(file.status_message ?? file.statusMessage ?? '')
+  (String(file.status_message ?? file.statusMessage ?? '')
     .trim()
-    .toLowerCase() === 'disabled via management api';
+    .toLowerCase() === 'disabled via management api' ||
+    String(file.disabled_reason ?? '').trim() === '');
 
 /**
  * Classify Codex auth similar to xAI:
@@ -171,6 +167,7 @@ export const getCodexAccountStatus = (
   const weeklyLimited = windows.some((window) => isWindowFull(window, 'weekly'));
   const monthlyLimited = windows.some((window) => isWindowFull(window, 'monthly'));
   const quotaLimited = fiveHourLimited || weeklyLimited || monthlyLimited;
+  const purposefullyDisabled = isPurposefullyDisabled(file);
 
   const statusCode = resolveHttpStatus(file, refreshed);
   const statusText = collectStatusText(file, refreshed);
@@ -204,10 +201,10 @@ export const getCodexAccountStatus = (
   }
 
   if (
-    (file.disabled !== true || isPurposefullyDisabled(file)) &&
+    (file.disabled !== true || purposefullyDisabled) &&
     file.unavailable !== true &&
-    refreshed?.status !== 'error' &&
-    (statusCode === null || statusCode < 400)
+    (purposefullyDisabled || refreshed?.status !== 'error') &&
+    (purposefullyDisabled || statusCode === null || statusCode < 400)
   ) {
     return {
       kind: 'working',

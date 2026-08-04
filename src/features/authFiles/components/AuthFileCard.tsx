@@ -162,7 +162,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
       ? resolvedQuotaType
       : null;
 
-  const showQuotaLayout = Boolean(quotaType) && !isRuntimeOnly && !compact;
+  const showQuotaSection = Boolean(quotaType) && !isRuntimeOnly;
 
   const providerCardClass =
     quotaType === 'antigravity'
@@ -368,10 +368,11 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
               <ProviderStatusBar statusData={statusData} styles={styles} />
             </div>
 
-            {showQuotaLayout && quotaType && (
+            {showQuotaSection && quotaType && (
               <AuthFileQuotaSection
                 file={file}
                 quotaType={quotaType}
+                compact={compact}
                 disableControls={disableControls}
                 onAuthFileUpdated={onAuthFileUpdated}
                 onRefreshBindingChange={handleQuotaRefreshBindingChange}
@@ -381,116 +382,120 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
 
           <div className={styles.cardActions}>
             <div className={styles.cardActionsMain}>
-              {showModelsButton && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onShowModels(file)}
-                  className={styles.iconButton}
-                  title={t('auth_files.models_button', { defaultValue: '模型' })}
-                  aria-label={t('auth_files.models_button', { defaultValue: '模型' })}
-                  disabled={disableControls}
-                >
-                  <IconModelCluster className={styles.actionIcon} size={16} />
-                </Button>
-              )}
-              {!isRuntimeOnly && (
+              {(showModelsButton || !isRuntimeOnly) && (
                 <div className={styles.cardUtilityActions}>
-                  {showManualRefreshButton && (
+                  {showModelsButton && (
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => onManualRefresh(file)}
+                      onClick={() => onShowModels(file)}
                       className={styles.iconButton}
-                      title={t('auth_files.manual_refresh_button')}
-                      disabled={
-                        disableControls ||
-                        file.disabled ||
-                        statusUpdating[file.name] === true ||
-                        isManualRefreshing ||
-                        isCooldownResetting
-                      }
+                      title={t('auth_files.models_button', { defaultValue: '模型' })}
+                      aria-label={t('auth_files.models_button', { defaultValue: '模型' })}
+                      disabled={disableControls}
                     >
-                      {isManualRefreshing ? (
-                        <LoadingSpinner size={14} />
-                      ) : (
-                        <IconRefreshCw className={styles.actionIcon} size={16} />
-                      )}
+                      <IconModelCluster className={styles.actionIcon} size={16} />
                     </Button>
                   )}
-                  {showResetCooldownButton && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onResetCooldown(file)}
-                      className={styles.iconButton}
-                      title={t('auth_files.reset_cooldown_button')}
-                      aria-label={t('auth_files.reset_cooldown_button')}
-                      disabled={
-                        disableControls ||
-                        file.disabled ||
-                        statusUpdating[file.name] === true ||
-                        isManualRefreshing ||
-                        isCooldownResetting
-                      }
-                    >
-                      {isCooldownResetting ? (
-                        <LoadingSpinner size={14} />
-                      ) : (
-                        <IconTimer className={styles.actionIcon} size={16} />
+                  {!isRuntimeOnly && (
+                    <>
+                      {showManualRefreshButton && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => onManualRefresh(file)}
+                          className={styles.iconButton}
+                          title={t('auth_files.manual_refresh_button')}
+                          disabled={
+                            disableControls ||
+                            file.disabled ||
+                            statusUpdating[file.name] === true ||
+                            isManualRefreshing ||
+                            isCooldownResetting
+                          }
+                        >
+                          {isManualRefreshing ? (
+                            <LoadingSpinner size={14} />
+                          ) : (
+                            <IconRefreshCw className={styles.actionIcon} size={16} />
+                          )}
+                        </Button>
                       )}
-                    </Button>
-                  )}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => onDownload(file.name)}
-                    className={styles.iconButton}
-                    title={t('auth_files.download_button')}
-                    disabled={disableControls}
-                  >
-                    <IconDownload className={styles.actionIcon} size={16} />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => onOpenPrefixProxyEditor(file)}
-                    className={styles.iconButton}
-                    title={t('auth_files.prefix_proxy_button')}
-                    disabled={disableControls || isManualRefreshing}
-                  >
-                    <IconSettings className={styles.actionIcon} size={16} />
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => onDelete(file.name)}
-                    className={styles.iconButton}
-                    title={t('auth_files.delete_button')}
-                    disabled={disableControls || deleting === file.name || isManualRefreshing}
-                  >
-                    {deleting === file.name ? (
-                      <LoadingSpinner size={14} />
-                    ) : (
-                      <IconTrash2 className={styles.actionIcon} size={16} />
-                    )}
-                  </Button>
-                  {showQuotaLayout && quotaRefresh && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => quotaRefresh.refresh()}
-                      className={`${styles.iconButton} ${styles.quotaRefreshIconButton}`}
-                      title={t('auth_files.quota_refresh_hint')}
-                      aria-label={t('auth_files.quota_refresh_single')}
-                      disabled={!quotaRefresh.canRefresh}
-                    >
-                      {quotaRefresh.loading ? (
-                        <LoadingSpinner size={14} />
-                      ) : (
-                        <IconGauge className={styles.actionIcon} size={16} />
+                      {showResetCooldownButton && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => onResetCooldown(file)}
+                          className={styles.iconButton}
+                          title={t('auth_files.reset_cooldown_button')}
+                          aria-label={t('auth_files.reset_cooldown_button')}
+                          disabled={
+                            disableControls ||
+                            file.disabled ||
+                            statusUpdating[file.name] === true ||
+                            isManualRefreshing ||
+                            isCooldownResetting
+                          }
+                        >
+                          {isCooldownResetting ? (
+                            <LoadingSpinner size={14} />
+                          ) : (
+                            <IconTimer className={styles.actionIcon} size={16} />
+                          )}
+                        </Button>
                       )}
-                    </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => onDownload(file.name)}
+                        className={styles.iconButton}
+                        title={t('auth_files.download_button')}
+                        disabled={disableControls}
+                      >
+                        <IconDownload className={styles.actionIcon} size={16} />
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => onOpenPrefixProxyEditor(file)}
+                        className={styles.iconButton}
+                        title={t('auth_files.prefix_proxy_button')}
+                        disabled={disableControls || isManualRefreshing}
+                      >
+                        <IconSettings className={styles.actionIcon} size={16} />
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => onDelete(file.name)}
+                        className={styles.iconButton}
+                        title={t('auth_files.delete_button')}
+                        disabled={disableControls || deleting === file.name || isManualRefreshing}
+                      >
+                        {deleting === file.name ? (
+                          <LoadingSpinner size={14} />
+                        ) : (
+                          <IconTrash2 className={styles.actionIcon} size={16} />
+                        )}
+                      </Button>
+                      {showQuotaSection && quotaRefresh && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => quotaRefresh.refresh()}
+                          className={`${styles.iconButton} ${styles.quotaRefreshIconButton}`}
+                          title={t('auth_files.quota_refresh_hint')}
+                          aria-label={t('auth_files.quota_refresh_single')}
+                          disabled={!quotaRefresh.canRefresh}
+                        >
+                          {quotaRefresh.loading ? (
+                            <LoadingSpinner size={14} />
+                          ) : (
+                            <IconGauge className={styles.actionIcon} size={16} />
+                          )}
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               )}

@@ -55,6 +55,7 @@ const getQuotaConfig = (type: QuotaProviderType) => {
 export type AuthFileQuotaSectionProps = {
   file: AuthFileItem;
   quotaType: QuotaProviderType;
+  compact?: boolean;
   disableControls: boolean;
   onAuthFileUpdated?: () => void | Promise<void>;
   /** Host card can place refresh in its action row to avoid an extra quota row. */
@@ -62,7 +63,14 @@ export type AuthFileQuotaSectionProps = {
 };
 
 export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
-  const { file, quotaType, disableControls, onAuthFileUpdated, onRefreshBindingChange } = props;
+  const {
+    file,
+    quotaType,
+    compact = false,
+    disableControls,
+    onAuthFileUpdated,
+    onRefreshBindingChange,
+  } = props;
   const { t } = useTranslation();
   const showNotification = useNotificationStore((state) => state.showNotification);
   const showConfirmation = useNotificationStore((state) => state.showConfirmation);
@@ -264,6 +272,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     });
     return () => onRefreshBindingChange(null);
   }, [canRefreshQuota, onRefreshBindingChange, quotaStatus, refreshQuotaForFile]);
+
+  if (compact) return null;
 
   return (
     <div className={styles.quotaSection}>

@@ -1098,8 +1098,9 @@
 
   .cardUtilityActions {
     gap: 2px;
-    padding: 2px;
-    border-radius: 6px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
   }
 
   .iconButton:global(.btn.btn-sm) {
@@ -1910,9 +1911,9 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  padding: 2px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-tertiary) 50%, transparent);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .statusToggle {
@@ -1989,7 +1990,7 @@
   bottom: calc(16px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 50;
-  width: min(960px, calc(100vw - 24px));
+  width: min(1180px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
   box-sizing: border-box;
   will-change: transform, opacity;
@@ -1997,10 +1998,10 @@
 
 .batchActionBar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $spacing-sm;
-  padding: 10px 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 14px;
   border-radius: $radius-lg;
   border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
   background: color-mix(in srgb, var(--bg-primary) 84%, transparent);
@@ -2016,10 +2017,28 @@
   align-items: center;
   gap: $spacing-xs;
   flex-wrap: wrap;
+  width: 100%;
+}
+
+.batchActionLeft {
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
 }
 
 .batchActionRight {
-  justify-content: flex-end;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.batchActionGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+}
+
+.batchStatusGroup {
+  margin-left: auto;
 }
 
 .batchSelectionText {
@@ -2060,13 +2079,16 @@
   }
 
   .batchActionBar {
-    flex-direction: column;
-    align-items: stretch;
+    padding: 9px 10px;
   }
 
   .batchActionLeft,
   .batchActionRight {
-    justify-content: center;
+    justify-content: flex-start;
+  }
+
+  .batchStatusGroup {
+    margin-left: 0;
   }
 }
 

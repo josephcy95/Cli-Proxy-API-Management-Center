@@ -574,10 +574,7 @@ export function AuthFilesPage() {
     isCurrentLayer ? 240_000 : null
   );
 
-  const reloadAuthFilesSilently = useCallback(
-    () => loadFiles({ silent: true }),
-    [loadFiles]
-  );
+  const reloadAuthFilesSilently = useCallback(() => loadFiles({ silent: true }), [loadFiles]);
 
   const existingTypes = useMemo(() => {
     const types = new Set<string>(['all']);
@@ -594,7 +591,7 @@ export function AuthFilesPage() {
         if (enabledOnly && file.disabled === true) return false;
         if (disabledOnly && file.disabled !== true) return false;
         if (privateInstructionsOnly && !file.allow_private_instructions) return false;
-          if (isCodexSelected) {
+        if (isCodexSelected) {
           const refreshed = codexRefreshByName[file.name];
           const codexStatus = getCodexAccountStatus(file, refreshed);
           if (problemOnly && codexStatus.kind === 'working' && !hasAuthFileStatusMessage(file)) {
@@ -1356,44 +1353,46 @@ export function AuthFilesPage() {
                   </Button>
                 </div>
                 <div className={styles.batchActionRight}>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void batchDownload(selectedNames)}
-                    disabled={disableControls || selectedNames.length === 0}
-                  >
-                    {t('auth_files.batch_download')}
-                  </Button>
-                  <div className={styles.batchPriorityGroup}>
-                    <input
-                      type="number"
-                      step={1}
-                      className={styles.batchPriorityInput}
-                      value={batchPriorityInput}
-                      placeholder={t('auth_files.batch_priority_placeholder')}
-                      aria-label={t('auth_files.priority_display')}
-                      disabled={batchFieldsButtonsDisabled}
-                      onChange={(event) => setBatchPriorityInput(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.currentTarget.blur();
-                          applyBatchPriority();
-                        }
-                      }}
-                    />
+                  <div className={styles.batchActionGroup}>
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={applyBatchPriority}
-                      disabled={batchFieldsButtonsDisabled || !batchPriorityInput.trim()}
-                      loading={batchFieldsSaving}
-                      title={t('auth_files.batch_priority_title')}
+                      onClick={() => void batchDownload(selectedNames)}
+                      disabled={disableControls || selectedNames.length === 0}
                     >
-                      {t('auth_files.batch_priority_button')}
+                      {t('auth_files.batch_download')}
                     </Button>
+                    <div className={styles.batchPriorityGroup}>
+                      <input
+                        type="number"
+                        step={1}
+                        className={styles.batchPriorityInput}
+                        value={batchPriorityInput}
+                        placeholder={t('auth_files.batch_priority_placeholder')}
+                        aria-label={t('auth_files.priority_display')}
+                        disabled={batchFieldsButtonsDisabled}
+                        onChange={(event) => setBatchPriorityInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.currentTarget.blur();
+                            applyBatchPriority();
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={applyBatchPriority}
+                        disabled={batchFieldsButtonsDisabled || !batchPriorityInput.trim()}
+                        loading={batchFieldsSaving}
+                        title={t('auth_files.batch_priority_title')}
+                      >
+                        {t('auth_files.batch_priority_button')}
+                      </Button>
+                    </div>
                   </div>
                   {selectedCodexCount > 0 && (
-                    <>
+                    <div className={styles.batchActionGroup}>
                       <Button
                         variant="secondary"
                         size="sm"
@@ -1414,31 +1413,33 @@ export function AuthFilesPage() {
                       >
                         {t('auth_files.batch_jailbreak_disable')}
                       </Button>
-                    </>
+                    </div>
                   )}
-                  <Button
-                    size="sm"
-                    onClick={() => batchSetStatus(selectedNames, true)}
-                    disabled={batchStatusButtonsDisabled}
-                  >
-                    {t('auth_files.batch_enable')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => batchSetStatus(selectedNames, false)}
-                    disabled={batchStatusButtonsDisabled}
-                  >
-                    {t('auth_files.batch_disable')}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => batchDelete(selectedNames)}
-                    disabled={disableControls || selectedNames.length === 0}
-                  >
-                    {t('common.delete')}
-                  </Button>
+                  <div className={`${styles.batchActionGroup} ${styles.batchStatusGroup}`}>
+                    <Button
+                      size="sm"
+                      onClick={() => batchSetStatus(selectedNames, true)}
+                      disabled={batchStatusButtonsDisabled}
+                    >
+                      {t('auth_files.batch_enable')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => batchSetStatus(selectedNames, false)}
+                      disabled={batchStatusButtonsDisabled}
+                    >
+                      {t('auth_files.batch_disable')}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => batchDelete(selectedNames)}
+                      disabled={disableControls || selectedNames.length === 0}
+                    >
+                      {t('common.delete')}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>,
