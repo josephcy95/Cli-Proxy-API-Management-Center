@@ -33,16 +33,25 @@ Tests use Bun's built-in test runner and are colocated under `tests/` as `*.test
 This fork exists to keep **custom Management Center design and features**. Upstream is for bug fixes and additive features — not to restyle or replace the fork’s product UI.
 
 ### How to sync
-- Prefer a real merge of upstream so GitHub is not left N commits behind.
-- After merge: `bun run verify` before any release.
+- Prefer a real merge of upstream so GitHub is not left N commits behind, but start it with `git merge --no-commit --no-ff upstream/<ref>`. A clean automatic merge is an uncommitted review state, not approval to retain upstream UI or code.
+- Do not create the merge commit until the UI fork-preservation gate below has completed. After merge: `bun run verify` before any release.
 - Backend contract changes (new management routes, provider keys, auth-file fields) usually land in `../cliproxyapi-forked` first — inspect that repo before renaming routes or provider ids here.
+
+### UI fork-preservation gate (mandatory before committing an upstream merge)
+1. Start from a clean worktree, record the pre-merge commit, fetch upstream, and perform a no-commit merge. Review the complete result against that commit, including all non-conflicting automatic changes, additions, deletions, renames, and moves.
+2. Classify every changed UI file or backend client contract as an allowed functional/security fix to retain, a deliberate combined implementation, or an upstream change excluded in favor of the fork. Git's lack of a conflict is never a reason to retain a change.
+3. The fork's current design, layout, theming, pages, custom chrome, API service calls, routes, provider cards, and management surfaces are the baseline. Preserve their externally visible behavior and backend contracts unless the user explicitly authorizes changing them.
+4. Never wholesale accept an upstream page, component, API client, style sheet, or feature directory because it contains a useful fix. Integrate only the smallest functional portion that is needed and retain all fork-owned behavior around it.
+5. Before committing, run `bun run verify`, inspect the affected route in a browser, and verify every touched fork-specific API integration against the API fork's management contract. A passing TypeScript build does not prove that the dashboard appearance or custom backend calls survived.
+
+If a merge would alter the product's appearance, remove a fork UI surface, change a working custom API call, or leave behavior unproven, restore/combine the fork implementation or abort the merge. Stop and ask the user before committing; never merge first and depend on a later revert.
 
 ### Take upstream only when
 1. It **fixes a real bug** in the same behavior the fork already has (or a clear defect), or
 2. It adds a **feature** that does not require discarding fork-owned layout/design, or
 3. It is **security / deploy-blocking** in the same code path.
 
-When both sides touch the same feature, **keep fork behavior**; combine only if upstream’s fix is more robust **and** fork semantics survive.
+When both sides touch the same feature, **keep fork behavior**; combine only if upstream’s fix is more robust **and** every fork semantic and backend contract survives. Never resolve a conflict by taking an entire upstream page, component, service, stylesheet, or feature directory.
 
 ### Never take without asking the user first
 - Dashboard redesigns, motion/animation packs, layout/theme-only polish
