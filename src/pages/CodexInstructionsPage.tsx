@@ -43,7 +43,7 @@ const DEFAULT_INSTRUCTIONS: CodexInstructionsConfig = {
   usePrefixSuffix: true,
   requestMarkers: {
     prefixes: ['private/'],
-    suffixes: ['-private'],
+    suffixes: [],
   },
 };
 
@@ -152,8 +152,7 @@ export function CodexInstructionsPage() {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [importingTemplate, setImportingTemplate] = useState(false);
 
-  const failureDisabled =
-    connectionStatus !== 'connected' || failureLoading || failureSaving;
+  const failureDisabled = connectionStatus !== 'connected' || failureLoading || failureSaving;
   const failureDirty = !sameFailure(failureDraft, failureSaved);
   const failureStatusClass = failureError
     ? styles.error
@@ -201,15 +200,15 @@ export function CodexInstructionsPage() {
   );
   const instrDisabled = connectionStatus !== 'connected' || instrLoading || instrSaving;
   const instrDirty = !sameInstructions(effectiveInstrDraft, instrSaved);
+  const markersDisabled =
+    instrDraft.usePrefixSuffix &&
+    effectiveInstrDraft.requestMarkers.prefixes.length === 0 &&
+    effectiveInstrDraft.requestMarkers.suffixes.length === 0;
   const modelChips =
     effectiveInstrDraft.models.length > 0
       ? effectiveInstrDraft.models
       : DEFAULT_INSTRUCTIONS.models;
-  const instrStatusClass = instrError
-    ? styles.error
-    : instrDirty
-      ? styles.modified
-      : styles.saved;
+  const instrStatusClass = instrError ? styles.error : instrDirty ? styles.modified : styles.saved;
   const instrStatusText = instrError
     ? t('codex_instructions.status_load_failed')
     : instrLoading
@@ -399,10 +398,7 @@ export function CodexInstructionsPage() {
   }, [selectedTemplate, showNotification, t, templates, updateInstrDraft]);
 
   const updateFailureNumber = (
-    key:
-      | 'authFailureDisableAfter'
-      | 'usageLimitDisableAfter'
-      | 'usageLimitCooldownFallbackHours',
+    key: 'authFailureDisableAfter' | 'usageLimitDisableAfter' | 'usageLimitCooldownFallbackHours',
     value: string
   ) => {
     const parsed = Number.parseInt(value, 10);
@@ -633,10 +629,7 @@ export function CodexInstructionsPage() {
         <div role="tabpanel" aria-label={t('codex_config.tabs.error_handling')}>
           {failureError && <div className="error-box">{failureError}</div>}
 
-          <div
-            className={styles.policyStrip}
-            aria-label={t('codex_config.failure.policy_summary')}
-          >
+          <div className={styles.policyStrip} aria-label={t('codex_config.failure.policy_summary')}>
             <span>{t('codex_config.failure.policy_runtime')}</span>
             <span>
               {t('codex_config.failure.policy_auth', {
@@ -727,9 +720,7 @@ export function CodexInstructionsPage() {
               <div className={styles.settingCard}>
                 <h2>{t('codex_config.failure.rate_limit_label')}</h2>
                 <p className={styles.settingHint}>{t('codex_config.failure.rate_limit_hint')}</p>
-                <div className={styles.reasonNote}>
-                  {t('codex_config.failure.rate_limit_note')}
-                </div>
+                <div className={styles.reasonNote}>{t('codex_config.failure.rate_limit_note')}</div>
               </div>
             </div>
           </section>
@@ -875,6 +866,12 @@ export function CodexInstructionsPage() {
                     />
                     <small>{t('codex_instructions.suffix_markers_hint')}</small>
                   </label>
+
+                  {markersDisabled && (
+                    <p className={styles.reasonNote} role="status">
+                      {t('codex_instructions.markers_disabled_hint')}
+                    </p>
+                  )}
                 </>
               )}
 
@@ -891,7 +888,10 @@ export function CodexInstructionsPage() {
                 <small>{t('codex_instructions.models_hint')}</small>
               </label>
 
-              <div className={styles.modelChips} aria-label={t('codex_instructions.models_preview')}>
+              <div
+                className={styles.modelChips}
+                aria-label={t('codex_instructions.models_preview')}
+              >
                 {modelChips.map((model) => (
                   <span key={model}>{model}</span>
                 ))}

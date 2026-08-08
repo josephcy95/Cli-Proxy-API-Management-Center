@@ -30,7 +30,7 @@ const DEFAULT_CODEX_INSTRUCTIONS: CodexInstructionsConfig = {
   usePrefixSuffix: true,
   requestMarkers: {
     prefixes: ['private/'],
-    suffixes: ['-private'],
+    suffixes: [],
   },
 };
 
@@ -56,10 +56,9 @@ const DEFAULT_CODEX_FAILURE_CONFIG: CodexFailureConfig = {
 
 function normalizeStringList(values: unknown, fallback: string[]): string[] {
   if (!Array.isArray(values)) return fallback;
-  const list = values
+  return values
     .filter((value) => typeof value === 'string' && value.trim())
     .map((value) => String(value).trim());
-  return list.length > 0 ? list : fallback;
 }
 
 function normalizeCodexInstructionsResponse(
