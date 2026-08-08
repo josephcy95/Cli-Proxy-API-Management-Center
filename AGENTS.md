@@ -34,6 +34,7 @@ This fork exists to keep **custom Management Center design and features**. Upstr
 
 ### How to sync
 - Prefer a real merge of upstream so GitHub is not left N commits behind, but start it with `git merge --no-commit --no-ff upstream/<ref>`. A clean automatic merge is an uncommitted review state, not approval to retain upstream UI or code.
+- `--no-commit` still stages all clean automatic changes; it only pauses before commit. Review those changes exactly like conflicts.
 - Do not create the merge commit until the UI fork-preservation gate below has completed. After merge: `bun run verify` before any release.
 - Backend contract changes (new management routes, provider keys, auth-file fields) usually land in `../cliproxyapi-forked` first — inspect that repo before renaming routes or provider ids here.
 
@@ -43,6 +44,17 @@ This fork exists to keep **custom Management Center design and features**. Upstr
 3. The fork's current design, layout, theming, pages, custom chrome, API service calls, routes, provider cards, and management surfaces are the baseline. Preserve their externally visible behavior and backend contracts unless the user explicitly authorizes changing them.
 4. Never wholesale accept an upstream page, component, API client, style sheet, or feature directory because it contains a useful fix. Integrate only the smallest functional portion that is needed and retain all fork-owned behavior around it.
 5. Before committing, run `bun run verify`, inspect the affected route in a browser, and verify every touched fork-specific API integration against the API fork's management contract. A passing TypeScript build does not prove that the dashboard appearance or custom backend calls survived.
+
+Mechanical release gate:
+- Explicitly read this file and `../AGENTS.md` before fetching or merging.
+- Record `PRE=$(git rev-parse HEAD)` and inspect `git diff --cached "$PRE"`; do not compare `$PRE` to `HEAD` during an uncommitted merge.
+- After resolving or combining changes, inspect `git status --short`, `git diff`, and `git diff --cached`. Stage the intended final result, then rerun `git diff --cached "$PRE"`; never commit an earlier staged merge state while fork corrections remain unstaged.
+- Maintain a complete changed-path/component ledger with retain/exclude/combine decisions and proof. No changed path, component, stylesheet, route, or API contract may remain unclassified.
+- Identify files changed on both sides from the merge base before merging; review every intersection manually even when Git reports no conflict.
+- More than 20 changed files, more than 500 changed lines, or any protected route/layout/API-client surface requires a second read-only staged-index audit before commit.
+- Presence checks, ancestry, “0 behind,” no deletions, and successful build/type-check are not proof that fork UI or contracts survived.
+- Run `bun run verify` directly without output-filter pipelines, then verify affected routes in a browser.
+- Before an ancestry-only merge commit, require `git diff --cached --quiet "$PRE"` and state explicitly that no upstream content is being retained.
 
 If a merge would alter the product's appearance, remove a fork UI surface, change a working custom API call, or leave behavior unproven, restore/combine the fork implementation or abort the merge. Stop and ask the user before committing; never merge first and depend on a later revert.
 
