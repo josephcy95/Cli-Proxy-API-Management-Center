@@ -1263,8 +1263,8 @@ export function AuthFilesPage() {
                     onDelete={handleDelete}
                     onToggleStatus={handleStatusToggle}
                     onToggleSelect={toggleSelect}
-                     onAuthFileUpdated={reloadAuthFilesSilently}
-                     onCodexRefreshStateReset={clearCodexRefreshStateForFile}
+                    onAuthFileUpdated={reloadAuthFilesSilently}
+                    onCodexRefreshStateReset={clearCodexRefreshStateForFile}
                   />
                 ))}
               </div>
