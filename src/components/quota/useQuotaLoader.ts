@@ -8,6 +8,7 @@ import type { AuthFileItem } from '@/types';
 import {
   captureQuotaCacheGeneration,
   commitIfQuotaCacheCurrent,
+  isQuotaCacheCurrent,
   useQuotaStore,
 } from '@/stores';
 import { getStatusFromError } from '@/utils/quota';
@@ -41,6 +42,9 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
       loadingRef.current = true;
       const requestId = ++requestIdRef.current;
       const cacheGeneration = captureQuotaCacheGeneration();
+      const fileGenerations = new Map(
+        targets.map((file) => [file.name, captureQuotaCacheGeneration(file.name)])
+      );
       setLoading(true);
 
       try {
@@ -73,6 +77,11 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
           setQuota((prev) => {
             const nextState = { ...prev };
             results.forEach((result) => {
+              const fileGeneration = fileGenerations.get(result.name);
+              if (!fileGeneration || !isQuotaCacheCurrent(fileGeneration)) {
+                delete nextState[result.name];
+                return;
+              }
               if (result.status === 'success') {
                 nextState[result.name] = config.buildSuccessState(result.data as TData);
               } else {

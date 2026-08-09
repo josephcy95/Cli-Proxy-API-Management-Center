@@ -136,6 +136,21 @@ export type CodexUsageSnapshot = Pick<
   | 'windows'
 >;
 
+export const codexQuotaHasAvailableCapacity = (snapshot: CodexUsageSnapshot): boolean => {
+  const coreWindows = snapshot.windows.filter((window) =>
+    ['five-hour', 'weekly', 'monthly'].includes(window.id)
+  );
+  const hasPrimary = coreWindows.some((window) => window.id === 'five-hour');
+  const hasSecondary = coreWindows.some(
+    (window) => window.id === 'weekly' || window.id === 'monthly'
+  );
+  return (
+    hasPrimary &&
+    hasSecondary &&
+    coreWindows.every((window) => window.usedPercent !== null && window.usedPercent < 100)
+  );
+};
+
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
 const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
 const CODEX_RESET_CREDITS_REQUEST_TIMEOUT_MS = 8000;

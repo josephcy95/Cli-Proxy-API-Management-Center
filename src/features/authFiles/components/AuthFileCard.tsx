@@ -85,6 +85,7 @@ export type AuthFileCardProps = {
   onToggleStatus: (file: AuthFileItem, enabled: boolean) => void;
   onToggleSelect: (name: string) => void;
   onAuthFileUpdated?: () => void | Promise<void>;
+  onCodexRefreshStateReset?: (name: string) => void;
 };
 
 const resolveQuotaType = (file: AuthFileItem): QuotaProviderType | null => {
@@ -128,6 +129,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
     onToggleStatus,
     onToggleSelect,
     onAuthFileUpdated,
+    onCodexRefreshStateReset,
   } = props;
 
   const recentBuckets = normalizeRecentRequestBuckets(file.recent_requests ?? file.recentRequests);
@@ -375,6 +377,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                 compact={compact}
                 disableControls={disableControls}
                 onAuthFileUpdated={onAuthFileUpdated}
+                onCodexRefreshStateReset={onCodexRefreshStateReset}
                 onRefreshBindingChange={handleQuotaRefreshBindingChange}
               />
             )}

@@ -376,6 +376,15 @@ export const authFilesApi = {
       { auth_index: authIndex }
     ),
 
+  beginCodexQuotaRecovery: () =>
+    apiClient.post<{ observed_at?: string }>('/codex-quota-recovery/begin', {}),
+
+  recoverCodexQuota: (authIndex: string, observedAt: string) =>
+    apiClient.post<{ status?: string; auth_index?: string; models?: string[] }>(
+      '/codex-quota-recovery',
+      { auth_index: authIndex, observed_at: observedAt }
+    ),
+
   uploadFiles: async (files: File[]): Promise<AuthFileBatchUploadResult> => {
     const requestedNames = files.map((file) => file.name);
     if (requestedNames.length === 0) {

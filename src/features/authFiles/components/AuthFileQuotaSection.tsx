@@ -11,6 +11,10 @@ import {
   XAI_CONFIG,
 } from '@/components/quota';
 import {
+  codexQuotaHasAvailableCapacity,
+  type CodexUsageSnapshot,
+} from '@/components/quota/quotaConfigs';
+import {
   captureQuotaCacheGeneration,
   commitIfQuotaCacheCurrent,
   useNotificationStore,
@@ -28,6 +32,7 @@ import { Button } from '@/components/ui/Button';
 import { IconRefreshCw } from '@/components/ui/icons';
 import { QuotaProgressBar } from '@/features/authFiles/components/QuotaProgressBar';
 import styles from '@/pages/AuthFilesPage.module.scss';
+import { getAuthFileAuthIndex } from '@/features/authFiles/cooldown';
 
 export type AuthFileQuotaRefreshBinding = {
   refresh: () => void;
@@ -60,6 +65,7 @@ export type AuthFileQuotaSectionProps = {
   onAuthFileUpdated?: () => void | Promise<void>;
   /** Host card can place refresh in its action row to avoid an extra quota row. */
   onRefreshBindingChange?: (binding: AuthFileQuotaRefreshBinding | null) => void;
+  onCodexRefreshStateReset?: (name: string) => void;
 };
 
 export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
@@ -69,6 +75,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     compact = false,
     disableControls,
     onAuthFileUpdated,
+    onCodexRefreshStateReset,
     onRefreshBindingChange,
   } = props;
   const { t } = useTranslation();
@@ -114,7 +121,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       buildErrorState: (message: string, status?: number) => unknown;
       renderQuotaItems: (quota: unknown, t: TFunction, helpers: unknown) => unknown;
     };
-    const cacheGeneration = captureQuotaCacheGeneration();
+    const cacheGeneration = captureQuotaCacheGeneration(file.name);
 
     updateQuotaState((prev: Record<string, unknown>) => ({
       ...prev,
@@ -122,7 +129,16 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     }));
 
     try {
+      let observedAt: string | null = null;
+      if (quotaType === 'codex') {
+        try {
+          observedAt = (await authFilesApi.beginCodexQuotaRecovery()).observed_at ?? null;
+        } catch {
+          // Older servers can still display quota, but cannot safely auto-recover cooldowns.
+        }
+      }
       const data = await config.fetchQuota(file, t);
+      let authFileChanged = false;
       const applied = commitIfQuotaCacheCurrent(cacheGeneration, () => {
         updateQuotaState((prev: Record<string, unknown>) => ({
           ...prev,
@@ -131,6 +147,17 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
         showNotification(t('auth_files.quota_refresh_success', { name: file.name }), 'success');
       });
       if (applied && quotaType === 'codex') {
+        if (observedAt && codexQuotaHasAvailableCapacity(data as CodexUsageSnapshot)) {
+          const authIndex = getAuthFileAuthIndex(file);
+          if (authIndex) {
+            try {
+              await authFilesApi.recoverCodexQuota(authIndex, observedAt);
+              authFileChanged = true;
+            } catch {
+              // Keep the refreshed quota visible even if local cooldown clearing fails.
+            }
+          }
+        }
         const planType =
           data && typeof data === 'object' && 'planType' in data
             ? String((data as { planType?: unknown }).planType ?? '').trim()
@@ -142,11 +169,15 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
               chatgpt_plan_type: planType,
               plan_checked_at: new Date().toISOString(),
             });
-            // Silent reload: avoid grid unmount flash from full loading state.
-            await onAuthFileUpdated?.();
+            authFileChanged = true;
           } catch {
             // Quota display still succeeds if plan persistence fails.
           }
+        }
+        if (authFileChanged) {
+          if (quotaType === 'codex') onCodexRefreshStateReset?.(file.name);
+          // Silent reload: avoid grid unmount flash from full loading state.
+          await onAuthFileUpdated?.();
         }
       }
     } catch (err: unknown) {
@@ -167,6 +198,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     disableControls,
     file,
     onAuthFileUpdated,
+    onCodexRefreshStateReset,
     quota?.status,
     quotaType,
     showNotification,
@@ -194,7 +226,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       confirmText: t('codex_quota.reset_confirm_button'),
       variant: 'primary',
       onConfirm: async () => {
-        const cacheGeneration = captureQuotaCacheGeneration();
+        const cacheGeneration = captureQuotaCacheGeneration(file.name);
         setResettingQuota(true);
         try {
           const data = await resetQuota(file, t);

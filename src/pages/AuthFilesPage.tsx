@@ -66,8 +66,14 @@ import {
   matchesXaiStatusFilter,
   type XaiStatusFilter,
 } from '@/features/authFiles/xaiStatus';
-import { listResettableCooldownFiles } from '@/features/authFiles/cooldown';
-import { fetchCodexUsageSnapshot } from '@/components/quota/quotaConfigs';
+import {
+  getAuthFileAuthIndex,
+  listResettableCooldownFiles,
+} from '@/features/authFiles/cooldown';
+import {
+  codexQuotaHasAvailableCapacity,
+  fetchCodexUsageSnapshot,
+} from '@/components/quota/quotaConfigs';
 import {
   isAuthFilesStatusFilterMode,
   isAuthFilesSortMode,
@@ -251,6 +257,19 @@ export function AuthFilesPage() {
   const [batchPriorityInput, setBatchPriorityInput] = useState('');
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
 
+  const clearCodexRefreshState = useCallback((names: string[]) => {
+    const resetNames = new Set(names);
+    setCodexRefreshByName((current) => {
+      const next = { ...current };
+      resetNames.forEach((name) => delete next[name]);
+      return next;
+    });
+  }, []);
+
+  const clearCodexRefreshStateForFile = useCallback((name: string) => {
+    clearCodexRefreshState([name]);
+  }, [clearCodexRefreshState]);
+
   const {
     files,
     selectedFiles,
@@ -286,7 +305,7 @@ export function AuthFilesPage() {
     batchResetCooldown,
     batchSetPriority,
     batchSetJailbreak,
-  } = useAuthFilesData();
+  } = useAuthFilesData({ onCooldownReset: clearCodexRefreshState });
 
   const statusBarCache = useAuthFilesStatusBarCache(files);
 
@@ -491,8 +510,24 @@ export function AuthFilesPage() {
       while (cursor < codexFiles.length) {
         const file = codexFiles[cursor++];
         try {
+          let observedAt: string | null = null;
+          try {
+            observedAt = (await authFilesApi.beginCodexQuotaRecovery()).observed_at ?? null;
+          } catch {
+            // Older servers can refresh quota but cannot safely auto-recover cooldowns.
+          }
           const snapshot = await fetchCodexUsageSnapshot(file, t);
           const checkedAt = new Date().toISOString();
+          if (observedAt && codexQuotaHasAvailableCapacity(snapshot)) {
+            const authIndex = getAuthFileAuthIndex(file);
+            if (authIndex) {
+              try {
+                await authFilesApi.recoverCodexQuota(authIndex, observedAt);
+              } catch {
+                persistenceFailed += 1;
+              }
+            }
+          }
           if (snapshot.planType) {
             try {
               await authFilesApi.patchFields(file.name, {
@@ -1228,7 +1263,8 @@ export function AuthFilesPage() {
                     onDelete={handleDelete}
                     onToggleStatus={handleStatusToggle}
                     onToggleSelect={toggleSelect}
-                    onAuthFileUpdated={reloadAuthFilesSilently}
+                     onAuthFileUpdated={reloadAuthFilesSilently}
+                     onCodexRefreshStateReset={clearCodexRefreshStateForFile}
                   />
                 ))}
               </div>

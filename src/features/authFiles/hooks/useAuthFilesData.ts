@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api';
 import { apiClient } from '@/services/api/client';
 import { notifyAuthFilesChanged } from '@/features/authFiles/authFilesEvents';
-import { useNotificationStore } from '@/stores';
+import { useNotificationStore, useQuotaStore } from '@/stores';
 import type { AuthFileItem } from '@/types';
 import { formatFileSize } from '@/utils/format';
 import { MAX_AUTH_FILE_SIZE } from '@/utils/constants';
@@ -65,9 +65,14 @@ export type UseAuthFilesDataResult = {
   batchSetJailbreak: (names: string[], allow: boolean) => Promise<void>;
 };
 
-export function useAuthFilesData(): UseAuthFilesDataResult {
+export type UseAuthFilesDataOptions = {
+  onCooldownReset?: (names: string[]) => void;
+};
+
+export function useAuthFilesData({ onCooldownReset }: UseAuthFilesDataOptions = {}): UseAuthFilesDataResult {
   const { t } = useTranslation();
   const { showNotification, showConfirmation } = useNotificationStore();
+  const clearQuotaForFile = useQuotaStore((state) => state.clearQuotaForFile);
 
   const [files, setFiles] = useState<AuthFileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -561,6 +566,8 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
               return;
             }
             showNotification(t('auth_files.reset_cooldown_success', { name }), 'success');
+            clearQuotaForFile(name);
+            onCooldownReset?.([name]);
             notifyAuthFilesChanged();
             await loadFiles({ silent: true });
           } catch (err: unknown) {
@@ -570,7 +577,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
         },
       });
     },
-    [loadFiles, runResetCooldown, showConfirmation, showNotification, t]
+    [clearQuotaForFile, loadFiles, onCooldownReset, runResetCooldown, showConfirmation, showNotification, t]
   );
 
   const batchResetCooldown = useCallback(
@@ -605,11 +612,15 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
 
           let succeeded = 0;
           let failed = 0;
+          const succeededNames: string[] = [];
           try {
             for (const file of targets) {
               try {
                 const ok = await runResetCooldown(file);
-                if (ok) succeeded += 1;
+                if (ok) {
+                  succeeded += 1;
+                  succeededNames.push(file.name);
+                }
                 else failed += 1;
               } catch {
                 failed += 1;
@@ -635,6 +646,8 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
 
             if (succeeded > 0) {
               notifyAuthFilesChanged();
+              succeededNames.forEach((name) => clearQuotaForFile(name));
+              onCooldownReset?.(succeededNames);
               await loadFiles({ silent: true });
             }
           } finally {
@@ -644,7 +657,7 @@ export function useAuthFilesData(): UseAuthFilesDataResult {
         },
       });
     },
-    [loadFiles, runResetCooldown, showConfirmation, showNotification, t]
+    [clearQuotaForFile, loadFiles, onCooldownReset, runResetCooldown, showConfirmation, showNotification, t]
   );
 
   const handleStatusToggle = useCallback(

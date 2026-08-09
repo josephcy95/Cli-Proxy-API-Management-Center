@@ -35,4 +35,14 @@ describe('quota cache session isolation', () => {
     ).toBe(true);
     expect(committed).toBe(true);
   });
+
+  test('invalidating one file does not cancel another file request', () => {
+    const firstFile = captureQuotaCacheGeneration('first.json');
+    const secondFile = captureQuotaCacheGeneration('second.json');
+
+    useQuotaStore.getState().clearQuotaForFile('first.json');
+
+    expect(commitIfQuotaCacheCurrent(firstFile, () => {})).toBe(false);
+    expect(commitIfQuotaCacheCurrent(secondFile, () => {})).toBe(true);
+  });
 });
