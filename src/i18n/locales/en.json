@@ -326,7 +326,6 @@
     "reset_cooldown_batch_success": "Cleared local cooldown for {{count}} credentials",
     "reset_cooldown_batch_partial": "Cleared {{success}} cooldowns; {{failed}} failed",
     "reset_cooldown_batch_failed": "Failed to reset cooled-down credentials",
-
     "delete_button": "Delete",
     "delete_confirm": "Are you sure you want to delete file",
     "delete_all_confirm": "Are you sure you want to delete all auth files? This operation cannot be undone!",
@@ -375,13 +374,10 @@
     "sort_label": "Sort",
     "sort_az": "A-Z Name",
     "sort_priority": "Priority",
-    "sort_plan_desc": "Plan: highest first",
-    "sort_plan_asc": "Plan: lowest first",
     "codex_refresh_button": "Refresh Codex data",
     "codex_refresh_result": "Codex refresh: {{successful}} updated, {{failed}} failed, {{persistenceFailed}} not saved",
     "codex_status_label": "Codex status",
     "codex_status_all": "All statuses",
-    "codex_status_working": "Working",
     "codex_status_cooldown": "Cooldown",
     "codex_status_denied": "Denied / invalid auth",
     "codex_status_other": "Other",
@@ -513,7 +509,12 @@
     "allow_private_instructions_hint": "Permit this Codex OAuth file to serve private-marker model requests and receive injected instructions.",
     "allow_private_instructions_display": "Private instructions allowed",
     "allow_private_instructions_badge": "Jailbreak",
-    "disabled_reason_display": "Disabled reason"
+    "disabled_reason_display": "Disabled reason",
+    "sort_availability": "Availability first",
+    "codex_status_all_filter": "All",
+    "codex_status_available": "Available",
+    "codex_status_cooldown_filter": "Cooldown",
+    "codex_status_denied_filter": "Denied"
   },
   "antigravity_subscription": {
     "plan_unknown": "Unknown",

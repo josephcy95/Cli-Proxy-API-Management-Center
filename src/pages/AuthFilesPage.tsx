@@ -51,9 +51,10 @@ import { useAuthFilesOauth } from '@/features/authFiles/hooks/useAuthFilesOauth'
 import { useAuthFilesPrefixProxyEditor } from '@/features/authFiles/hooks/useAuthFilesPrefixProxyEditor';
 import { useAuthFilesStatusBarCache } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
 import {
+  CODEX_STATUS_FILTERS,
+  compareCodexAvailability,
   getCodexAccountStatus,
   getCodexPlanFilterValue,
-  getCodexPlanSortRank,
   matchesCodexPlanFilter,
   matchesCodexStatusFilter,
   type CodexRefreshState,
@@ -66,17 +67,16 @@ import {
   matchesXaiStatusFilter,
   type XaiStatusFilter,
 } from '@/features/authFiles/xaiStatus';
-import {
-  getAuthFileAuthIndex,
-  listResettableCooldownFiles,
-} from '@/features/authFiles/cooldown';
+import { getAuthFileAuthIndex, listResettableCooldownFiles } from '@/features/authFiles/cooldown';
 import {
   codexQuotaHasAvailableCapacity,
   fetchCodexUsageSnapshot,
 } from '@/components/quota/quotaConfigs';
 import {
   isAuthFilesStatusFilterMode,
+  getDefaultAuthFilesSortMode,
   isAuthFilesSortMode,
+  normalizePersistedAuthFilesSortMode,
   readAuthFilesUiState,
   readPersistedAuthFilesCompactMode,
   writeAuthFilesUiState,
@@ -203,9 +203,9 @@ const readInitialUiState = (): InitialUiState => {
         ? clampCardPageSize(persisted.compactPageSize)
         : (legacyPageSize ?? DEFAULT_COMPACT_PAGE_SIZE),
   };
-  if (isAuthFilesSortMode(persisted.sortMode)) {
-    initial.sortMode = persisted.sortMode;
-  }
+  initial.sortMode =
+    normalizePersistedAuthFilesSortMode(persisted.sortMode, initial.filter) ??
+    getDefaultAuthFilesSortMode(initial.filter);
   if (
     typeof persisted.xaiStatusFilter === 'string' &&
     XAI_STATUS_FILTERS.includes(persisted.xaiStatusFilter as XaiStatusFilter)
@@ -266,9 +266,12 @@ export function AuthFilesPage() {
     });
   }, []);
 
-  const clearCodexRefreshStateForFile = useCallback((name: string) => {
-    clearCodexRefreshState([name]);
-  }, [clearCodexRefreshState]);
+  const clearCodexRefreshStateForFile = useCallback(
+    (name: string) => {
+      clearCodexRefreshState([name]);
+    },
+    [clearCodexRefreshState]
+  );
 
   const {
     files,
@@ -352,6 +355,7 @@ export function AuthFilesPage() {
 
   const disableControls = connectionStatus !== 'connected';
   const normalizedFilter = normalizeProviderKey(String(filter));
+  const previousProviderRef = useRef(normalizedFilter);
   // Unified Qoder pill covers both CN and Intl; cards resolve the real per-file
   // quota type (qodercn vs qoder) themselves via resolveQuotaType.
   const quotaFilterType: QuotaProviderType | null =
@@ -480,12 +484,12 @@ export function AuthFilesPage() {
     });
     setPageSizeInput(String(DEFAULT_REGULAR_PAGE_SIZE));
     setViewMode('list');
-    setSortMode('priority');
+    setSortMode(getDefaultAuthFilesSortMode(normalizedFilter));
     setCodexStatusFilter('all');
     setCodexPlanFilter('all');
     setXaiStatusFilter('all');
     deselectAll();
-  }, [deselectAll]);
+  }, [deselectAll, normalizedFilter]);
 
   const refreshCodexData = useCallback(async () => {
     const codexFiles = files.filter(
@@ -576,13 +580,16 @@ export function AuthFilesPage() {
   }, [files, loadFiles, showNotification, t]);
 
   useEffect(() => {
+    const previousProvider = previousProviderRef.current;
+    if (previousProvider !== normalizedFilter) {
+      setSortMode(getDefaultAuthFilesSortMode(normalizedFilter));
+      previousProviderRef.current = normalizedFilter;
+    }
+
     if (isCodexSelected) return;
     setCodexStatusFilter('all');
     setCodexPlanFilter('all');
-    if (sortMode === 'plan-desc' || sortMode === 'plan-asc') {
-      setSortMode('priority');
-    }
-  }, [isCodexSelected, sortMode]);
+  }, [isCodexSelected, normalizedFilter]);
 
   useEffect(() => {
     if (isXaiSelected) return;
@@ -657,17 +664,35 @@ export function AuthFilesPage() {
     ]
   );
 
+  const codexStatusOptions = useMemo(
+    () =>
+      CODEX_STATUS_FILTERS.map((value) => ({
+        value,
+        label: t(
+          value === 'all'
+            ? 'auth_files.codex_status_all_filter'
+            : value === 'available'
+              ? 'auth_files.codex_status_available'
+              : value === 'cooldown'
+                ? 'auth_files.codex_status_cooldown_filter'
+                : 'auth_files.codex_status_denied_filter'
+        ),
+      })),
+    [t]
+  );
+
   const sortOptions = useMemo(
-    () => [
-      { value: 'priority', label: t('auth_files.sort_priority') },
-      { value: 'az', label: t('auth_files.sort_az') },
-      ...(isCodexSelected
+    () =>
+      isCodexSelected
         ? [
-            { value: 'plan-desc', label: t('auth_files.sort_plan_desc') },
-            { value: 'plan-asc', label: t('auth_files.sort_plan_asc') },
+            { value: 'availability', label: t('auth_files.sort_availability') },
+            { value: 'priority', label: t('auth_files.sort_priority') },
+            { value: 'az', label: t('auth_files.sort_az') },
           ]
-        : []),
-    ],
+        : [
+            { value: 'priority', label: t('auth_files.sort_priority') },
+            { value: 'az', label: t('auth_files.sort_az') },
+          ],
     [isCodexSelected, t]
   );
 
@@ -725,21 +750,18 @@ export function AuthFilesPage() {
         // Highest priority first (matches API candidate pool); name as tie-break.
         return pb - pa || a.name.localeCompare(b.name);
       });
-    } else if (sortMode === 'plan-desc' || sortMode === 'plan-asc') {
-      copy.sort((left, right) => {
-        const leftRank = getCodexPlanSortRank(left, codexRefreshByName[left.name]);
-        const rightRank = getCodexPlanSortRank(right, codexRefreshByName[right.name]);
-        if (leftRank !== null || rightRank !== null) {
-          if (leftRank === null) return 1;
-          if (rightRank === null) return -1;
-          const diff = sortMode === 'plan-desc' ? rightRank - leftRank : leftRank - rightRank;
-          if (diff !== 0) return diff;
-        }
-        return left.name.localeCompare(right.name);
-      });
+    } else if (sortMode === 'availability' && isCodexSelected) {
+      copy.sort((left, right) =>
+        compareCodexAvailability(
+          left,
+          right,
+          getCodexAccountStatus(left, codexRefreshByName[left.name]).kind,
+          getCodexAccountStatus(right, codexRefreshByName[right.name]).kind
+        )
+      );
     }
     return copy;
-  }, [codexRefreshByName, filtered, sortMode]);
+  }, [codexRefreshByName, filtered, isCodexSelected, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / gridPageSize));
   const currentPage = Math.min(page, totalPages);
@@ -1100,22 +1122,32 @@ export function AuthFilesPage() {
                   <>
                     <div className={`${styles.filterItem} ${styles.codexStatusItem}`}>
                       <label>{t('auth_files.codex_status_label')}</label>
-                      <Select
-                        value={codexStatusFilter}
-                        options={[
-                          { value: 'all', label: t('auth_files.codex_status_all') },
-                          { value: 'working', label: t('auth_files.codex_status_working') },
-                          { value: 'cooldown', label: t('auth_files.codex_status_cooldown') },
-                          { value: 'denied', label: t('auth_files.codex_status_denied') },
-                          { value: 'other', label: t('auth_files.codex_status_other') },
-                        ]}
-                        onChange={(value) => {
-                          setCodexStatusFilter(value as CodexStatusFilter);
-                          setPage(1);
-                        }}
-                        ariaLabel={t('auth_files.codex_status_label')}
-                        fullWidth
-                      />
+                      <div
+                        className={styles.codexStatusToggle}
+                        role="group"
+                        aria-label={t('auth_files.codex_status_label')}
+                      >
+                        {codexStatusOptions.map((option) => (
+                          <Button
+                            key={option.value}
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className={`${styles.codexStatusButton} ${
+                              codexStatusFilter === option.value
+                                ? styles.codexStatusButtonActive
+                                : ''
+                            }`}
+                            onClick={() => {
+                              setCodexStatusFilter(option.value as CodexStatusFilter);
+                              setPage(1);
+                            }}
+                            aria-pressed={codexStatusFilter === option.value}
+                          >
+                            {option.label}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                     <div className={`${styles.filterItem} ${styles.codexPlanItem}`}>
                       <label>{t('auth_files.codex_plan_label')}</label>

@@ -1,9 +1,4 @@
-export const AUTH_FILES_SORT_MODES = [
-  'priority',
-  'az',
-  'plan-desc',
-  'plan-asc',
-] as const;
+export const AUTH_FILES_SORT_MODES = ['priority', 'az', 'availability'] as const;
 export const AUTH_FILES_STATUS_FILTER_MODES = ['all', 'enabled', 'disabled', 'problem'] as const;
 
 export type AuthFilesSortMode = (typeof AUTH_FILES_SORT_MODES)[number];
@@ -34,6 +29,24 @@ const AUTH_FILES_STATUS_FILTER_MODE_SET = new Set<AuthFilesStatusFilterMode>(
 
 export const isAuthFilesSortMode = (value: unknown): value is AuthFilesSortMode =>
   typeof value === 'string' && AUTH_FILES_SORT_MODE_SET.has(value as AuthFilesSortMode);
+
+export const getDefaultAuthFilesSortMode = (provider: string): AuthFilesSortMode =>
+  provider.trim().toLowerCase() === 'codex' ? 'availability' : 'priority';
+
+/** Migrate legacy persisted sort values and keep provider-specific modes scoped. */
+export const normalizePersistedAuthFilesSortMode = (
+  value: unknown,
+  provider: string
+): AuthFilesSortMode | null => {
+  if (value === 'plan-desc' || value === 'plan-asc') {
+    return getDefaultAuthFilesSortMode(provider);
+  }
+  if (!isAuthFilesSortMode(value)) return null;
+  if (value === 'availability' && provider.trim().toLowerCase() !== 'codex') {
+    return 'priority';
+  }
+  return value;
+};
 
 export const isAuthFilesStatusFilterMode = (value: unknown): value is AuthFilesStatusFilterMode =>
   typeof value === 'string' &&

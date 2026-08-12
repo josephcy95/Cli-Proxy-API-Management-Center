@@ -199,7 +199,6 @@
     "reset_cooldown_batch_success": "已清除 {{count}} 个凭证的本地冷却",
     "reset_cooldown_batch_partial": "已清除 {{success}} 个冷却；{{failed}} 个失败",
     "reset_cooldown_batch_failed": "批量重置冷却失败",
-
     "delete_button": "删除",
     "delete_confirm": "确定要删除文件",
     "delete_all_confirm": "确定要删除所有认证文件吗？此操作不可恢复！",
@@ -248,13 +247,10 @@
     "sort_label": "排序",
     "sort_az": "A-Z 名称",
     "sort_priority": "优先级",
-    "sort_plan_desc": "套餐：从高到低",
-    "sort_plan_asc": "套餐：从低到高",
     "codex_refresh_button": "刷新 Codex 数据",
     "codex_refresh_result": "Codex 刷新完成：更新 {{successful}} 个，失败 {{failed}} 个，未保存 {{persistenceFailed}} 个",
     "codex_status_label": "Codex 状态",
     "codex_status_all": "全部状态",
-    "codex_status_working": "正常",
     "codex_status_cooldown": "冷却中",
     "codex_status_denied": "拒绝 / 无效认证",
     "codex_status_other": "其他",
@@ -386,7 +382,12 @@
     "allow_private_instructions_hint": "允许此 Codex OAuth 文件处理 private 标记模型请求，并注入私有指令。",
     "allow_private_instructions_display": "已允许私有指令",
     "allow_private_instructions_badge": "破甲",
-    "disabled_reason_display": "禁用原因"
+    "disabled_reason_display": "禁用原因",
+    "sort_availability": "可用优先",
+    "codex_status_all_filter": "全部",
+    "codex_status_available": "可用",
+    "codex_status_cooldown_filter": "冷却中",
+    "codex_status_denied_filter": "拒绝"
   },
   "antigravity_subscription": {
     "plan_unknown": "未知",

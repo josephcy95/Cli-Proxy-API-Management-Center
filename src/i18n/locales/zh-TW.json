@@ -247,13 +247,10 @@
     "sort_label": "排序",
     "sort_az": "A-Z 名稱",
     "sort_priority": "優先順序",
-    "sort_plan_desc": "方案：由高至低",
-    "sort_plan_asc": "方案：由低至高",
     "codex_refresh_button": "重新整理 Codex 資料",
     "codex_refresh_result": "Codex 更新完成：更新 {{successful}} 個，失敗 {{failed}} 個，未儲存 {{persistenceFailed}} 個",
     "codex_status_label": "Codex 狀態",
     "codex_status_all": "所有狀態",
-    "codex_status_working": "正常",
     "codex_status_cooldown": "冷卻中",
     "codex_status_denied": "拒絕 / 無效認證",
     "codex_status_other": "其他",
@@ -385,7 +382,12 @@
     "allow_private_instructions_hint": "允許此 Codex OAuth 檔處理 private 標記模型請求，並注入私有指令。",
     "allow_private_instructions_display": "已允許私有指令",
     "allow_private_instructions_badge": "破甲",
-    "disabled_reason_display": "停用原因"
+    "disabled_reason_display": "停用原因",
+    "sort_availability": "可用優先",
+    "codex_status_all_filter": "全部",
+    "codex_status_available": "可用",
+    "codex_status_cooldown_filter": "冷卻中",
+    "codex_status_denied_filter": "拒絕"
   },
   "antigravity_subscription": {
     "plan_unknown": "未知",

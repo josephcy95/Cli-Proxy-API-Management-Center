@@ -198,7 +198,6 @@
     "reset_cooldown_batch_success": "Локальный cooldown очищен для {{count}} учёток",
     "reset_cooldown_batch_partial": "Очищено {{success}} cooldown; {{failed}} с ошибкой",
     "reset_cooldown_batch_failed": "Не удалось сбросить cooldown",
-
     "delete_button": "Удалить",
     "delete_confirm": "Удалить файл",
     "delete_all_confirm": "Удалить все файлы авторизации? Это действие нельзя отменить!",
@@ -247,13 +246,10 @@
     "sort_label": "Сортировка",
     "sort_az": "A-Z Имя",
     "sort_priority": "Приоритет",
-    "sort_plan_desc": "Тариф: по убыванию",
-    "sort_plan_asc": "Тариф: по возрастанию",
     "codex_refresh_button": "Обновить данные Codex",
     "codex_refresh_result": "Codex обновлён: {{successful}} обновлено, {{failed}} ошибок, {{persistenceFailed}} не сохранено",
     "codex_status_label": "Статус Codex",
     "codex_status_all": "Все статусы",
-    "codex_status_working": "Работает",
     "codex_status_cooldown": "Ожидание",
     "codex_status_denied": "Отказано / недействительный auth",
     "codex_status_other": "Прочее",
@@ -379,7 +375,12 @@
     "allow_private_instructions_hint": "Разрешает этому Codex OAuth файлу обслуживать private-marker запросы и получать injected instructions.",
     "allow_private_instructions_display": "Private instructions разрешены",
     "allow_private_instructions_badge": "Jailbreak",
-    "disabled_reason_display": "Причина отключения"
+    "disabled_reason_display": "Причина отключения",
+    "sort_availability": "Сначала доступные",
+    "codex_status_all_filter": "Все",
+    "codex_status_available": "Доступен",
+    "codex_status_cooldown_filter": "Ожидание",
+    "codex_status_denied_filter": "Отказано"
   },
   "antigravity_subscription": {
     "plan_unknown": "Неизвестно",

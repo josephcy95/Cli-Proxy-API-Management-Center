@@ -1,3 +1,4 @@
+import { parsePriorityValue } from '@/features/authFiles/constants';
 import type { AuthFileItem, CodexQuotaWindow } from '@/types';
 import { normalizePlanType, resolveCodexPlanType } from '@/utils/quota';
 
@@ -12,11 +13,12 @@ export const CODEX_PLAN_FILTERS = [
   'unknown',
 ] as const;
 
-/** Status filters aligned with xAI: working / cooldown / denied / other. */
-export const CODEX_STATUS_FILTERS = ['all', 'working', 'cooldown', 'denied', 'other'] as const;
+/** Visible status filters. `other` remains an internal classification for All and sorting. */
+export const CODEX_STATUS_FILTERS = ['all', 'available', 'cooldown', 'denied'] as const;
 
 export type CodexPlanFilter = (typeof CODEX_PLAN_FILTERS)[number];
 export type CodexStatusFilter = (typeof CODEX_STATUS_FILTERS)[number];
+export type CodexAccountStatusKind = 'working' | 'other' | 'cooldown' | 'denied';
 
 export type CodexRefreshState = {
   status: 'idle' | 'loading' | 'success' | 'error';
@@ -26,8 +28,6 @@ export type CodexRefreshState = {
   errorStatus?: number;
 };
 
-export type CodexAccountStatusKind = Exclude<CodexStatusFilter, 'all'>;
-
 export type CodexAccountStatus = {
   kind: CodexAccountStatusKind;
   needsReauth: boolean;
@@ -36,6 +36,17 @@ export type CodexAccountStatus = {
   weeklyLimited: boolean;
   monthlyLimited: boolean;
 };
+
+const CODEX_AVAILABILITY_STATUS_RANK: Record<CodexAccountStatusKind, number> = {
+  working: 0,
+  other: 1,
+  cooldown: 2,
+  denied: 3,
+};
+
+/** Returns the fixed availability ordering used by the Codex auth-file list. */
+export const getCodexAvailabilityStatusRank = (kind: CodexAccountStatusKind): number =>
+  CODEX_AVAILABILITY_STATUS_RANK[kind];
 
 const PREMIUM_PLAN_TYPES = new Set(['prolite', 'pro-lite', 'pro_lite']);
 
@@ -62,26 +73,24 @@ export const getCodexPlanFilterValue = (
 ): CodexPlanFilter | null =>
   normalizedPlanFilterValue(refreshed?.planType ?? resolveCodexPlanType(file));
 
-export const getCodexPlanSortRank = (
-  file: AuthFileItem,
-  refreshed?: CodexRefreshState
-): number | null => {
-  switch (getCodexPlanFilterValue(file, refreshed)) {
-    case 'pro':
-      return 50;
-    case 'prolite':
-      return 40;
-    case 'team':
-      return 30;
-    case 'plus':
-      return 20;
-    case 'free':
-      return 10;
-    case 'k12':
-      return 10;
-    default:
-      return null;
-  }
+/**
+ * Compare two already-classified Codex files by availability, then priority,
+ * then filename. The comparator intentionally does not inspect quota windows
+ * or plan types; callers provide the current status classification.
+ */
+export const compareCodexAvailability = (
+  left: AuthFileItem,
+  right: AuthFileItem,
+  leftStatus: CodexAccountStatusKind,
+  rightStatus: CodexAccountStatusKind
+): number => {
+  const statusDifference =
+    getCodexAvailabilityStatusRank(leftStatus) - getCodexAvailabilityStatusRank(rightStatus);
+  if (statusDifference !== 0) return statusDifference;
+
+  const leftPriority = parsePriorityValue(left.priority) ?? 0;
+  const rightPriority = parsePriorityValue(right.priority) ?? 0;
+  return rightPriority - leftPriority || left.name.localeCompare(right.name);
 };
 
 const isWindowFull = (window: CodexQuotaWindow, kind: string): boolean =>
@@ -236,8 +245,19 @@ export const matchesCodexPlanFilter = (
   return filter === 'unknown' ? value === null : value === filter;
 };
 
+/**
+ * Map visible filter 'available' to internal 'working'; 'all' is special.
+ * 'other' is internal and not a visible filter choice (remains under All).
+ */
 export const matchesCodexStatusFilter = (
   filter: CodexStatusFilter,
   file: AuthFileItem,
   refreshed?: CodexRefreshState
-): boolean => filter === 'all' || getCodexAccountStatus(file, refreshed).kind === filter;
+): boolean => {
+  if (filter === 'all') return true;
+  const status = getCodexAccountStatus(file, refreshed);
+  if (filter === 'available') {
+    return status.kind === 'working';
+  }
+  return status.kind === filter;
+};
