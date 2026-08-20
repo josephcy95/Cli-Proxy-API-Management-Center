@@ -303,6 +303,16 @@ $control-h: 38px;
   color: var(--text-secondary);
 }
 
+.failureSummary {
+  display: block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+  user-select: text;
+}
+
 .mono {
   font-family: $font-mono;
   font-size: 12px;

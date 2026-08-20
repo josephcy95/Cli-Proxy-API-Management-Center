@@ -134,6 +134,15 @@ const isManualSource = (source?: string) => {
   return s === '' || s === 'manual' || s === 'override';
 };
 
+const selectText = (element: HTMLElement) => {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
+
 export function MonitoringPage() {
   const { t } = useTranslation();
   const showNotification = useNotificationStore((s) => s.showNotification);
@@ -857,8 +866,12 @@ export function MonitoringPage() {
                           <span className={styles.statusOk}>{t('monitoring.status_success')}</span>
                         )}
                         {e.fail_summary ? (
-                          <span className={styles.cellSecondary} title={e.fail_summary}>
-                            {e.fail_summary.slice(0, 64)}
+                          <span
+                            className={`${styles.cellSecondary} ${styles.failureSummary}`}
+                            title={e.fail_summary}
+                            onDoubleClick={(event) => selectText(event.currentTarget)}
+                          >
+                            {e.fail_summary}
                           </span>
                         ) : null}
                       </div>
