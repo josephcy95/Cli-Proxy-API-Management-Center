@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -147,6 +147,125 @@ const selectText = (element: HTMLElement) => {
   selection.addRange(range);
 };
 
+const sameRecord = (left: object, right: object) => {
+  const previous = left as Record<string, unknown>;
+  const next = right as Record<string, unknown>;
+  const keys = Object.keys(next);
+  return (
+    keys.length === Object.keys(previous).length &&
+    keys.every((key) => previous[key] === next[key])
+  );
+};
+
+const mergeEvents = (previous: UsageEvent[], next: UsageEvent[]) => {
+  if (previous.length === 0) return next;
+  const previousById = new Map(previous.map((event) => [event.id, event]));
+  let changed = previous.length !== next.length;
+  const merged = next.map((event) => {
+    const previousEvent = previousById.get(event.id);
+    if (!previousEvent || !sameRecord(previousEvent, event)) {
+      changed = true;
+      return event;
+    }
+    return previousEvent;
+  });
+  return changed ? merged : previous;
+};
+
+const sameStringList = (left: string[] | undefined, right: string[] | undefined) =>
+  left !== undefined &&
+  right !== undefined &&
+  left.length === right.length &&
+  left.every((value, index) => value === right[index]);
+
+const sameFilterOptions = (left: UsageFilterOptions | null, right: UsageFilterOptions) =>
+  left !== null &&
+  sameStringList(left.models, right.models) &&
+  sameStringList(left.providers, right.providers) &&
+  sameStringList(left.auth_indices, right.auth_indices) &&
+  sameStringList(left.sources, right.sources) &&
+  sameStringList(left.api_keys, right.api_keys) &&
+  sameStringList(left.api_key_hashes, right.api_key_hashes);
+
+const MonitoringEventRow = memo(function MonitoringEventRow({
+  event,
+  apiKeyLabels,
+  formatApiKeyDisplay,
+  failedLabel,
+  successLabel,
+}: {
+  event: UsageEvent;
+  apiKeyLabels: Record<string, string>;
+  formatApiKeyDisplay: (key?: string | null, hash?: string | null) => string;
+  failedLabel: string;
+  successLabel: string;
+}) {
+  return (
+    <TableRow>
+      <TableCell>
+        <div className={styles.cellStack}>
+          <span className={`${styles.cellPrimary} ${styles.mono}`}>
+            {event.source || event.auth_index || '—'}
+          </span>
+          {event.provider ? <span className={styles.cellSecondary}>{event.provider}</span> : null}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className={styles.cellStack}>
+          <span className={styles.mono}>
+            {formatApiKeyDisplay(event.api_key, event.api_key_hash)}
+          </span>
+          {event.api_key && apiKeyLabels[event.api_key] ? (
+            <span className={`${styles.cellSecondary} ${styles.mono}`} title={event.api_key}>
+              {event.api_key}
+            </span>
+          ) : null}
+        </div>
+      </TableCell>
+      <TableCell>
+        <span className={styles.mono}>{event.model || event.alias || '—'}</span>
+      </TableCell>
+      <TableCell>{event.reasoning_effort || '—'}</TableCell>
+      <TableCell>
+        <div className={styles.cellStack}>
+          {event.failed ? (
+            <span className={styles.statusFail}>{event.fail_status_code || failedLabel}</span>
+          ) : (
+            <span className={styles.statusOk}>{successLabel}</span>
+          )}
+          {event.fail_summary ? (
+            <span
+              className={`${styles.cellSecondary} ${styles.failureSummary}`}
+              title={event.fail_summary}
+              onDoubleClick={(e) => selectText(e.currentTarget)}
+            >
+              {event.fail_summary}
+            </span>
+          ) : null}
+        </div>
+      </TableCell>
+      <TableCell alignRight>
+        <span className={styles.num}>{formatDuration(event.ttft_ms)}</span>
+      </TableCell>
+      <TableCell alignRight>
+        <span className={styles.num}>{formatDuration(event.latency_ms)}</span>
+      </TableCell>
+      <TableCell>
+        <span className={styles.cellSecondary}>{formatTime(event.timestamp_ms)}</span>
+      </TableCell>
+      <TableCell alignRight>
+        <div className={styles.cellStack} style={{ alignItems: 'flex-end' }}>
+          <span className={styles.num}>{formatNumber(event.total_tokens)}</span>
+          <span className={styles.cellSecondary}>{formatTokensCompact(event)}</span>
+        </div>
+      </TableCell>
+      <TableCell alignRight>
+        <span className={styles.num}>{formatUsd(event.estimated_cost)}</span>
+      </TableCell>
+    </TableRow>
+  );
+});
+
 export function MonitoringPage() {
   const { t } = useTranslation();
   const showNotification = useNotificationStore((s) => s.showNotification);
@@ -208,7 +327,7 @@ export function MonitoringPage() {
     };
   }, [range, search, model, provider, source, apiKey, statusFilter]);
 
-  const loadCore = useCallback(async (showLoading = true) => {
+  const loadCore = useCallback(async (showLoading = true, includeFilterOptions = showLoading) => {
     if (showLoading) setLoading(true);
     setError('');
     try {
@@ -216,12 +335,26 @@ export function MonitoringPage() {
       const [eventsRes, summaryRes, filtersRes] = await Promise.all([
         usageEventsApi.listEvents(query),
         usageEventsApi.getSummary(query),
-        usageEventsApi.getFilterOptions(query),
+        includeFilterOptions ? usageEventsApi.getFilterOptions(query) : Promise.resolve(null),
       ]);
-      setEvents(eventsRes.events || []);
-      setSummary(summaryRes.summary || null);
-      setStatsEnabledHint(summaryRes.usage_statistics_enabled ?? null);
-      setFilterOptions(filtersRes);
+      const applyResults = () => {
+        setEvents((previous) => mergeEvents(previous, eventsRes.events || []));
+        setSummary((previous) => {
+          const next = summaryRes.summary || null;
+          return next && previous && sameRecord(previous, next) ? previous : next;
+        });
+        setStatsEnabledHint(summaryRes.usage_statistics_enabled ?? null);
+        if (filtersRes) {
+          setFilterOptions((previous) =>
+            sameFilterOptions(previous, filtersRes) ? previous : filtersRes
+          );
+        }
+      };
+      if (showLoading) {
+        applyResults();
+      } else {
+        startTransition(applyResults);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
       setEvents([]);
@@ -841,73 +974,15 @@ export function MonitoringPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell>
-                      <div className={styles.cellStack}>
-                        <span className={`${styles.cellPrimary} ${styles.mono}`}>
-                          {e.source || e.auth_index || '—'}
-                        </span>
-                        {e.provider ? (
-                          <span className={styles.cellSecondary}>{e.provider}</span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className={styles.cellStack}>
-                        <span className={styles.mono}>
-                          {formatApiKeyDisplay(e.api_key, e.api_key_hash)}
-                        </span>
-                        {e.api_key && apiKeyLabels[e.api_key] ? (
-                          <span className={`${styles.cellSecondary} ${styles.mono}`} title={e.api_key}>
-                            {e.api_key}
-                          </span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className={styles.mono}>{e.model || e.alias || '—'}</span>
-                    </TableCell>
-                    <TableCell>{e.reasoning_effort || '—'}</TableCell>
-                    <TableCell>
-                      <div className={styles.cellStack}>
-                        {e.failed ? (
-                          <span className={styles.statusFail}>
-                            {e.fail_status_code || t('monitoring.status_failed')}
-                          </span>
-                        ) : (
-                          <span className={styles.statusOk}>{t('monitoring.status_success')}</span>
-                        )}
-                        {e.fail_summary ? (
-                          <span
-                            className={`${styles.cellSecondary} ${styles.failureSummary}`}
-                            title={e.fail_summary}
-                            onDoubleClick={(event) => selectText(event.currentTarget)}
-                          >
-                            {e.fail_summary}
-                          </span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell alignRight>
-                      <span className={styles.num}>{formatDuration(e.ttft_ms)}</span>
-                    </TableCell>
-                    <TableCell alignRight>
-                      <span className={styles.num}>{formatDuration(e.latency_ms)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={styles.cellSecondary}>{formatTime(e.timestamp_ms)}</span>
-                    </TableCell>
-                    <TableCell alignRight>
-                      <div className={styles.cellStack} style={{ alignItems: 'flex-end' }}>
-                        <span className={styles.num}>{formatNumber(e.total_tokens)}</span>
-                        <span className={styles.cellSecondary}>{formatTokensCompact(e)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell alignRight>
-                      <span className={styles.num}>{formatUsd(e.estimated_cost)}</span>
-                    </TableCell>
-                  </TableRow>
+                {events.map((event) => (
+                  <MonitoringEventRow
+                    key={event.id}
+                    event={event}
+                    apiKeyLabels={apiKeyLabels}
+                    formatApiKeyDisplay={formatApiKeyDisplay}
+                    failedLabel={t('monitoring.status_failed')}
+                    successLabel={t('monitoring.status_success')}
+                  />
                 ))}
               </TableBody>
             </Table>
