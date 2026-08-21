@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -82,6 +82,12 @@ const AUTO_OPTIONS = [
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 
+const numberFormatters = {
+  0: new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }),
+  4: new Intl.NumberFormat(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }),
+};
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined);
+
 const rangeToMs = (key: RangeKey): { from_ms?: number; to_ms?: number } => {
   const now = Date.now();
   if (key === 'all') return {};
@@ -92,10 +98,8 @@ const rangeToMs = (key: RangeKey): { from_ms?: number; to_ms?: number } => {
 
 const formatNumber = (value: number | undefined | null, digits = 0) => {
   if (value === undefined || value === null || !Number.isFinite(value)) return '—';
-  return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: digits,
-    minimumFractionDigits: digits > 0 ? Math.min(digits, 2) : 0,
-  }).format(value);
+  const formatter = digits === 4 ? numberFormatters[4] : numberFormatters[0];
+  return formatter.format(value);
 };
 
 const formatUsd = (value: number | undefined | null) => {
@@ -112,7 +116,7 @@ const formatDuration = (ms: number | null | undefined) => {
 
 const formatTime = (ms: number) => {
   if (!ms) return '—';
-  return new Date(ms).toLocaleString();
+  return dateTimeFormatter.format(ms);
 };
 
 const formatTokensCompact = (e: UsageEvent) => {
@@ -183,6 +187,7 @@ export function MonitoringPage() {
   const [syncResult, setSyncResult] = useState<PriceSyncResult | null>(null);
   const [candidatePicks, setCandidatePicks] = useState<Record<string, string>>({});
   const [overrideManual, setOverrideManual] = useState(false);
+  const pollInFlightRef = useRef(false);
 
   // Build query at call time so refresh uses a fresh upper time bound.
   // Do not depend on filterOptions here — loading them would recreate this callback and loop.
@@ -203,8 +208,8 @@ export function MonitoringPage() {
     };
   }, [range, search, model, provider, source, apiKey, statusFilter]);
 
-  const loadCore = useCallback(async () => {
-    setLoading(true);
+  const loadCore = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError('');
     try {
       const query = buildQuery();
@@ -222,7 +227,7 @@ export function MonitoringPage() {
       setEvents([]);
       setSummary(null);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [buildQuery]);
 
@@ -288,9 +293,17 @@ export function MonitoringPage() {
   useEffect(() => {
     if (!autoMs) return;
     const id = window.setInterval(() => {
-      void loadCore();
-      if (tab === 'accounts') void loadAccounts();
-      if (tab === 'api_keys') void loadApiKeyStats();
+      if (pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
+      void (async () => {
+        try {
+          await loadCore(false);
+          if (tab === 'accounts') await loadAccounts();
+          if (tab === 'api_keys') await loadApiKeyStats();
+        } finally {
+          pollInFlightRef.current = false;
+        }
+      })();
     }, autoMs);
     return () => window.clearInterval(id);
   }, [autoMs, loadCore, loadAccounts, loadApiKeyStats, tab]);
