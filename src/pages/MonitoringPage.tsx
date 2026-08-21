@@ -86,7 +86,14 @@ const numberFormatters = {
   0: new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }),
   4: new Intl.NumberFormat(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }),
 };
-const dateTimeFormatter = new Intl.DateTimeFormat(undefined);
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
 
 const rangeToMs = (key: RangeKey): { from_ms?: number; to_ms?: number } => {
   const now = Date.now();
@@ -193,18 +200,25 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
   formatApiKeyDisplay,
   failedLabel,
   successLabel,
+  firstLabel,
+  totalLabel,
 }: {
   event: UsageEvent;
   apiKeyLabels: Record<string, string>;
   formatApiKeyDisplay: (key?: string | null, hash?: string | null) => string;
   failedLabel: string;
   successLabel: string;
+  firstLabel: string;
+  totalLabel: string;
 }) {
   return (
     <TableRow>
       <TableCell>
         <div className={styles.cellStack}>
-          <span className={`${styles.cellPrimary} ${styles.mono}`}>
+          <span
+            className={`${styles.cellPrimary} ${styles.mono}`}
+            title={event.source || event.auth_index || undefined}
+          >
             {event.source || event.auth_index || '—'}
           </span>
           {event.provider ? <span className={styles.cellSecondary}>{event.provider}</span> : null}
@@ -212,7 +226,10 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
       </TableCell>
       <TableCell>
         <div className={styles.cellStack}>
-          <span className={styles.mono}>
+          <span
+            className={styles.mono}
+            title={formatApiKeyDisplay(event.api_key, event.api_key_hash)}
+          >
             {formatApiKeyDisplay(event.api_key, event.api_key_hash)}
           </span>
           {event.api_key && apiKeyLabels[event.api_key] ? (
@@ -223,7 +240,9 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
         </div>
       </TableCell>
       <TableCell>
-        <span className={styles.mono}>{event.model || event.alias || '—'}</span>
+        <span className={styles.mono} title={event.model || event.alias || undefined}>
+          {event.model || event.alias || '—'}
+        </span>
       </TableCell>
       <TableCell>{event.reasoning_effort || '—'}</TableCell>
       <TableCell>
@@ -244,14 +263,22 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
           ) : null}
         </div>
       </TableCell>
-      <TableCell alignRight>
-        <span className={styles.num}>{formatDuration(event.ttft_ms)}</span>
-      </TableCell>
-      <TableCell alignRight>
-        <span className={styles.num}>{formatDuration(event.latency_ms)}</span>
+      <TableCell>
+        <div className={styles.latencyStack}>
+          <span className={styles.latencyLine}>
+            <span>{firstLabel}</span>
+            <strong>{formatDuration(event.ttft_ms)}</strong>
+          </span>
+          <span className={styles.latencyLine}>
+            <span>{totalLabel}</span>
+            <strong>{formatDuration(event.latency_ms)}</strong>
+          </span>
+        </div>
       </TableCell>
       <TableCell>
-        <span className={styles.cellSecondary}>{formatTime(event.timestamp_ms)}</span>
+        <span className={styles.timestamp} title={formatTime(event.timestamp_ms)}>
+          {formatTime(event.timestamp_ms)}
+        </span>
       </TableCell>
       <TableCell alignRight>
         <div className={styles.cellStack} style={{ alignItems: 'flex-end' }}>
@@ -366,7 +393,7 @@ export function MonitoringPage() {
 
   const loadLiveEvents = useCallback(async () => {
     try {
-      const response = await usageEventsApi.listEvents(buildQuery(50));
+      const response = await usageEventsApi.listEvents(buildQuery());
       startTransition(() => {
         setEvents((previous) => mergeEvents(previous, response.events || []));
       });
@@ -975,18 +1002,18 @@ export function MonitoringPage() {
           ) : (
             <Table
               className={styles.eventsTable}
+              wrapClassName={styles.eventsTableFrame}
               cols={
                 <>
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '13%' }} />
-                  <col style={{ width: '8%' }} />
-                  <col style={{ width: '13%' }} />
-                  <col style={{ width: '7%' }} />
-                  <col style={{ width: '8%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '7%' }} />
-                  <col style={{ width: '5%' }} />
+                  <col style={{ width: '180px' }} />
+                  <col style={{ width: '185px' }} />
+                  <col style={{ width: '165px' }} />
+                  <col style={{ width: '72px' }} />
+                  <col style={{ width: '145px' }} />
+                  <col style={{ width: '112px' }} />
+                  <col style={{ width: '190px' }} />
+                  <col style={{ width: '155px' }} />
+                  <col style={{ width: '78px' }} />
                 </>
               }
             >
@@ -997,8 +1024,7 @@ export function MonitoringPage() {
                   <TableHead>{t('monitoring.col_model')}</TableHead>
                   <TableHead>{t('monitoring.col_effort')}</TableHead>
                   <TableHead>{t('monitoring.col_status')}</TableHead>
-                  <TableHead alignRight>{t('monitoring.col_ttft')}</TableHead>
-                  <TableHead alignRight>{t('monitoring.col_elapsed')}</TableHead>
+                  <TableHead>{t('monitoring.col_latency')}</TableHead>
                   <TableHead>{t('monitoring.col_time')}</TableHead>
                   <TableHead alignRight>{t('monitoring.col_usage')}</TableHead>
                   <TableHead alignRight>{t('monitoring.col_cost')}</TableHead>
@@ -1013,6 +1039,8 @@ export function MonitoringPage() {
                     formatApiKeyDisplay={formatApiKeyDisplay}
                     failedLabel={t('monitoring.status_failed')}
                     successLabel={t('monitoring.status_success')}
+                    firstLabel={t('monitoring.latency_first')}
+                    totalLabel={t('monitoring.latency_total')}
                   />
                 ))}
               </TableBody>

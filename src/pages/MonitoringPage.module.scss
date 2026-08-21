@@ -288,14 +288,52 @@ $control-h: 38px;
   contain: layout paint;
 }
 
+.eventsTableFrame {
+  width: min(100%, 1282px);
+}
+
 .eventsTable {
-  min-width: 1100px;
+  width: 1282px;
   table-layout: fixed;
 
   :global(th),
   :global(td) {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .mono,
+  .cellSecondary {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.latencyStack {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.latencyLine {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 7px;
+  white-space: nowrap;
+
+  span {
+    color: var(--text-secondary);
+    font-size: 11px;
+  }
+
+  strong {
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
   }
 }
 
@@ -310,7 +348,9 @@ $control-h: 38px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
-  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cellSecondary {
@@ -335,6 +375,16 @@ $control-h: 38px;
 
 .num {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.timestamp {
+  display: block;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
