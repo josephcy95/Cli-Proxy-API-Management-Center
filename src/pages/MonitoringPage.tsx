@@ -310,7 +310,7 @@ export function MonitoringPage() {
 
   // Build query at call time so refresh uses a fresh upper time bound.
   // Do not depend on filterOptions here — loading them would recreate this callback and loop.
-  const buildQuery = useCallback((): UsageQuery => {
+  const buildQuery = useCallback((limit = 200): UsageQuery => {
     const base = rangeToMs(range);
     const sourcePick = source.trim();
     const apiKeyPick = apiKey.trim();
@@ -323,7 +323,7 @@ export function MonitoringPage() {
       api_keys: apiKeyPick ? [apiKeyPick] : undefined,
       failed_only: statusFilter === 'failed' || undefined,
       success_only: statusFilter === 'success' || undefined,
-      limit: 200,
+      limit,
     };
   }, [range, search, model, provider, source, apiKey, statusFilter]);
 
@@ -361,6 +361,17 @@ export function MonitoringPage() {
       setSummary(null);
     } finally {
       if (showLoading) setLoading(false);
+    }
+  }, [buildQuery]);
+
+  const loadLiveEvents = useCallback(async () => {
+    try {
+      const response = await usageEventsApi.listEvents(buildQuery(50));
+      startTransition(() => {
+        setEvents((previous) => mergeEvents(previous, response.events || []));
+      });
+    } catch {
+      // Keep the last successful event list visible during a transient poll failure.
     }
   }, [buildQuery]);
 
@@ -430,16 +441,20 @@ export function MonitoringPage() {
       pollInFlightRef.current = true;
       void (async () => {
         try {
-          await loadCore(false);
-          if (tab === 'accounts') await loadAccounts();
-          if (tab === 'api_keys') await loadApiKeyStats();
+          if (tab === 'realtime') {
+            await loadLiveEvents();
+          } else if (tab === 'accounts') {
+            await loadAccounts();
+          } else if (tab === 'api_keys') {
+            await loadApiKeyStats();
+          }
         } finally {
           pollInFlightRef.current = false;
         }
       })();
     }, autoMs);
     return () => window.clearInterval(id);
-  }, [autoMs, loadCore, loadAccounts, loadApiKeyStats, tab]);
+  }, [autoMs, loadAccounts, loadApiKeyStats, loadLiveEvents, tab]);
 
   const clearFilters = () => {
     setSearch('');
@@ -949,7 +964,7 @@ export function MonitoringPage() {
       </div>
 
       {tab === 'realtime' ? (
-        <div className={styles.tableSection}>
+        <div className={`${styles.tableSection} ${styles.eventsTableSection}`}>
           {events.length === 0 ? (
             <div className={styles.emptyWrap}>
               <EmptyState
@@ -958,7 +973,23 @@ export function MonitoringPage() {
               />
             </div>
           ) : (
-            <Table>
+            <Table
+              className={styles.eventsTable}
+              cols={
+                <>
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '5%' }} />
+                </>
+              }
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('monitoring.col_source')}</TableHead>

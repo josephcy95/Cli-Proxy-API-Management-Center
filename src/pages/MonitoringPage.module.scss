@@ -284,6 +284,21 @@ $control-h: 38px;
   min-width: 0;
 }
 
+.eventsTableSection {
+  contain: layout paint;
+}
+
+.eventsTable {
+  min-width: 1100px;
+  table-layout: fixed;
+
+  :global(th),
+  :global(td) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .cellStack {
   display: flex;
   flex-direction: column;
