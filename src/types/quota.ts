@@ -161,6 +161,8 @@ export interface ClaudeQuotaWindow {
   labelKey?: string;
   usedPercent: number | null;
   resetLabel: string;
+  /** Epoch milliseconds at which this window resets, when known. */
+  resetAt?: number | null;
 }
 
 export interface ClaudeQuotaState {
@@ -211,6 +213,8 @@ export interface CodexQuotaWindow {
   labelParams?: Record<string, string | number>;
   usedPercent: number | null;
   resetLabel: string;
+  /** Epoch milliseconds at which this window resets, when known. */
+  resetAt?: number | null;
 }
 
 export interface CodexQuotaState {

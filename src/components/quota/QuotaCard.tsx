@@ -55,6 +55,10 @@ export function QuotaProgressBar({
 export interface QuotaRenderHelpers {
   styles: typeof styles;
   QuotaProgressBar: (props: QuotaProgressBarProps) => ReactElement;
+  /** Compact auth-file-card presentation: hide redundant plan/renewal and
+   *  compress the manual-reset expiry list. The dedicated Quota-page card
+   *  omits this and keeps the full detail. */
+  card?: boolean;
 }
 
 interface QuotaCardProps<TState extends QuotaStatusState> {

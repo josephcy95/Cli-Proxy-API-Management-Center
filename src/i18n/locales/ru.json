@@ -305,6 +305,7 @@
     "models_excluded_badge": "Отключена",
     "models_excluded_hint": "Эта OAuth-модель отключена",
     "status_toggle_label": "Включено",
+    "last_active_title": "Последняя активность",
     "status_enabled_success": "\"{{name}}\" включён",
     "status_disabled_success": "\"{{name}}\" отключён",
     "batch_status_success": "{{count}} файлов обновлено",
@@ -476,6 +477,7 @@
     "plan_label": "Тариф",
     "expires_label": "Истекает",
     "reset_credits_label": "Ручные сбросы",
+    "reset_credits_short": "Сбросы",
     "reset_credits_expiry_label": "Срок действия ручных сбросов (GMT+8)",
     "reset_credit_number": "Сброс {{index}}",
     "reset_credits_expiry_failed": "Не удалось загрузить срок действия ручных сбросов: {{message}}",
@@ -2052,5 +2054,15 @@
     "price_filter_manual": "Ручные",
     "price_filter_unpriced": "Без цены",
     "alias_list": "Псевдонимы цен"
+  },
+  "relative_time": {
+    "now": "сейчас",
+    "minutes_ago": "{{count}} мин назад",
+    "hours_ago": "{{count}} ч назад",
+    "days_ago": "{{count}} дн назад",
+    "in_minutes": "через {{count}} мин",
+    "in_hours": "через {{count}} ч",
+    "in_days": "через {{count}} дн",
+    "in_days_hours": "через {{days}} д {{hours}} ч"
   }
 }

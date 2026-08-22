@@ -49,7 +49,6 @@ import { useAuthFilesData } from '@/features/authFiles/hooks/useAuthFilesData';
 import { useAuthFilesModels } from '@/features/authFiles/hooks/useAuthFilesModels';
 import { useAuthFilesOauth } from '@/features/authFiles/hooks/useAuthFilesOauth';
 import { useAuthFilesPrefixProxyEditor } from '@/features/authFiles/hooks/useAuthFilesPrefixProxyEditor';
-import { useAuthFilesStatusBarCache } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
 import {
   CODEX_STATUS_FILTERS,
   compareCodexAvailability,
@@ -309,8 +308,6 @@ export function AuthFilesPage() {
     batchSetPriority,
     batchSetJailbreak,
   } = useAuthFilesData({ onCooldownReset: clearCodexRefreshState });
-
-  const statusBarCache = useAuthFilesStatusBarCache(files);
 
   const {
     excluded,
@@ -1284,7 +1281,6 @@ export function AuthFilesPage() {
                     manualRefreshing={manualRefreshing}
                     cooldownResetting={cooldownResetting}
                     quotaFilterType={quotaFilterType}
-                    statusBarCache={statusBarCache}
                     codexBadges={codexBadgesByName?.get(file.name) ?? EMPTY_BADGES}
                     forceShowResetCooldown={cooldownResettableNames.has(file.name)}
                     onShowModels={showModels}

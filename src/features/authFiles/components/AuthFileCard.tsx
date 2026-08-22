@@ -14,16 +14,16 @@ import {
   IconTimer,
   IconTrash2,
 } from '@/components/ui/icons';
-import { ProviderStatusBar } from '@/components/providers/ProviderStatusBar';
 import type { AuthFileItem } from '@/types';
 import { readCredentialWeight } from '@/utils/credentialWeight';
 import { resolveAuthProvider } from '@/utils/quota';
 import {
-  normalizeRecentRequestAuthIndex,
   normalizeRecentRequestBuckets,
   normalizeUsageTotal,
   statusBarDataFromRecentRequests,
 } from '@/utils/recentRequests';
+import { formatRelativeTimeLabel } from '@/utils/format';
+import { resolveAuthFileDisplayName } from '@/utils/authFileDisplay';
 import {
   QUOTA_PROVIDER_TYPES,
   formatModified,
@@ -42,7 +42,6 @@ import {
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
 import { canResetAuthCooldown } from '@/features/authFiles/cooldown';
-import type { AuthFileStatusBarData } from '@/features/authFiles/hooks/useAuthFilesStatusBarCache';
 import {
   AuthFileQuotaSection,
   type AuthFileQuotaRefreshBinding,
@@ -72,7 +71,6 @@ export type AuthFileCardProps = {
   manualRefreshing: Record<string, boolean>;
   cooldownResetting: Record<string, boolean>;
   quotaFilterType: QuotaProviderType | null;
-  statusBarCache: Map<string, AuthFileStatusBarData>;
   codexBadges?: string[];
   /** When true, force-show reset even if static file fields look healthy. */
   forceShowResetCooldown?: boolean;
@@ -117,7 +115,6 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
     manualRefreshing,
     cooldownResetting,
     quotaFilterType,
-    statusBarCache,
     codexBadges = [],
     forceShowResetCooldown = false,
     onShowModels,
@@ -181,11 +178,15 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                 ? styles.xaiCard
                 : '';
 
-  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
-  const authIndexKey = normalizeRecentRequestAuthIndex(rawAuthIndex);
-  const statusData =
-    (authIndexKey && statusBarCache.get(authIndexKey)) ||
-    statusBarDataFromRecentRequests(recentBuckets);
+  const statusData = statusBarDataFromRecentRequests(recentBuckets);
+  const lastActiveIndex = statusData.blocks.reduce(
+    (acc, state, index) => (state !== 'idle' ? index : acc),
+    -1
+  );
+  const lastUsedLabel = lastActiveIndex >= 0
+    ? formatRelativeTimeLabel(t, statusData.blockDetails[lastActiveIndex].endTime, Date.now())
+    : '';
+  const displayName = resolveAuthFileDisplayName(file);
   const rawStatusMessage = getAuthFileStatusMessage(file);
   const hasStatusWarning =
     Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
@@ -205,13 +206,14 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
         : rawStatusMessage
           ? t('auth_files.health_status_healthy')
           : t('auth_files.status_toggle_label');
-  const stateBadgeClass = isRuntimeOnly
-    ? styles.stateBadgeVirtual
-    : file.disabled
-      ? styles.stateBadgeDisabled
-      : hasStatusWarning
-        ? styles.stateBadgeWarning
-        : styles.stateBadgeActive;
+
+  // Compact signal dot replaces the verbose enabled/disabled text pill. Both the
+  // header badge and the health line share the same colour semantics.
+  const statusDotClass = isRuntimeOnly || file.disabled
+    ? styles.statusDotDisabled
+    : hasStatusWarning
+      ? styles.statusDotWarning
+      : styles.statusDotActive;
 
   return (
     <div
@@ -288,7 +290,11 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                     {t('auth_files.allow_private_instructions_badge')}
                   </span>
                 )}
-                <span className={`${styles.stateBadge} ${stateBadgeClass}`}>{stateLabel}</span>
+                <span
+                  className={`${styles.statusDot} ${statusDotClass}`}
+                  title={stateLabel}
+                  aria-label={stateLabel}
+                />
                 {codexBadges.map((badge) => (
                   <span key={badge} className={styles.codexStatusBadge}>
                     {badge}
@@ -300,7 +306,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                 title={file.name}
                 onDoubleClick={(event) => selectText(event.currentTarget)}
               >
-                {file.name}
+                {displayName}
               </span>
               {!compact && noteValue && (
                 <div className={styles.noteText} title={noteValue}>
@@ -351,23 +357,24 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
           )}
 
           <div className={`${styles.cardInsights} ${compact ? styles.cardInsightsCompact : ''}`}>
-            <div className={`${styles.statusPanel} ${compact ? styles.statusPanelCompact : ''}`}>
-              <div className={styles.healthSummary}>
-                <div className={styles.statusPanelLabel}>
-                  <span>{t('auth_files.health_status_label')}</span>
-                </div>
-                <div className={`${styles.cardStats} ${compact ? styles.cardStatsCompact : ''}`}>
-                  <div className={`${styles.statPill} ${styles.statSuccess}`}>
-                    <span className={styles.statLabel}>{t('stats.success')}</span>
-                    <span className={styles.statValue}>{fileStats.success}</span>
-                  </div>
-                  <div className={`${styles.statPill} ${styles.statFailure}`}>
-                    <span className={styles.statLabel}>{t('stats.failure')}</span>
-                    <span className={styles.statValue}>{fileStats.failure}</span>
-                  </div>
-                </div>
-              </div>
-              <ProviderStatusBar statusData={statusData} styles={styles} />
+            <div className={styles.cardHealthLine}>
+              <span className={`${styles.healthDot} ${statusDotClass}`} aria-hidden="true" />
+              <span className={styles.cardHealthStats}>
+                <span className={styles.healthSuccess}>
+                  {t('stats.success')} {fileStats.success}
+                </span>
+                <span className={styles.healthSeparator} aria-hidden="true">
+                  ·
+                </span>
+                <span className={styles.healthFailure}>
+                  {t('stats.failure')} {fileStats.failure}
+                </span>
+              </span>
+              {lastUsedLabel && (
+                <span className={styles.cardLastUsed} title={t('auth_files.last_active_title')}>
+                  {lastUsedLabel}
+                </span>
+              )}
             </div>
 
             {showQuotaSection && quotaType && (

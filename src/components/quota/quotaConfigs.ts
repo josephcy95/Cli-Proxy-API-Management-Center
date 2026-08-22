@@ -96,7 +96,7 @@ import {
   isXaiFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/authIndex';
-import { formatDateTimeValue } from '@/utils/format';
+import { formatDateTimeValue, formatRelativeTimeLabel, toEpochMs } from '@/utils/format';
 import type { QuotaRenderHelpers } from './QuotaCard';
 import styles from '@/pages/QuotaPage.module.scss';
 
@@ -350,6 +350,19 @@ const toAntigravityQuotaSubscription = (
   };
 };
 
+const codexWindowResetAtMs = (window?: CodexUsageWindow | null): number | null => {
+  if (!window) return null;
+  const resetAt = normalizeNumberValue(window.reset_at ?? window.resetAt);
+  if (resetAt !== null && resetAt > 0) {
+    return resetAt < 1e11 ? resetAt * 1000 : resetAt;
+  }
+  const resetAfter = normalizeNumberValue(window.reset_after_seconds ?? window.resetAfterSeconds);
+  if (resetAfter !== null && resetAfter > 0) {
+    return Date.now() + resetAfter * 1000;
+  }
+  return null;
+};
+
 const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): CodexQuotaWindow[] => {
   const FIVE_HOUR_SECONDS = 18000;
   const WEEK_SECONDS = 604800;
@@ -400,6 +413,7 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
       labelParams,
       usedPercent,
       resetLabel,
+      resetAt: codexWindowResetAtMs(window),
     });
   };
 
@@ -970,7 +984,7 @@ const renderCodexItems = (
   t: TFunction,
   helpers: QuotaRenderHelpers
 ): ReactNode => {
-  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { styles: styleMap, QuotaProgressBar, card = false } = helpers;
   const { createElement: h, Fragment } = React;
   const windows = quota.windows ?? [];
   const planType = quota.planType ?? null;
@@ -996,9 +1010,21 @@ const renderCodexItems = (
   const planLabel = getPlanLabel(planType);
   const isPremiumPlan = PREMIUM_CODEX_PLAN_TYPES.has(normalizePlanType(planType) ?? '');
   const expiryLabel = subscriptionActiveUntil ? formatDateTimeValue(subscriptionActiveUntil) : '';
+  const resetCreditsTooltip =
+    rateLimitResetCredits.length > 0
+      ? rateLimitResetCredits
+          .map((credit, index) => {
+            const when = formatShanghaiDateTime(credit.expiresAt) || credit.expiresAt || '-';
+            return `${t('codex_quota.reset_credit_number', { index: index + 1 })}: ${when}`;
+          })
+          .join('\n')
+      : '';
   const nodes: ReactNode[] = [];
 
-  if (planLabel || expiryLabel || rateLimitResetCreditsAvailableCount !== null) {
+  const showPlanInline = !card && (planLabel || expiryLabel);
+  const showResetCreditsInline = rateLimitResetCreditsAvailableCount !== null;
+
+  if (showPlanInline || showResetCreditsInline) {
     const planValueClass = isPremiumPlan ? styleMap.premiumPlanValue : styleMap.codexPlanValue;
     const planNodes: ReactNode[] = [];
 
@@ -1006,12 +1032,13 @@ const renderCodexItems = (
       key: string,
       label: string,
       value: string,
-      valueClassName = styleMap.codexPlanValue
+      valueClassName = styleMap.codexPlanValue,
+      title?: string
     ) => {
       planNodes.push(
         h(
           'span',
-          { key, className: styleMap.codexPlanItem },
+          { key, className: styleMap.codexPlanItem, title },
           h('span', { className: styleMap.codexPlanLabel }, label),
           h('span', { className: valueClassName }, value)
         )
@@ -1026,18 +1053,24 @@ const renderCodexItems = (
       appendPlanItem('subscription-expiry', t('codex_quota.expires_label'), expiryLabel);
     }
 
-    if (rateLimitResetCreditsAvailableCount !== null) {
+    if (showResetCreditsInline) {
       appendPlanItem(
         'reset-credits',
-        t('codex_quota.reset_credits_label'),
-        rateLimitResetCreditsAvailableCount.toString()
+        card ? t('codex_quota.reset_credits_short') : t('codex_quota.reset_credits_label'),
+        rateLimitResetCreditsAvailableCount.toString(),
+        styleMap.codexPlanValue,
+        resetCreditsTooltip || undefined
       );
     }
 
-    nodes.push(h('div', { key: 'plan', className: styleMap.codexPlan }, ...planNodes));
+    nodes.push(
+      h('div', { key: 'plan', className: styleMap.codexPlan }, ...planNodes)
+    );
   }
 
-  if (rateLimitResetCredits.length > 0) {
+  // The full per-reset expiry table is only useful in the detailed Quota view;
+  // in the auth-file card a compact count with a tooltip is enough.
+  if (!card && rateLimitResetCredits.length > 0) {
     nodes.push(
       h(
         'div',
@@ -1068,7 +1101,7 @@ const renderCodexItems = (
         )
       )
     );
-  } else if (rateLimitResetCreditsError) {
+  } else if (!card && rateLimitResetCreditsError) {
     nodes.push(
       h(
         'div',
@@ -1096,6 +1129,12 @@ const renderCodexItems = (
       const windowLabel = window.labelKey
         ? t(window.labelKey, window.labelParams as Record<string, string | number>)
         : window.label;
+      const resetDisplay =
+        card && window.resetAt
+          ? formatRelativeTimeLabel(t, window.resetAt) || window.resetLabel
+          : window.resetLabel;
+      const resetTitle =
+        window.resetAt != null ? formatDateTimeValue(window.resetAt) || window.resetLabel : undefined;
 
       return h(
         'div',
@@ -1108,7 +1147,11 @@ const renderCodexItems = (
             'div',
             { className: styleMap.quotaMeta },
             h('span', { className: styleMap.quotaPercent }, percentLabel),
-            h('span', { className: styleMap.quotaReset }, window.resetLabel)
+            h(
+              'span',
+              { className: styleMap.quotaReset, title: resetTitle },
+              resetDisplay
+            )
           )
         ),
         h(QuotaProgressBar, {
@@ -1165,6 +1208,7 @@ export const buildClaudeQuotaWindows = (
         label: claudeLimitLabel(limit, t),
         usedPercent,
         resetLabel: formatQuotaResetTime(limit.resets_at ?? ''),
+        resetAt: toEpochMs(limit.resets_at),
       });
     });
   }
@@ -1186,6 +1230,7 @@ export const buildClaudeQuotaWindows = (
       labelKey,
       usedPercent,
       resetLabel,
+      resetAt: toEpochMs(typedWindow.resets_at),
     });
   }
 
@@ -1308,7 +1353,7 @@ const renderClaudeItems = (
   t: TFunction,
   helpers: QuotaRenderHelpers
 ): ReactNode => {
-  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { styles: styleMap, QuotaProgressBar, card = false } = helpers;
   const { createElement: h, Fragment } = React;
   const windows = quota.windows ?? [];
   const extraUsage = quota.extraUsage ?? null;
@@ -1352,6 +1397,12 @@ const renderClaudeItems = (
       const remaining = clampedUsed === null ? null : Math.max(0, Math.min(100, 100 - clampedUsed));
       const percentLabel = remaining === null ? '--' : `${Math.round(remaining)}%`;
       const windowLabel = window.labelKey ? t(window.labelKey) : window.label;
+      const resetDisplay =
+        card && window.resetAt
+          ? formatRelativeTimeLabel(t, window.resetAt) || window.resetLabel
+          : window.resetLabel;
+      const resetTitle =
+        window.resetAt != null ? formatDateTimeValue(window.resetAt) || window.resetLabel : undefined;
 
       return h(
         'div',
@@ -1364,7 +1415,7 @@ const renderClaudeItems = (
             'div',
             { className: styleMap.quotaMeta },
             h('span', { className: styleMap.quotaPercent }, percentLabel),
-            h('span', { className: styleMap.quotaReset }, window.resetLabel)
+            h('span', { className: styleMap.quotaReset, title: resetTitle }, resetDisplay)
           )
         ),
         h(QuotaProgressBar, {

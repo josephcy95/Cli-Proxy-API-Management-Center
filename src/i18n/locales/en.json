@@ -436,6 +436,7 @@
     "models_excluded_badge": "Disabled",
     "models_excluded_hint": "This OAuth model is disabled",
     "status_toggle_label": "Enabled",
+    "last_active_title": "Last active",
     "status_enabled_success": "\"{{name}}\" enabled",
     "status_disabled_success": "\"{{name}}\" disabled",
     "batch_status_success": "{{count}} files updated successfully",
@@ -613,6 +614,7 @@
     "plan_label": "Plan",
     "expires_label": "Renewal time",
     "reset_credits_label": "Manual resets",
+    "reset_credits_short": "Resets",
     "reset_credits_expiry_label": "Manual reset expiry (GMT+8)",
     "reset_credit_number": "Reset {{index}}",
     "reset_credits_expiry_failed": "Failed to load manual reset expiry: {{message}}",
@@ -2074,5 +2076,15 @@
     "modelCatalog": {
       "notLoaded": "Not loaded"
     }
+  },
+  "relative_time": {
+    "now": "now",
+    "minutes_ago": "{{count}}m ago",
+    "hours_ago": "{{count}}h ago",
+    "days_ago": "{{count}}d ago",
+    "in_minutes": "in {{count}}m",
+    "in_hours": "in {{count}}h",
+    "in_days": "in {{count}}d",
+    "in_days_hours": "in {{days}}d {{hours}}h"
   }
 }

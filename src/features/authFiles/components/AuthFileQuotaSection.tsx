@@ -22,7 +22,8 @@ import {
 } from '@/stores';
 import { authFilesApi } from '@/services/api';
 import type { AuthFileItem } from '@/types';
-import { getStatusFromError } from '@/utils/quota';
+import { getStatusFromError, resolveCodexSubscriptionActiveUntil } from '@/utils/quota';
+import { formatDateTimeValue, formatRelativeTimeLabel } from '@/utils/format';
 import {
   isRuntimeOnlyAuthFile,
   resolveQuotaErrorMessage,
@@ -299,6 +300,16 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     quota?.error || t('common.unknown_error')
   );
 
+  // Renewal (subscription active-until) is stored on the auth file itself, so it
+  // can be shown without a quota refresh. Rendered only for Codex cards here;
+  // the card's header already carries the plan badge.
+  const subscriptionActiveUntil =
+    quotaType === 'codex' ? resolveCodexSubscriptionActiveUntil(file) : null;
+  const renewalDisplay = subscriptionActiveUntil
+    ? formatRelativeTimeLabel(t, subscriptionActiveUntil)
+    : '';
+  const renewalTitle = subscriptionActiveUntil ? formatDateTimeValue(subscriptionActiveUntil) : '';
+
   useEffect(() => {
     if (!onRefreshBindingChange) return;
     onRefreshBindingChange({
@@ -315,6 +326,14 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
 
   return (
     <div className={styles.quotaSection}>
+      {renewalDisplay && (
+        <div className={styles.codexPlan} title={renewalTitle || undefined}>
+          <span className={styles.codexPlanItem}>
+            <span className={styles.codexPlanLabel}>{t('codex_quota.expires_label')}</span>
+            <span className={styles.codexPlanValue}>{renewalDisplay}</span>
+          </span>
+        </div>
+      )}
       {quotaStatus === 'loading' ? (
         <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.loading`)}</div>
       ) : quotaStatus === 'idle' ? (
@@ -336,6 +355,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
         (config.renderQuotaItems(quota, t, {
           styles,
           QuotaProgressBar,
+          card: true,
         }) as ReactNode)
       ) : (
         <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.idle`)}</div>

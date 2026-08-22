@@ -306,6 +306,7 @@
     "models_excluded_badge": "已停用",
     "models_excluded_hint": "此 OAuth 模型已被停用",
     "status_toggle_label": "啟用",
+    "last_active_title": "最近活躍",
     "status_enabled_success": "已啟用「{{name}}」",
     "status_disabled_success": "已停用「{{name}}」",
     "batch_status_success": "已成功更新 {{count}} 個檔案",
@@ -483,6 +484,7 @@
     "plan_label": "方案",
     "expires_label": "續期時間",
     "reset_credits_label": "主動重置次數",
+    "reset_credits_short": "重置",
     "reset_credits_expiry_label": "主動重置過期時間（GMT+8）",
     "reset_credit_number": "第 {{index}} 次",
     "reset_credits_expiry_failed": "主動重置過期時間取得失敗：{{message}}",
@@ -2100,5 +2102,15 @@
     "price_filter_manual": "手動",
     "price_filter_unpriced": "未定價",
     "alias_list": "價格別名"
+  },
+  "relative_time": {
+    "now": "剛剛",
+    "minutes_ago": "{{count}}分鐘前",
+    "hours_ago": "{{count}}小時前",
+    "days_ago": "{{count}}天前",
+    "in_minutes": "{{count}}分鐘後",
+    "in_hours": "{{count}}小時後",
+    "in_days": "{{count}}天後",
+    "in_days_hours": "{{days}}天{{hours}}小時後"
   }
 }
