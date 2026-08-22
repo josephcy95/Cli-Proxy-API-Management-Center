@@ -230,13 +230,17 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
         setResettingQuota(true);
         try {
           const data = await resetQuota(file, t);
-          commitIfQuotaCacheCurrent(cacheGeneration, () => {
+          const applied = commitIfQuotaCacheCurrent(cacheGeneration, () => {
             updateQuotaState((prev: Record<string, unknown>) => ({
               ...prev,
               [file.name]: config.buildSuccessState(data),
             }));
             showNotification(t('codex_quota.reset_success', { name: file.name }), 'success');
           });
+          if (applied) {
+            onCodexRefreshStateReset?.(file.name);
+            await onAuthFileUpdated?.();
+          }
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : t('common.unknown_error');
           commitIfQuotaCacheCurrent(cacheGeneration, () => {
@@ -250,6 +254,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
   }, [
     disableControls,
     file,
+    onAuthFileUpdated,
+    onCodexRefreshStateReset,
     quota?.status,
     quotaType,
     resettingQuota,
