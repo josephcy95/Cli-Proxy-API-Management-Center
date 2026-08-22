@@ -8,6 +8,8 @@ interface ToggleSwitchProps {
   ariaLabel?: string;
   disabled?: boolean;
   labelPosition?: 'left' | 'right';
+  /** 'primary' uses the theme accent when on; 'success' uses green when on. */
+  variant?: 'primary' | 'success';
 }
 
 export function ToggleSwitch({
@@ -17,6 +19,7 @@ export function ToggleSwitch({
   ariaLabel,
   disabled = false,
   labelPosition = 'right',
+  variant = 'primary',
 }: ToggleSwitchProps) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange(event.target.checked);
@@ -26,6 +29,7 @@ export function ToggleSwitch({
     styles.root,
     labelPosition === 'left' ? styles.labelLeft : '',
     disabled ? styles.disabled : '',
+    variant === 'success' ? styles.success : '',
   ]
     .filter(Boolean)
     .join(' ');

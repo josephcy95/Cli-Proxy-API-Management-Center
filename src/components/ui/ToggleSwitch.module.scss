@@ -58,9 +58,21 @@
   background: var(--primary-color);
 }
 
+.root.success input:checked + .track {
+  background: var(--success-color, #22c55e);
+}
+
+.root.success input:not(:checked):not(:disabled):hover + .track {
+  background: var(--border-hover);
+}
+
 .root input:checked + .track .thumb {
   transform: translateX(14px);
   background: var(--primary-contrast, #fff);
+}
+
+.root.success input:checked + .track .thumb {
+  background: #fff;
 }
 
 .disabled .track {

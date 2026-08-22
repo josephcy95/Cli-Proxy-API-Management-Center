@@ -53,7 +53,6 @@ import {
   CODEX_STATUS_FILTERS,
   compareCodexAvailability,
   getCodexAccountStatus,
-  getCodexPlanFilterValue,
   matchesCodexPlanFilter,
   matchesCodexStatusFilter,
   type CodexRefreshState,
@@ -827,8 +826,6 @@ export function AuthFilesPage() {
       const refreshed = codexRefreshByName[file.name];
       const status = getCodexAccountStatus(file, refreshed);
       const badges: string[] = [];
-      const plan = getCodexPlanFilterValue(file, refreshed);
-      if (plan) badges.push(t(`codex_quota.plan_${plan}`));
       if (status.kind === 'denied') {
         badges.push(t('auth_files.codex_status_denied'));
       } else if (status.kind === 'cooldown') {

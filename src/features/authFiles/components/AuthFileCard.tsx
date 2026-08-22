@@ -14,9 +14,10 @@ import {
   IconTimer,
   IconTrash2,
 } from '@/components/ui/icons';
+import { ProviderStatusBar } from '@/components/providers/ProviderStatusBar';
 import type { AuthFileItem } from '@/types';
 import { readCredentialWeight } from '@/utils/credentialWeight';
-import { resolveAuthProvider } from '@/utils/quota';
+import { resolveAuthProvider, resolveCodexPlanType } from '@/utils/quota';
 import {
   normalizeRecentRequestBuckets,
   normalizeUsageTotal,
@@ -26,9 +27,10 @@ import { formatRelativeTimeLabel } from '@/utils/format';
 import { resolveAuthFileDisplayName } from '@/utils/authFileDisplay';
 import {
   QUOTA_PROVIDER_TYPES,
-  formatModified,
+  codexPlanBadgeKey,
   getAuthFileIcon,
   getAuthFileStatusMessage,
+  getCodexPlanLabel,
   getThemeSurfaceIconBackground,
   getTypeColor,
   getTypeLabel,
@@ -38,6 +40,7 @@ import {
   qoderRegionOf,
   parsePriorityValue,
   supportsAuthFileManualRefresh,
+  type CodexPlanBadgeKey,
   type QuotaProviderType,
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
@@ -150,6 +153,21 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
   // 与 AI 提供商界面一致：Kimi 图标底座随主题切换颜色
   const useThemeSurfaceIcon = isThemeSurfaceIconProvider(providerKey);
 
+  // The header plan badge is coloured by plan tier so paid plans read as paid
+  // (Free stays neutral). Rendered only for Codex files.
+  const isCodexFile = providerKey === 'codex';
+  const planType = isCodexFile ? resolveCodexPlanType(file) : null;
+  const planBadgeKey = codexPlanBadgeKey(planType);
+  const CODE_PLAN_BADGE_CLASS: Record<CodexPlanBadgeKey, string> = {
+    free: styles.codexPlanBadgeFree,
+    plus: styles.codexPlanBadgePlus,
+    team: styles.codexPlanBadgeTeam,
+    premium: styles.codexPlanBadgePremium,
+    '': '',
+  };
+  const planBadgeClass = planBadgeKey ? CODE_PLAN_BADGE_CLASS[planBadgeKey] : '';
+  const planBadgeLabel = getCodexPlanLabel(t, planType);
+
   // When the unified Qoder pill is selected, show quota for both CN and Intl files.
   const resolvedQuotaType = resolveQuotaType(file);
   const quotaType =
@@ -197,23 +215,6 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
   const disabledReason =
     typeof file.disabled_reason === 'string' ? file.disabled_reason.trim() : '';
   const allowPrivateInstructions = Boolean(file.allow_private_instructions);
-  const stateLabel = isRuntimeOnly
-    ? t('auth_files.type_virtual') || '虚拟认证文件'
-    : file.disabled
-      ? t('auth_files.health_status_disabled')
-      : hasStatusWarning
-        ? t('auth_files.health_status_warning')
-        : rawStatusMessage
-          ? t('auth_files.health_status_healthy')
-          : t('auth_files.status_toggle_label');
-
-  // Compact signal dot replaces the verbose enabled/disabled text pill. Both the
-  // header badge and the health line share the same colour semantics.
-  const statusDotClass = isRuntimeOnly || file.disabled
-    ? styles.statusDotDisabled
-    : hasStatusWarning
-      ? styles.statusDotWarning
-      : styles.statusDotActive;
 
   return (
     <div
@@ -258,16 +259,11 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
             </div>
             <div className={styles.cardHeaderContent}>
               <div className={styles.cardBadgeRow}>
-                <span
-                  className={styles.typeBadge}
-                  style={{
-                    backgroundColor: typeColor.bg,
-                    color: typeColor.text,
-                    ...(typeColor.border ? { border: typeColor.border } : {}),
-                  }}
-                >
-                  {typeLabel}
-                </span>
+                {isCodexFile && planBadgeLabel && planBadgeClass && (
+                  <span className={`${styles.codexPlanBadge} ${planBadgeClass}`}>
+                    {planBadgeLabel}
+                  </span>
+                )}
                 {qoderRegion && (
                   <span
                     className={styles.qoderRegionBadge}
@@ -290,11 +286,6 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                     {t('auth_files.allow_private_instructions_badge')}
                   </span>
                 )}
-                <span
-                  className={`${styles.statusDot} ${statusDotClass}`}
-                  title={stateLabel}
-                  aria-label={stateLabel}
-                />
                 {codexBadges.map((badge) => (
                   <span key={badge} className={styles.codexStatusBadge}>
                     {badge}
@@ -343,10 +334,6 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                 {weightValue ?? '-'}
               </span>
             </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>{t('auth_files.file_modified')}</span>
-              <span className={styles.metaValue}>{formatModified(file)}</span>
-            </div>
           </div>
 
           {rawStatusMessage && hasStatusWarning && (
@@ -358,16 +345,14 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
 
           <div className={`${styles.cardInsights} ${compact ? styles.cardInsightsCompact : ''}`}>
             <div className={styles.cardHealthLine}>
-              <span className={`${styles.healthDot} ${statusDotClass}`} aria-hidden="true" />
               <span className={styles.cardHealthStats}>
-                <span className={styles.healthSuccess}>
-                  {t('stats.success')} {fileStats.success}
+                <span className={`${styles.statPill} ${styles.statSuccess}`}>
+                  <span className={styles.statLabel}>{t('stats.success')}</span>
+                  <span className={styles.statValue}>{fileStats.success}</span>
                 </span>
-                <span className={styles.healthSeparator} aria-hidden="true">
-                  ·
-                </span>
-                <span className={styles.healthFailure}>
-                  {t('stats.failure')} {fileStats.failure}
+                <span className={`${styles.statPill} ${styles.statFailure}`}>
+                  <span className={styles.statLabel}>{t('stats.failure')}</span>
+                  <span className={styles.statValue}>{fileStats.failure}</span>
                 </span>
               </span>
               {lastUsedLabel && (
@@ -376,6 +361,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                 </span>
               )}
             </div>
+            <ProviderStatusBar statusData={statusData} styles={styles} />
 
             {showQuotaSection && quotaType && (
               <AuthFileQuotaSection
@@ -512,15 +498,13 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
             </div>
             {!isRuntimeOnly && (
               <div className={styles.statusToggle}>
-                <span className={styles.statusToggleLabel}>
-                  {t('auth_files.status_toggle_label')}
-                </span>
                 <ToggleSwitch
                   ariaLabel={t('auth_files.status_toggle_label')}
                   checked={!file.disabled}
                   disabled={
                     disableControls || statusUpdating[file.name] === true || isManualRefreshing
                   }
+                  variant="success"
                   onChange={(value) => onToggleStatus(file, value)}
                 />
               </div>

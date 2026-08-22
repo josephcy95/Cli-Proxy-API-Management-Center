@@ -13,6 +13,7 @@ import iconQwen from '@/assets/icons/qwen.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
 import type { AuthFileItem } from '@/types';
 import { normalizeOAuthProviderKey } from '@/utils/providerKeys';
+import { normalizePlanType } from '@/utils/quota';
 import { parseTimestamp } from '@/utils/timestamp';
 
 export type ThemeColors = { bg: string; text: string; border?: string };
@@ -203,6 +204,36 @@ export const qoderRegionOf = (type: string): QoderRegion | null => {
 
 export const supportsAuthFileManualRefresh = (provider: unknown): boolean =>
   AUTH_FILE_MANUAL_REFRESH_PROVIDERS.has(normalizeProviderKey(String(provider ?? '')));
+
+const PREMIUM_CODEX_PLAN_TYPES = new Set(['prolite', 'pro-lite', 'pro_lite']);
+
+export type CodexPlanBadgeKey = 'free' | 'plus' | 'team' | 'premium' | '';
+
+export const codexPlanBadgeKey = (planType: string | null | undefined): CodexPlanBadgeKey => {
+  const normalized = normalizePlanType(planType);
+  if (!normalized) return '';
+  if (normalized === 'free') return 'free';
+  if (normalized === 'plus') return 'plus';
+  if (normalized === 'team') return 'team';
+  if (PREMIUM_CODEX_PLAN_TYPES.has(normalized)) return 'premium';
+  return '';
+};
+
+/** Translated label for a Codex plan type, or null when it cannot be resolved. */
+export const getCodexPlanLabel = (
+  t: TFunction,
+  planType: string | null | undefined
+): string | null => {
+  const normalized = normalizePlanType(planType);
+  if (!normalized) return null;
+  if (normalized === 'pro') return t('codex_quota.plan_pro');
+  if (PREMIUM_CODEX_PLAN_TYPES.has(normalized)) return t('codex_quota.plan_prolite');
+  if (normalized === 'plus') return t('codex_quota.plan_plus');
+  if (normalized === 'team') return t('codex_quota.plan_team');
+  if (normalized === 'free') return t('codex_quota.plan_free');
+  if (normalized === 'k12') return t('codex_quota.plan_k12');
+  return normalized;
+};
 
 
 export const buildOAuthProviderOptions = (values: Iterable<unknown>): string[] => {
