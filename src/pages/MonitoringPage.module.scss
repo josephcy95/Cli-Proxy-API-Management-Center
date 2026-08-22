@@ -288,12 +288,9 @@ $control-h: 38px;
   contain: layout paint;
 }
 
-.eventsTableFrame {
-  width: min(100%, 1282px);
-}
-
 .eventsTable {
-  width: 1282px;
+  width: 100%;
+  min-width: 1180px;
   table-layout: fixed;
 
   :global(th),

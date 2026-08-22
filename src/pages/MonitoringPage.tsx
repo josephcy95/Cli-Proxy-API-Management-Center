@@ -1002,18 +1002,17 @@ export function MonitoringPage() {
           ) : (
             <Table
               className={styles.eventsTable}
-              wrapClassName={styles.eventsTableFrame}
               cols={
                 <>
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '185px' }} />
-                  <col style={{ width: '165px' }} />
-                  <col style={{ width: '72px' }} />
-                  <col style={{ width: '145px' }} />
-                  <col style={{ width: '112px' }} />
-                  <col style={{ width: '190px' }} />
-                  <col style={{ width: '155px' }} />
-                  <col style={{ width: '78px' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '6%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '5%' }} />
                 </>
               }
             >
