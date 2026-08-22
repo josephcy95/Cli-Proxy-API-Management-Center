@@ -1022,7 +1022,9 @@ const renderCodexItems = (
   const nodes: ReactNode[] = [];
 
   const showPlanInline = !card && (planLabel || expiryLabel);
-  const showResetCreditsInline = rateLimitResetCreditsAvailableCount !== null;
+  const showResetCreditsInline = card
+    ? (rateLimitResetCreditsAvailableCount ?? 0) > 0
+    : rateLimitResetCreditsAvailableCount !== null;
 
   if (showPlanInline || showResetCreditsInline) {
     const planValueClass = isPremiumPlan ? styleMap.premiumPlanValue : styleMap.codexPlanValue;
@@ -1045,19 +1047,20 @@ const renderCodexItems = (
       );
     };
 
-    if (planLabel) {
+    if (!card && planLabel) {
       appendPlanItem('plan-type', t('codex_quota.plan_label'), planLabel, planValueClass);
     }
 
-    if (expiryLabel) {
+    if (!card && expiryLabel) {
       appendPlanItem('subscription-expiry', t('codex_quota.expires_label'), expiryLabel);
     }
 
     if (showResetCreditsInline) {
+      const resetCreditsCount = rateLimitResetCreditsAvailableCount ?? 0;
       appendPlanItem(
         'reset-credits',
         card ? t('codex_quota.reset_credits_short') : t('codex_quota.reset_credits_label'),
-        rateLimitResetCreditsAvailableCount.toString(),
+        resetCreditsCount.toString(),
         styleMap.codexPlanValue,
         resetCreditsTooltip || undefined
       );
