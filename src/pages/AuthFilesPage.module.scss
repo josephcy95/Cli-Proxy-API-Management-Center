@@ -1393,6 +1393,22 @@
   border-color: color-mix(in srgb, #e2b432 40%, transparent);
 }
 
+// Compact priority / WRR-weight tokens moved to the header badge row.
+.metaPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 62%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-tertiary) 82%, transparent);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .qoderRegionBadge {
   display: inline-flex;
   align-items: center;

@@ -286,6 +286,22 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                     {t('auth_files.allow_private_instructions_badge')}
                   </span>
                 )}
+                {priorityValue != null && priorityValue > 0 && (
+                  <span
+                    className={styles.metaPill}
+                    title={t('auth_files.priority_tooltip', { value: priorityValue })}
+                  >
+                    P{priorityValue}
+                  </span>
+                )}
+                {weightValue != null && weightValue > 0 && (
+                  <span
+                    className={styles.metaPill}
+                    title={t('auth_files.weight_tooltip', { value: weightValue })}
+                  >
+                    WRR{weightValue}
+                  </span>
+                )}
                 {codexBadges.map((badge) => (
                   <span key={badge} className={styles.codexStatusBadge}>
                     {badge}
@@ -318,21 +334,6 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
                   <span className={styles.noteValue}>{disabledReason}</span>
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className={`${styles.cardMeta} ${compact ? styles.cardMetaCompact : ''}`}>
-            <div className={`${styles.metaItem} ${styles.priorityBadge}`}>
-              <span className={styles.metaLabel}>{t('auth_files.priority_display')}</span>
-              <span className={`${styles.metaValue} ${styles.priorityValue}`}>
-                {priorityValue ?? '-'}
-              </span>
-            </div>
-            <div className={`${styles.metaItem} ${styles.priorityBadge}`}>
-              <span className={styles.metaLabel}>{t('auth_files.weight_display')}</span>
-              <span className={`${styles.metaValue} ${styles.priorityValue}`}>
-                {weightValue ?? '-'}
-              </span>
             </div>
           </div>
 

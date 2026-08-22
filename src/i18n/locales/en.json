@@ -400,6 +400,8 @@
     "codex_plan_unknown": "Unknown plan",
     "priority_display": "Priority",
     "weight_display": "WRR weight",
+    "priority_tooltip": "Priority {{value}}",
+    "weight_tooltip": "WRR weight {{value}}",
     "page_size_label": "Per page",
     "view_mode_paged": "Paged",
     "view_mode_all": "Show all",
@@ -511,8 +513,8 @@
     "quota_refresh_failed": "Failed to refresh quota for \"{{name}}\": {{message}}",
     "allow_private_instructions_label": "Allow private Codex instructions",
     "allow_private_instructions_hint": "Permit this Codex OAuth file to serve private-marker model requests and receive injected instructions.",
-    "allow_private_instructions_display": "Private instructions allowed",
-    "allow_private_instructions_badge": "Jailbreak",
+    "allow_private_instructions_display": "Jailbreak enabled",
+    "allow_private_instructions_badge": "JB",
     "disabled_reason_display": "Disabled reason",
     "sort_availability": "Availability first",
     "codex_status_all_filter": "All",
@@ -1775,9 +1777,7 @@
   "language": {
     "switch": "Language",
     "chinese": "中文",
-    "chinese_tw": "Traditional Chinese",
-    "english": "English",
-    "russian": "Русский"
+    "english": "English"
   },
   "theme": {
     "switch": "Theme",
