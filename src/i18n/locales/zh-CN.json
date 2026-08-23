@@ -93,6 +93,18 @@
     "refresh_all": "刷新全部",
     "logout": "登出"
   },
+  "codex_resets": {
+    "button": "Codex 配额重置公告",
+    "title": "配额重置公告",
+    "load_failed": "无法加载 Codex 配额重置消息。",
+    "no_announcements": "暂时没有配额重置公告。",
+    "type_regular": "配额重置",
+    "type_banked": "储备重置额度",
+    "watch_label": "重置预测",
+    "watch_chance": "{{window}}，概率 {{chance}}%",
+    "unofficial": "社区追踪信息，不代表 OpenAI 的正式承诺。",
+    "view_source": "查看来源"
+  },
   "connection": {
     "status": "连接状态:"
   },

@@ -145,61 +145,147 @@
     flex-shrink: 0;
   }
 
-  .language-menu {
+  .codex-reset-notice {
     position: relative;
     display: inline-flex;
     align-items: center;
   }
 
-  .language-menu-popover {
-    position: absolute;
-    top: calc(100% + 10px);
-    right: 0;
-    z-index: $z-dropdown + 2;
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    background: var(--floating-surface, var(--bg-primary));
-    box-shadow: var(--shadow-lg);
-    min-width: 152px;
-    padding: 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
+  .codex-reset-trigger {
+    position: relative;
   }
 
-  .language-menu-option {
-    width: 100%;
-    border: none;
-    border-radius: $radius-sm;
-    background: transparent;
+  .codex-reset-unread {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+    border: 1.5px solid var(--floating-surface, var(--bg-primary));
+    border-radius: 50%;
+    background: #ef4444;
+  }
+
+  .codex-reset-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: -70px;
+    z-index: $z-dropdown + 2;
+    width: min(360px, calc(100vw - 24px));
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--floating-surface, var(--bg-primary));
     color: var(--text-primary);
-    cursor: pointer;
-    padding: 6px 9px;
-    font-size: 13px;
-    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .codex-reset-heading,
+  .codex-reset-meta,
+  .codex-reset-footer,
+  .codex-reset-watch,
+  .codex-reset-state {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+  }
 
-    &:hover {
-      background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  .codex-reset-heading {
+    margin-bottom: 12px;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
     }
 
-    &:focus-visible {
-      outline: none;
-      background: color-mix(in srgb, var(--text-primary) 7%, transparent);
-      box-shadow: inset 0 0 0 2px var(--focus-ring);
+    strong {
+      font-size: 14px;
+      line-height: 1.3;
     }
+  }
 
-    &.active {
+  .codex-reset-kicker {
+    color: var(--text-tertiary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .codex-reset-reload,
+  .codex-reset-state button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.6;
+    }
+  }
+
+  .codex-reset-watch {
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, #f59e0b 12%, transparent);
+    color: color-mix(in srgb, #b45309 85%, var(--text-primary));
+    font-size: 11px;
+
+    &.strong {
+      background: color-mix(in srgb, #ef4444 10%, transparent);
+      color: color-mix(in srgb, #dc2626 82%, var(--text-primary));
+    }
+  }
+
+  .codex-reset-meta {
+    color: var(--text-tertiary);
+    font-size: 11px;
+
+    > span {
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+      color: var(--text-secondary);
       font-weight: 600;
     }
   }
 
-  .language-menu-check {
+  .codex-reset-message {
+    margin: 10px 0 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .codex-reset-footer {
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-tertiary);
+    font-size: 10px;
+
+    a {
+      color: var(--accent-primary);
+      font-size: 11px;
+      font-weight: 600;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .codex-reset-state {
+    min-height: 64px;
+    color: var(--text-secondary);
     font-size: 12px;
-    line-height: 1;
   }
 
   svg {
@@ -569,9 +655,8 @@
       display: inline-flex;
     }
 
-    .language-menu-popover {
-      right: auto;
-      left: 0;
+    .codex-reset-popover {
+      right: -104px;
     }
   }
 

@@ -1,6 +1,5 @@
 import {
   ReactNode,
-  RefObject,
   SVGProps,
   useCallback,
   useEffect,
@@ -12,6 +11,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { PageTransition } from '@/components/common/PageTransition';
+import { CodexResetNotice } from '@/components/layout/CodexResetNotice';
 import { MainRoutes } from '@/router/MainRoutes';
 import { pluginsApi } from '@/services/api';
 import {
@@ -48,8 +48,7 @@ import {
   type PluginResourceEntry,
 } from '@/features/plugins/pluginResources';
 import { triggerHeaderRefresh } from '@/hooks/useHeaderRefresh';
-import { LANGUAGE_LABEL_KEYS, LANGUAGE_ORDER } from '@/utils/constants';
-import { isSupportedLanguage } from '@/utils/language';
+import { LANGUAGE_ORDER } from '@/utils/constants';
 import type { Theme } from '@/types';
 
 /** Same brand assets as OAuth Login (Codex / xAI Grok). */
@@ -94,39 +93,6 @@ interface SidebarNavGroup {
   id: string;
   labelKey: string;
   items: SidebarNavItem[];
-}
-
-/** 点击菜单外或按下 Escape 时关闭弹出菜单 */
-function useMenuDismiss(
-  open: boolean,
-  menuRef: RefObject<HTMLDivElement | null>,
-  onClose: () => void
-) {
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [open, menuRef, onClose]);
 }
 
 function PluginSidebarIcon({ src }: { src: string }) {
@@ -278,13 +244,11 @@ export function MainLayout() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [pluginResources, setPluginResources] = useState<PluginResourceEntry[]>([]);
   const [expandedPluginResourceIDs, setExpandedPluginResourceIDs] = useState<Set<string>>(
     () => new Set()
   );
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
 
   const fullBrandName = 'CPAMC++';
@@ -354,29 +318,17 @@ export function MainLayout() {
     };
   }, []);
 
-  const closeLanguageMenu = useCallback(() => setLanguageMenuOpen(false), []);
-  useMenuDismiss(languageMenuOpen, languageMenuRef, closeLanguageMenu);
-
-  const toggleLanguageMenu = useCallback(() => {
-    setLanguageMenuOpen((prev) => !prev);
-  }, []);
-
   const cycleTheme = useCallback(() => {
     const currentIndex = THEME_CYCLE.findIndex((entry) => entry.key === theme);
     const next = THEME_CYCLE[(currentIndex + 1) % THEME_CYCLE.length];
     setTheme(next.key);
   }, [setTheme, theme]);
 
-  const handleLanguageSelect = useCallback(
-    (nextLanguage: string) => {
-      if (!isSupportedLanguage(nextLanguage)) {
-        return;
-      }
-      setLanguage(nextLanguage);
-      setLanguageMenuOpen(false);
-    },
-    [setLanguage]
-  );
+  const toggleLanguage = useCallback(() => {
+    const currentIndex = LANGUAGE_ORDER.indexOf(language);
+    const nextLanguage = LANGUAGE_ORDER[(currentIndex + 1) % LANGUAGE_ORDER.length];
+    setLanguage(nextLanguage);
+  }, [language, setLanguage]);
 
   useEffect(() => {
     fetchConfig().catch(() => {
@@ -730,40 +682,16 @@ export function MainLayout() {
           >
             {headerIcons.refresh}
           </Button>
-          <div className={`language-menu ${languageMenuOpen ? 'open' : ''}`} ref={languageMenuRef}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleLanguageMenu}
-              title={t('language.switch')}
-              aria-label={t('language.switch')}
-              aria-haspopup="menu"
-              aria-expanded={languageMenuOpen}
-            >
-              {headerIcons.language}
-            </Button>
-            {languageMenuOpen && (
-              <div
-                className="notification language-menu-popover"
-                role="menu"
-                aria-label={t('language.switch')}
-              >
-                {LANGUAGE_ORDER.map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    className={`language-menu-option ${language === lang ? 'active' : ''}`}
-                    onClick={() => handleLanguageSelect(lang)}
-                    role="menuitemradio"
-                    aria-checked={language === lang}
-                  >
-                    <span>{t(LANGUAGE_LABEL_KEYS[lang])}</span>
-                    {language === lang ? <span className="language-menu-check">✓</span> : null}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <CodexResetNotice />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleLanguage}
+            title={t('language.switch')}
+            aria-label={t('language.switch')}
+          >
+            {headerIcons.language}
+          </Button>
           <Button
             variant="ghost"
             size="sm"

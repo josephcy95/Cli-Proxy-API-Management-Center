@@ -93,6 +93,18 @@
     "refresh_all": "Refresh All",
     "logout": "Logout"
   },
+  "codex_resets": {
+    "button": "Codex reset announcements",
+    "title": "Reset announcements",
+    "load_failed": "Could not load Codex reset news.",
+    "no_announcements": "No reset announcements are available yet.",
+    "type_regular": "Quota reset",
+    "type_banked": "Banked reset",
+    "watch_label": "Reset watch",
+    "watch_chance": "{{chance}}% chance {{window}}",
+    "unofficial": "Community-tracked, not an OpenAI commitment.",
+    "view_source": "View source"
+  },
   "connection": {
     "status": "Connection Status:"
   },
