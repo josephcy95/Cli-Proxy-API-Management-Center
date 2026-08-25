@@ -683,6 +683,28 @@
   }
 }
 
+.quotaResetInlineButton:global(.btn.btn-sm) {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--primary-color);
+  border-color: transparent;
+  background: transparent;
+
+  > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+    color: var(--primary-hover);
+  }
+}
+
 .quotaResetCreditButton:global(.btn.btn-sm),
 .quotaRefreshButton:global(.btn.btn-sm) {
   border-radius: 999px;

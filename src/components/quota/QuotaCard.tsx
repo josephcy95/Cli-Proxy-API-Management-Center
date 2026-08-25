@@ -59,6 +59,7 @@ export interface QuotaRenderHelpers {
    *  compress the manual-reset expiry list. The dedicated Quota-page card
    *  omits this and keeps the full detail. */
   card?: boolean;
+  resetQuotaAction?: ReactNode;
 }
 
 interface QuotaCardProps<TState extends QuotaStatusState> {

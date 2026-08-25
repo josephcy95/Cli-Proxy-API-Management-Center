@@ -283,15 +283,14 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
         type="button"
         variant="secondary"
         size="sm"
-        className={styles.quotaResetCreditButton}
+        className={styles.quotaResetInlineButton}
         onClick={() => resetQuotaForFile()}
         disabled={!canUseResetQuota}
         loading={resettingQuota}
         title={t('codex_quota.reset_button')}
         aria-label={t('codex_quota.reset_button')}
       >
-        {!resettingQuota && <IconRefreshCw size={14} />}
-        {t('codex_quota.reset_button')}
+        {!resettingQuota && <IconRefreshCw size={12} />}
       </Button>
     ) : undefined;
   const quotaErrorMessage = resolveQuotaErrorMessage(
@@ -356,12 +355,10 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
           styles,
           QuotaProgressBar,
           card: true,
+          resetQuotaAction,
         }) as ReactNode)
       ) : (
         <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.idle`)}</div>
-      )}
-      {quotaStatus !== 'idle' && resetQuotaAction && (
-        <div className={styles.quotaCardActions}>{resetQuotaAction}</div>
       )}
     </div>
   );

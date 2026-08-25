@@ -1033,7 +1033,7 @@ const renderCodexItems = (
     const appendPlanItem = (
       key: string,
       label: string,
-      value: string,
+      value: ReactNode,
       valueClassName = styleMap.codexPlanValue,
       title?: string
     ) => {
@@ -1060,7 +1060,12 @@ const renderCodexItems = (
       appendPlanItem(
         'reset-credits',
         card ? t('codex_quota.reset_credits_short') : t('codex_quota.reset_credits_label'),
-        resetCreditsCount.toString(),
+        h(
+          React.Fragment,
+          null,
+          h('span', { className: styleMap.codexPlanValue }, resetCreditsCount),
+          helpers.resetQuotaAction
+        ),
         styleMap.codexPlanValue,
         resetCreditsTooltip || undefined
       );

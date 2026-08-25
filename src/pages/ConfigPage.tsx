@@ -11,7 +11,7 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconRefreshCw,
-  IconSearch,
+  IconX,
 } from '@/components/ui/icons';
 import { VisualConfigEditor } from '@/components/config/VisualConfigEditor';
 import { DiffModal } from '@/components/config/DiffModal';
@@ -623,11 +623,12 @@ export function ConfigPage() {
                         <button
                           type="button"
                           className={styles.searchButton}
-                          onClick={() => executeSearch('next')}
+                          onClick={() => handleSearchChange('')}
                           disabled={!searchQuery || disableControls || loading}
-                          title={t('config_management.search_button', { defaultValue: '搜索' })}
+                          title={t('common.clear', { defaultValue: 'Clear' })}
+                          aria-label={t('common.clear', { defaultValue: 'Clear' })}
                         >
-                          <IconSearch size={16} />
+                          <IconX size={16} />
                         </button>
                       </div>
                     }
