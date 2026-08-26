@@ -305,9 +305,16 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
   const subscriptionActiveUntil =
     quotaType === 'codex' ? resolveCodexSubscriptionActiveUntil(file) : null;
   const renewalDisplay = subscriptionActiveUntil
-    ? formatRelativeTimeLabel(t, subscriptionActiveUntil)
+    ? formatRelativeTimeLabel(t, subscriptionActiveUntil).replace(/^In\s+/i, '')
     : '';
   const renewalTitle = subscriptionActiveUntil ? formatDateTimeValue(subscriptionActiveUntil) : '';
+  const resetCreditsCount =
+    quotaType === 'codex' && quota?.status === 'success'
+      ? ((quota as { rateLimitResetCreditsAvailableCount?: number | null })
+          .rateLimitResetCreditsAvailableCount ?? 0)
+      : 0;
+  const showResetCredits = quotaType === 'codex' && resetCreditsCount > 0;
+  const showCodexMeta = renewalDisplay || showResetCredits;
 
   useEffect(() => {
     if (!onRefreshBindingChange) return;
@@ -325,12 +332,23 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
 
   return (
     <div className={styles.quotaSection}>
-      {renewalDisplay && (
+      {showCodexMeta && (
         <div className={styles.codexPlan} title={renewalTitle || undefined}>
-          <span className={styles.codexPlanItem}>
-            <span className={styles.codexPlanLabel}>{t('codex_quota.expires_label')}</span>
-            <span className={styles.codexPlanValue}>{renewalDisplay}</span>
-          </span>
+          {renewalDisplay && (
+            <span className={styles.codexPlanItem}>
+              <span className={styles.codexPlanLabel}>{t('codex_quota.renew_label')}</span>
+              <span className={styles.codexPlanValue}>{renewalDisplay}</span>
+            </span>
+          )}
+          {showResetCredits && (
+            <span className={styles.codexPlanItem}>
+              <span className={styles.codexPlanLabel}>{t('codex_quota.reset_credits_short')}</span>
+              <span className={styles.codexPlanValue}>
+                {resetCreditsCount}
+                {resetQuotaAction}
+              </span>
+            </span>
+          )}
         </div>
       )}
       {quotaStatus === 'loading' ? (
@@ -355,7 +373,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
           styles,
           QuotaProgressBar,
           card: true,
-          resetQuotaAction,
+          hideResetCredits: true,
         }) as ReactNode)
       ) : (
         <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.idle`)}</div>

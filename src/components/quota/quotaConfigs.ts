@@ -1022,9 +1022,11 @@ const renderCodexItems = (
   const nodes: ReactNode[] = [];
 
   const showPlanInline = !card && (planLabel || expiryLabel);
-  const showResetCreditsInline = card
-    ? (rateLimitResetCreditsAvailableCount ?? 0) > 0
-    : rateLimitResetCreditsAvailableCount !== null;
+  const showResetCreditsInline =
+    !helpers.hideResetCredits &&
+    (card
+      ? (rateLimitResetCreditsAvailableCount ?? 0) > 0
+      : rateLimitResetCreditsAvailableCount !== null);
 
   if (showPlanInline || showResetCreditsInline) {
     const planValueClass = isPremiumPlan ? styleMap.premiumPlanValue : styleMap.codexPlanValue;

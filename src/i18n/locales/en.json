@@ -627,6 +627,7 @@
     "additional_team_secondary_window": "{{name}} monthly limit",
     "plan_label": "Plan",
     "expires_label": "Renewal time",
+    "renew_label": "Renew in",
     "reset_credits_label": "Manual resets",
     "reset_credits_short": "Resets",
     "reset_credits_expiry_label": "Manual reset expiry (GMT+8)",

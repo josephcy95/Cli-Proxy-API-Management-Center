@@ -60,6 +60,7 @@ export interface QuotaRenderHelpers {
    *  omits this and keeps the full detail. */
   card?: boolean;
   resetQuotaAction?: ReactNode;
+  hideResetCredits?: boolean;
 }
 
 interface QuotaCardProps<TState extends QuotaStatusState> {
