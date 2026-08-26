@@ -1071,9 +1071,7 @@ const renderCodexItems = (
       );
     }
 
-    nodes.push(
-      h('div', { key: 'plan', className: styleMap.codexPlan }, ...planNodes)
-    );
+    nodes.push(h('div', { key: 'plan', className: styleMap.codexPlan }, ...planNodes));
   }
 
   // The full per-reset expiry table is only useful in the detailed Quota view;
@@ -1142,7 +1140,9 @@ const renderCodexItems = (
           ? formatRelativeTimeLabel(t, window.resetAt) || window.resetLabel
           : window.resetLabel;
       const resetTitle =
-        window.resetAt != null ? formatDateTimeValue(window.resetAt) || window.resetLabel : undefined;
+        window.resetAt != null
+          ? formatDateTimeValue(window.resetAt) || window.resetLabel
+          : undefined;
 
       return h(
         'div',
@@ -1155,11 +1155,7 @@ const renderCodexItems = (
             'div',
             { className: styleMap.quotaMeta },
             h('span', { className: styleMap.quotaPercent }, percentLabel),
-            h(
-              'span',
-              { className: styleMap.quotaReset, title: resetTitle },
-              resetDisplay
-            )
+            h('span', { className: styleMap.quotaReset, title: resetTitle }, resetDisplay)
           )
         ),
         h(QuotaProgressBar, {
@@ -1410,7 +1406,9 @@ const renderClaudeItems = (
           ? formatRelativeTimeLabel(t, window.resetAt) || window.resetLabel
           : window.resetLabel;
       const resetTitle =
-        window.resetAt != null ? formatDateTimeValue(window.resetAt) || window.resetLabel : undefined;
+        window.resetAt != null
+          ? formatDateTimeValue(window.resetAt) || window.resetLabel
+          : undefined;
 
       return h(
         'div',
@@ -1504,10 +1502,7 @@ export const CODEX_CONFIG: QuotaConfig<CodexQuotaState, CodexQuotaData> = {
   filterFn: (file) => isCodexFile(file) && !isDisabledAuthFile(file),
   fetchQuota: fetchCodexQuota,
   resetQuota: resetCodexQuota,
-  canResetQuota: (quota) =>
-    (quota.rateLimitResetCreditsApplicableAvailableCount ??
-      quota.rateLimitResetCreditsAvailableCount ??
-      0) > 0,
+  canResetQuota: (quota) => (quota.rateLimitResetCreditsAvailableCount ?? 0) > 0,
   storeSelector: (state) => state.codexQuota,
   storeSetter: 'setCodexQuota',
   buildLoadingState: () => ({
