@@ -116,7 +116,7 @@ describe('Codex auth-file status', () => {
     expect(matchesCodexStatusFilter('available', file, refreshed)).toBe(false);
   });
 
-  test('classifies 401 and invalid-token messages as denied', () => {
+  test('does not classify quota refresh auth errors as denied', () => {
     const reauth: CodexRefreshState = {
       status: 'error',
       planType: null,
@@ -124,17 +124,20 @@ describe('Codex auth-file status', () => {
       errorStatus: 401,
       error: 'unauthorized',
     };
-    expect(getCodexAccountStatus(file, reauth).kind).toBe('denied');
-    expect(matchesCodexStatusFilter('denied', file, reauth)).toBe(true);
+    expect(getCodexAccountStatus(file, reauth).kind).toBe('other');
+    expect(matchesCodexStatusFilter('denied', file, reauth)).toBe(false);
 
     const deactivated = {
       ...file,
+      disabled: true,
       disabled_reason: 'workspace deactivated',
     };
     expect(getCodexAccountStatus(deactivated).kind).toBe('denied');
 
     const invalidToken = {
       ...file,
+      disabled: true,
+      disabled_reason: 'invalid_token',
       status_message: 'invalid_token',
     };
     expect(getCodexAccountStatus(invalidToken).kind).toBe('denied');
@@ -196,7 +199,7 @@ describe('Codex auth-file status', () => {
     expect(
       getCodexAccountStatus(parked, { ...refreshError, error: 'invalid token', errorStatus: 401 })
         .kind
-    ).toBe('denied');
+    ).toBe('working');
   });
 
   test('keeps auto-disabled accounts out of the working filter', () => {
@@ -213,8 +216,9 @@ describe('Codex auth-file status', () => {
       ...file,
       disabled: true,
       disabled_reason: 'Codex auth failure (counter=2, threshold=2)',
+      status_message: 'Codex auth failure',
     };
-    expect(getCodexAccountStatus(exhausted).kind).toBe('other');
+    expect(getCodexAccountStatus(exhausted).kind).toBe('denied');
     expect(matchesCodexStatusFilter('available', exhausted)).toBe(false);
   });
 

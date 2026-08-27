@@ -50,8 +50,6 @@ export const getCodexAvailabilityStatusRank = (kind: CodexAccountStatusKind): nu
 
 const PREMIUM_PLAN_TYPES = new Set(['prolite', 'pro-lite', 'pro_lite']);
 
-const DENIED_STATUS_CODES = new Set([401, 402, 403]);
-
 const normalizedPlanFilterValue = (value: string | null): CodexPlanFilter | null => {
   const normalized = normalizePlanType(value);
   if (!normalized) return null;
@@ -98,13 +96,6 @@ const isWindowFull = (window: CodexQuotaWindow, kind: string): boolean =>
   window.usedPercent >= 100 &&
   (window.id === kind || window.id.includes(kind));
 
-const readNumber = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : typeof value === 'string' && Number.isFinite(Number(value))
-      ? Number(value)
-      : null;
-
 const collectStatusText = (file: AuthFileItem, refreshed?: CodexRefreshState): string =>
   [
     refreshed?.error,
@@ -116,37 +107,6 @@ const collectStatusText = (file: AuthFileItem, refreshed?: CodexRefreshState): s
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
-
-const isDeniedAuthMessage = (text: string): boolean => {
-  if (!text) return false;
-  return (
-    text.includes('invalid_token') ||
-    text.includes('invalid token') ||
-    text.includes('invalidated') ||
-    text.includes('unauthorized') ||
-    text.includes('unauthenticated') ||
-    text.includes('authentication') ||
-    text.includes('permission-denied') ||
-    text.includes('access denied') ||
-    text.includes('deactivated') ||
-    text.includes('workspace') ||
-    text.includes('account_deactivated') ||
-    text.includes('token_expired') ||
-    text.includes('refresh_token') ||
-    text.includes('needs reauth') ||
-    text.includes('reauth')
-  );
-};
-
-const resolveHttpStatus = (file: AuthFileItem, refreshed?: CodexRefreshState): number | null => {
-  const fromRefresh = readNumber(refreshed?.errorStatus);
-  if (fromRefresh !== null) return fromRefresh;
-  const fromFile =
-    readNumber((file as { last_error_status?: unknown }).last_error_status) ??
-    readNumber((file as { error_status?: unknown }).error_status) ??
-    readNumber((file as { status_code?: unknown }).status_code);
-  return fromFile;
-};
 
 /**
  * The management API marks an intentional manual disable with this status message.
@@ -161,10 +121,10 @@ export const isPurposefullyDisabled = (file: AuthFileItem): boolean =>
     String(file.disabled_reason ?? '').trim() === '');
 
 /**
- * Classify Codex auth similar to xAI:
- * - denied: 401/402/403 or known auth-death messages (invalid token, deactivated workspace, …)
+ * Classify Codex auth from persisted backend state and quota observations:
+ * - denied: automatically disabled auth with a persisted failure reason
  * - cooldown: any quota window at 100% (rate/usage limit)
- * - working: healthy, no hard auth failure, no full quota (manual disables included)
+ * - working: healthy or manually parked auth (manual disables included)
  * - other: unavailable or other errors
  */
 export const getCodexAccountStatus = (
@@ -178,14 +138,22 @@ export const getCodexAccountStatus = (
   const quotaLimited = fiveHourLimited || weeklyLimited || monthlyLimited;
   const purposefullyDisabled = isPurposefullyDisabled(file);
 
-  const statusCode = resolveHttpStatus(file, refreshed);
-  const statusText = collectStatusText(file, refreshed);
-  const deniedByStatus = statusCode !== null && DENIED_STATUS_CODES.has(statusCode);
-  const deniedByMessage = isDeniedAuthMessage(statusText);
-  // usage_limit_reached is cooldown, not permanent denial
-  const usageLimitOnly =
-    statusText.includes('usage_limit_reached') || statusText.includes('usage limit');
-  const needsReauth = deniedByStatus || (deniedByMessage && !usageLimitOnly);
+  const persistedStatusText = collectStatusText(file);
+  const refreshStatusText = collectStatusText(file, refreshed);
+  // usage_limit_reached is cooldown, not permanent denial. Refresh errors are
+  // probe diagnostics and must not change the credential classification, except
+  // that a refresh-only usage-limit response can still describe cooldown.
+  const usageLimitOnly = [persistedStatusText, refreshStatusText].some(
+    (text) => text.includes('usage_limit_reached') || text.includes('usage limit')
+  );
+  // Only persisted automatic auth diagnostics are authoritative for denial.
+  // Manual disables remain intentionally parked and are handled below.
+  const automaticDisable =
+    file.disabled === true &&
+    !purposefullyDisabled &&
+    typeof file.disabled_reason === 'string' &&
+    file.disabled_reason.trim() !== '';
+  const needsReauth = automaticDisable;
 
   if (needsReauth) {
     return {
@@ -212,8 +180,7 @@ export const getCodexAccountStatus = (
   if (
     (file.disabled !== true || purposefullyDisabled) &&
     file.unavailable !== true &&
-    (purposefullyDisabled || refreshed?.status !== 'error') &&
-    (purposefullyDisabled || statusCode === null || statusCode < 400)
+    (purposefullyDisabled || refreshed?.status !== 'error')
   ) {
     return {
       kind: 'working',
