@@ -2120,18 +2120,23 @@
 }
 
 .prefixProxySwitches {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
-  gap: 10px 18px;
+  gap: $spacing-sm;
   min-width: 0;
 }
 
 .prefixProxySwitch {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
+
+  > label {
+    min-width: 0;
+    flex: 1;
+  }
 }
 
 .prefixProxyLabelInner {
@@ -2141,17 +2146,56 @@
 }
 
 .prefixProxyHint {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--text-tertiary);
   cursor: help;
   line-height: 0;
 
-  &:hover {
+  &:hover,
+  &:focus,
+  &:focus-visible {
     color: var(--text-secondary);
+    outline: none;
   }
+
+  &:hover .prefixProxyHintBubble,
+  &:focus .prefixProxyHintBubble,
+  &:focus-visible .prefixProxyHintBubble {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.prefixProxyHintBubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  z-index: 8;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-sm;
+  background: var(--bg-primary);
+  box-shadow: var(--shadow);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  transform: translateX(-50%);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .prefixProxyTextareaInvalid {

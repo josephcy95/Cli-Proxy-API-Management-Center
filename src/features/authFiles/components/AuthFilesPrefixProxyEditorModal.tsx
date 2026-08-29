@@ -19,15 +19,22 @@ import styles from '@/pages/AuthFilesPage.module.scss';
 
 const JSON_PREVIEW_ROWS = 5;
 
+function FieldHint({ hint }: { hint: string }) {
+  return (
+    <button type="button" className={styles.prefixProxyHint} aria-label={hint}>
+      <IconInfo size={12} />
+      <span className={styles.prefixProxyHintBubble} role="tooltip">
+        {hint}
+      </span>
+    </button>
+  );
+}
+
 function LabelWithHint({ label, hint }: { label: string; hint?: string }) {
   return (
     <span className={styles.prefixProxyLabelInner}>
       {label}
-      {hint ? (
-        <span className={styles.prefixProxyHint} title={hint} aria-label={hint}>
-          <IconInfo size={12} />
-        </span>
-      ) : null}
+      {hint ? <FieldHint hint={hint} /> : null}
     </span>
   );
 }
@@ -152,13 +159,7 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                         label={t('auth_files.disable_cooling_label')}
                         ariaLabel={t('auth_files.disable_cooling_label')}
                       />
-                      <span
-                        className={styles.prefixProxyHint}
-                        title={t('auth_files.disable_cooling_hint')}
-                        aria-label={t('auth_files.disable_cooling_hint')}
-                      >
-                        <IconInfo size={12} />
-                      </span>
+                      <FieldHint hint={t('auth_files.disable_cooling_hint')} />
                     </div>
                     {supportsAuthFileWebsockets(editor.providerKey) && (
                       <div className={styles.prefixProxySwitch}>
@@ -169,13 +170,7 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                           label={t('auth_files.websockets_label')}
                           ariaLabel={t('auth_files.websockets_label')}
                         />
-                        <span
-                          className={styles.prefixProxyHint}
-                          title={t('auth_files.websockets_hint')}
-                          aria-label={t('auth_files.websockets_hint')}
-                        >
-                          <IconInfo size={12} />
-                        </span>
+                        <FieldHint hint={t('auth_files.websockets_hint')} />
                       </div>
                     )}
                     {editor.providerKey === 'codex' && (
@@ -187,13 +182,7 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                           label={t('auth_files.allow_private_instructions_label')}
                           ariaLabel={t('auth_files.allow_private_instructions_label')}
                         />
-                        <span
-                          className={styles.prefixProxyHint}
-                          title={t('auth_files.allow_private_instructions_hint')}
-                          aria-label={t('auth_files.allow_private_instructions_hint')}
-                        >
-                          <IconInfo size={12} />
-                        </span>
+                        <FieldHint hint={t('auth_files.allow_private_instructions_hint')} />
                       </div>
                     )}
                     {supportsAuthFileUsingApi(editor.providerKey) && (
@@ -205,13 +194,7 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                           label={t('auth_files.using_api_label')}
                           ariaLabel={t('auth_files.using_api_label')}
                         />
-                        <span
-                          className={styles.prefixProxyHint}
-                          title={t('auth_files.using_api_hint')}
-                          aria-label={t('auth_files.using_api_hint')}
-                        >
-                          <IconInfo size={12} />
-                        </span>
+                        <FieldHint hint={t('auth_files.using_api_hint')} />
                       </div>
                     )}
                   </div>
@@ -249,19 +232,21 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
               </div>
               {editor.json && (
                 <div className={styles.prefixProxyFields}>
-                  <Input
-                    label={t('auth_files.prefix_label')}
-                    value={editor.prefix}
-                    disabled={disableControls || editor.saving}
-                    onChange={(e) => onChange('prefix', e.target.value)}
-                  />
-                  <Input
-                    label={t('auth_files.proxy_url_label')}
-                    value={editor.proxyUrl}
-                    placeholder={t('auth_files.proxy_url_placeholder')}
-                    disabled={disableControls || editor.saving}
-                    onChange={(e) => onChange('proxyUrl', e.target.value)}
-                  />
+                  <div className={styles.prefixProxyTopRow}>
+                    <Input
+                      label={t('auth_files.prefix_label')}
+                      value={editor.prefix}
+                      disabled={disableControls || editor.saving}
+                      onChange={(e) => onChange('prefix', e.target.value)}
+                    />
+                    <Input
+                      label={t('auth_files.proxy_url_label')}
+                      value={editor.proxyUrl}
+                      placeholder={t('auth_files.proxy_url_placeholder')}
+                      disabled={disableControls || editor.saving}
+                      onChange={(e) => onChange('proxyUrl', e.target.value)}
+                    />
+                  </div>
                   <div className="form-group">
                     <label>
                       <LabelWithHint
