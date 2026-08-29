@@ -2069,8 +2069,10 @@
   color: var(--text-primary);
   font-size: 12px;
   font-family: monospace;
+  line-height: 1.45;
   resize: vertical;
-  min-height: 120px;
+  min-height: 0;
+  height: 7.4em;
   box-sizing: border-box;
 
   &:focus {
@@ -2081,7 +2083,7 @@
 
 .prefixProxyInvalidContentPreview {
   width: 100%;
-  max-height: 220px;
+  max-height: 7.4em;
   margin: 0;
   padding: $spacing-sm $spacing-md;
   border: 1px solid var(--border-color);
@@ -2090,7 +2092,7 @@
   color: var(--text-secondary);
   font-size: 12px;
   font-family: monospace;
-  line-height: 1.5;
+  line-height: 1.45;
   white-space: pre-wrap;
   overflow: auto;
   box-sizing: border-box;
@@ -2103,6 +2105,52 @@
 
   :global(.form-group) {
     margin: 0;
+  }
+}
+
+.prefixProxyTopRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-sm;
+  min-width: 0;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prefixProxySwitches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  min-width: 0;
+}
+
+.prefixProxySwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.prefixProxyLabelInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prefixProxyHint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  cursor: help;
+  line-height: 0;
+
+  &:hover {
+    color: var(--text-secondary);
   }
 }
 

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Input } from '@/components/ui/Input';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { IconInfo } from '@/components/ui/icons';
 import { MAX_CREDENTIAL_WEIGHT } from '@/utils/credentialWeight';
 import type {
   PrefixProxyEditorField,
@@ -15,6 +16,21 @@ import {
   supportsAuthFileWebsockets,
 } from '@/features/authFiles/constants';
 import styles from '@/pages/AuthFilesPage.module.scss';
+
+const JSON_PREVIEW_ROWS = 5;
+
+function LabelWithHint({ label, hint }: { label: string; hint?: string }) {
+  return (
+    <span className={styles.prefixProxyLabelInner}>
+      {label}
+      {hint ? (
+        <span className={styles.prefixProxyHint} title={hint} aria-label={hint}>
+          <IconInfo size={12} />
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 export type AuthFilesPrefixProxyEditorModalProps = {
   disableControls: boolean;
@@ -95,13 +111,119 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
           ) : (
             <>
               {editor.error && <div className={styles.prefixProxyError}>{editor.error}</div>}
+              {editor.json && (
+                <div className={styles.prefixProxyFields}>
+                  <div className={styles.prefixProxyTopRow}>
+                    <Input
+                      label={
+                        <LabelWithHint
+                          label={t('auth_files.priority_label')}
+                          hint={t('auth_files.priority_hint')}
+                        />
+                      }
+                      value={editor.priority}
+                      placeholder={t('auth_files.priority_placeholder')}
+                      disabled={disableControls || editor.saving}
+                      onChange={(e) => onChange('priority', e.target.value)}
+                    />
+                    <Input
+                      label={
+                        <LabelWithHint
+                          label={t('auth_files.weight_label')}
+                          hint={t('auth_files.weight_hint')}
+                        />
+                      }
+                      type="number"
+                      step="1"
+                      max={MAX_CREDENTIAL_WEIGHT}
+                      value={editor.weight}
+                      placeholder="1"
+                      error={editor.weightError ?? undefined}
+                      disabled={disableControls || editor.saving}
+                      onChange={(e) => onChange('weight', e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.prefixProxySwitches}>
+                    <div className={styles.prefixProxySwitch}>
+                      <ToggleSwitch
+                        checked={editor.disableCooling}
+                        onChange={(value) => onChange('disableCooling', value)}
+                        disabled={disableControls || editor.saving}
+                        label={t('auth_files.disable_cooling_label')}
+                        ariaLabel={t('auth_files.disable_cooling_label')}
+                      />
+                      <span
+                        className={styles.prefixProxyHint}
+                        title={t('auth_files.disable_cooling_hint')}
+                        aria-label={t('auth_files.disable_cooling_hint')}
+                      >
+                        <IconInfo size={12} />
+                      </span>
+                    </div>
+                    {supportsAuthFileWebsockets(editor.providerKey) && (
+                      <div className={styles.prefixProxySwitch}>
+                        <ToggleSwitch
+                          checked={editor.websockets}
+                          onChange={(value) => onChange('websockets', value)}
+                          disabled={disableControls || editor.saving}
+                          label={t('auth_files.websockets_label')}
+                          ariaLabel={t('auth_files.websockets_label')}
+                        />
+                        <span
+                          className={styles.prefixProxyHint}
+                          title={t('auth_files.websockets_hint')}
+                          aria-label={t('auth_files.websockets_hint')}
+                        >
+                          <IconInfo size={12} />
+                        </span>
+                      </div>
+                    )}
+                    {editor.providerKey === 'codex' && (
+                      <div className={styles.prefixProxySwitch}>
+                        <ToggleSwitch
+                          checked={editor.allowPrivateInstructions}
+                          onChange={(checked) => onChange('allowPrivateInstructions', checked)}
+                          disabled={disableControls || editor.saving}
+                          label={t('auth_files.allow_private_instructions_label')}
+                          ariaLabel={t('auth_files.allow_private_instructions_label')}
+                        />
+                        <span
+                          className={styles.prefixProxyHint}
+                          title={t('auth_files.allow_private_instructions_hint')}
+                          aria-label={t('auth_files.allow_private_instructions_hint')}
+                        >
+                          <IconInfo size={12} />
+                        </span>
+                      </div>
+                    )}
+                    {supportsAuthFileUsingApi(editor.providerKey) && (
+                      <div className={styles.prefixProxySwitch}>
+                        <ToggleSwitch
+                          checked={editor.usingApi}
+                          onChange={(value) => onChange('usingApi', value)}
+                          disabled={disableControls || editor.saving}
+                          label={t('auth_files.using_api_label')}
+                          ariaLabel={t('auth_files.using_api_label')}
+                        />
+                        <span
+                          className={styles.prefixProxyHint}
+                          title={t('auth_files.using_api_hint')}
+                          aria-label={t('auth_files.using_api_hint')}
+                        >
+                          <IconInfo size={12} />
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className={styles.prefixProxyJsonWrapper}>
                 <label className={styles.prefixProxyLabel}>
                   {t('auth_files.prefix_proxy_info_label')}
                 </label>
                 <textarea
                   className={styles.prefixProxyTextarea}
-                  rows={8}
+                  rows={JSON_PREVIEW_ROWS}
                   readOnly
                   value={editor.fileInfoText}
                 />
@@ -115,7 +237,7 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                 {editor.json ? (
                   <textarea
                     className={styles.prefixProxyTextarea}
-                    rows={10}
+                    rows={JSON_PREVIEW_ROWS}
                     readOnly
                     value={previewText}
                   />
@@ -130,115 +252,62 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                   <Input
                     label={t('auth_files.prefix_label')}
                     value={editor.prefix}
-                    disabled={disableControls || editor.saving || !editor.json}
+                    disabled={disableControls || editor.saving}
                     onChange={(e) => onChange('prefix', e.target.value)}
                   />
                   <Input
                     label={t('auth_files.proxy_url_label')}
                     value={editor.proxyUrl}
                     placeholder={t('auth_files.proxy_url_placeholder')}
-                    disabled={disableControls || editor.saving || !editor.json}
+                    disabled={disableControls || editor.saving}
                     onChange={(e) => onChange('proxyUrl', e.target.value)}
                   />
-                  <Input
-                    label={t('auth_files.priority_label')}
-                    value={editor.priority}
-                    placeholder={t('auth_files.priority_placeholder')}
-                    hint={t('auth_files.priority_hint')}
-                    disabled={disableControls || editor.saving || !editor.json}
-                    onChange={(e) => onChange('priority', e.target.value)}
-                  />
-                  <Input
-                    label={t('auth_files.weight_label')}
-                    type="number"
-                    step="1"
-                    max={MAX_CREDENTIAL_WEIGHT}
-                    value={editor.weight}
-                    placeholder="1"
-                    hint={t('auth_files.weight_hint')}
-                    error={editor.weightError ?? undefined}
-                    disabled={disableControls || editor.saving || !editor.json}
-                    onChange={(e) => onChange('weight', e.target.value)}
-                  />
                   <div className="form-group">
-                    <label>{t('auth_files.disable_cooling_label')}</label>
-                    <ToggleSwitch
-                      checked={editor.disableCooling}
-                      onChange={(value) => onChange('disableCooling', value)}
-                      disabled={disableControls || editor.saving || !editor.json}
-                      ariaLabel={t('auth_files.disable_cooling_label')}
-                    />
-                    <div className="hint">{t('auth_files.disable_cooling_hint')}</div>
-                  </div>
-                  {supportsAuthFileWebsockets(editor.providerKey) && (
-                    <div className="form-group">
-                      <label>{t('auth_files.websockets_label')}</label>
-                      <ToggleSwitch
-                        checked={editor.websockets}
-                        onChange={(value) => onChange('websockets', value)}
-                        disabled={disableControls || editor.saving || !editor.json}
-                        ariaLabel={t('auth_files.websockets_label')}
+                    <label>
+                      <LabelWithHint
+                        label={t('auth_files.excluded_models_label')}
+                        hint={t('auth_files.excluded_models_hint')}
                       />
-                      <div className="hint">{t('auth_files.websockets_hint')}</div>
-                    </div>
-                  )}
-                  {supportsAuthFileUsingApi(editor.providerKey) && (
-                    <div className="form-group">
-                      <label>{t('auth_files.using_api_label')}</label>
-                      <ToggleSwitch
-                        checked={editor.usingApi}
-                        onChange={(value) => onChange('usingApi', value)}
-                        disabled={disableControls || editor.saving || !editor.json}
-                        ariaLabel={t('auth_files.using_api_label')}
-                      />
-                      <div className="hint">{t('auth_files.using_api_hint')}</div>
-                    </div>
-                  )}
-                  <div className="form-group">
-                    <label>{t('auth_files.excluded_models_label')}</label>
+                    </label>
                     <textarea
                       className="input"
                       value={editor.excludedModelsText}
                       placeholder={t('auth_files.excluded_models_placeholder')}
                       rows={4}
-                      disabled={disableControls || editor.saving || !editor.json}
+                      disabled={disableControls || editor.saving}
                       onChange={(e) => onChange('excludedModelsText', e.target.value)}
                     />
-                    <div className="hint">{t('auth_files.excluded_models_hint')}</div>
                   </div>
                   <div className="form-group">
-                    <label>{t('auth_files.headers_label')}</label>
+                    <label>
+                      <LabelWithHint
+                        label={t('auth_files.headers_label')}
+                        hint={t('auth_files.headers_hint')}
+                      />
+                    </label>
                     <textarea
                       className={`input ${editor.headersError ? styles.prefixProxyTextareaInvalid : ''}`}
                       value={editor.headersText}
                       placeholder={t('auth_files.headers_placeholder')}
                       rows={4}
                       aria-invalid={Boolean(editor.headersError)}
-                      disabled={disableControls || editor.saving || !editor.json}
+                      disabled={disableControls || editor.saving}
                       onChange={(e) => onChange('headersText', e.target.value)}
                     />
                     {editor.headersError && <div className="error-box">{editor.headersError}</div>}
-                    <div className="hint">{t('auth_files.headers_hint')}</div>
                   </div>
                   <Input
-                    label={t('auth_files.note_label')}
+                    label={
+                      <LabelWithHint
+                        label={t('auth_files.note_label')}
+                        hint={t('auth_files.note_hint')}
+                      />
+                    }
                     value={editor.note}
                     placeholder={t('auth_files.note_placeholder')}
-                    hint={t('auth_files.note_hint')}
-                    disabled={disableControls || editor.saving || !editor.json}
+                    disabled={disableControls || editor.saving}
                     onChange={(e) => onChange('note', e.target.value)}
                   />
-                  {editor.providerKey === 'codex' && (
-                    <div className={styles.prefixProxyField}>
-                      <ToggleSwitch
-                        checked={editor.allowPrivateInstructions}
-                        onChange={(checked) => onChange('allowPrivateInstructions', checked)}
-                        disabled={disableControls || editor.saving || !editor.json}
-                        label={t('auth_files.allow_private_instructions_label')}
-                      />
-                      <small>{t('auth_files.allow_private_instructions_hint')}</small>
-                    </div>
-                  )}
                 </div>
               )}
             </>
