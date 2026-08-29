@@ -16,8 +16,11 @@ import {
   useThemeStore,
 } from '@/stores';
 import type { AuthFileItem, ResolvedTheme } from '@/types';
-import { authFilesApi } from '@/services/api';
-import { getStatusFromError } from '@/utils/quota';
+import {
+  getStatusFromError,
+  persistCodexQuotaSnapshot,
+  codexQuotaPersistInputFromData,
+} from '@/utils/quota';
 import { QuotaCard } from './QuotaCard';
 import type { QuotaStatusState } from './QuotaCard';
 import { useQuotaLoader } from './useQuotaLoader';
@@ -218,20 +221,10 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
       try {
         const data = await config.fetchQuota(file, t);
         if (config.type === 'codex') {
-          const planType =
-            data && typeof data === 'object' && data !== null && 'planType' in data
-              ? String((data as { planType?: unknown }).planType ?? '').trim()
-              : '';
-          if (planType) {
-            try {
-              await authFilesApi.patchFields(file.name, {
-                plan_type: planType,
-                chatgpt_plan_type: planType,
-                plan_checked_at: new Date().toISOString(),
-              });
-            } catch {
-              // Quota display still succeeds if plan persistence fails.
-            }
+          try {
+            await persistCodexQuotaSnapshot(file.name, codexQuotaPersistInputFromData(data));
+          } catch {
+            // Quota display still succeeds if snapshot persistence fails.
           }
         }
         commitIfQuotaCacheCurrent(cacheGeneration, () => {
@@ -277,6 +270,11 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
           setResettingQuotaName(file.name);
           try {
             const data = await resetQuota(file, t);
+            try {
+              await persistCodexQuotaSnapshot(file.name, codexQuotaPersistInputFromData(data));
+            } catch {
+              // Local consume already succeeded; keep the refreshed quota visible.
+            }
             commitIfQuotaCacheCurrent(cacheGeneration, () => {
               setQuota((prev) => ({
                 ...prev,

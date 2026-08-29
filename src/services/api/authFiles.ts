@@ -28,8 +28,12 @@ export type AuthFileFieldsPatch = {
   plan_type?: string;
   chatgpt_plan_type?: string;
   plan_checked_at?: string;
+  chatgpt_subscription_active_until?: string | number;
+  rate_limit_reset_credits_available_count?: number;
+  rate_limit_reset_credits_applicable_available_count?: number;
+  rate_limit_reset_credits?: Array<Record<string, string>>;
+  rate_limit_reset_credits_checked_at?: string;
   expired?: string;
-
 };
 type AuthFileBatchFailure = { name: string; error: string };
 type AuthFileBatchUploadResponse = {

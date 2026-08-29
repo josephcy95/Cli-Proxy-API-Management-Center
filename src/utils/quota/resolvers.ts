@@ -2,7 +2,7 @@
  * Resolver functions for extracting data from auth files.
  */
 
-import type { AuthFileItem } from '@/types';
+import type { AuthFileItem, CodexRateLimitResetCredit } from '@/types';
 import {
   normalizeNumberValue,
   normalizeStringValue,
@@ -175,4 +175,71 @@ export function resolveCodexSubscriptionActiveUntil(file: AuthFileItem): string 
   }
 
   return null;
+}
+
+export type CodexResetCreditsFileSnapshot = {
+  availableCount: number;
+  applicableAvailableCount: number | null;
+  credits: CodexRateLimitResetCredit[];
+  checkedAt: string | null;
+};
+
+const normalizeResetCredit = (value: unknown): CodexRateLimitResetCredit | null => {
+  const record = toRecord(value);
+  if (!record) return null;
+  const expiresAt = normalizeStringValue(record.expires_at ?? record.expiresAt);
+  if (!expiresAt) return null;
+  return {
+    id: normalizeStringValue(record.id) ?? '',
+    status: normalizeStringValue(record.status) ?? '',
+    grantedAt: normalizeStringValue(record.granted_at ?? record.grantedAt) ?? '',
+    expiresAt,
+  };
+};
+
+const readResetCreditsList = (value: unknown): CodexRateLimitResetCredit[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => normalizeResetCredit(item))
+    .filter((item): item is CodexRateLimitResetCredit => Boolean(item));
+};
+
+export function resolveCodexResetCredits(file: AuthFileItem): CodexResetCreditsFileSnapshot {
+  const metadata = toRecord(file.metadata);
+  const attributes = toRecord(file.attributes);
+
+  const availableCount =
+    normalizeNumberValue(
+      file.rate_limit_reset_credits_available_count ??
+        file.rateLimitResetCreditsAvailableCount ??
+        metadata?.rate_limit_reset_credits_available_count ??
+        metadata?.rateLimitResetCreditsAvailableCount ??
+        attributes?.rate_limit_reset_credits_available_count ??
+        attributes?.rateLimitResetCreditsAvailableCount
+    ) ?? 0;
+  const applicableAvailableCount = normalizeNumberValue(
+    file.rate_limit_reset_credits_applicable_available_count ??
+      file.rateLimitResetCreditsApplicableAvailableCount ??
+      metadata?.rate_limit_reset_credits_applicable_available_count ??
+      metadata?.rateLimitResetCreditsApplicableAvailableCount
+  );
+  const credits = readResetCreditsList(
+    file.rate_limit_reset_credits ??
+      file.rateLimitResetCredits ??
+      metadata?.rate_limit_reset_credits ??
+      metadata?.rateLimitResetCredits
+  );
+  const checkedAt = normalizeStringValue(
+    file.rate_limit_reset_credits_checked_at ??
+      file.rateLimitResetCreditsCheckedAt ??
+      metadata?.rate_limit_reset_credits_checked_at ??
+      metadata?.rateLimitResetCreditsCheckedAt
+  );
+
+  return {
+    availableCount,
+    applicableAvailableCount,
+    credits,
+    checkedAt,
+  };
 }

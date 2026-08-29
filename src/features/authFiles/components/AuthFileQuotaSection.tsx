@@ -22,15 +22,22 @@ import {
 } from '@/stores';
 import { authFilesApi } from '@/services/api';
 import type { AuthFileItem } from '@/types';
-import { getStatusFromError, resolveCodexSubscriptionActiveUntil } from '@/utils/quota';
-import { formatDateTimeValue, formatRelativeTimeLabel } from '@/utils/format';
+import {
+  getStatusFromError,
+  persistCodexQuotaSnapshot,
+  codexQuotaPersistInputFromData,
+  resolveCodexResetCredits,
+  resolveCodexSubscriptionActiveUntil,
+  formatShanghaiDateTime,
+} from '@/utils/quota';
+import { formatDateTimeValue, formatRelativeTimeLabel, toEpochMs } from '@/utils/format';
 import {
   isRuntimeOnlyAuthFile,
   resolveQuotaErrorMessage,
   type QuotaProviderType,
 } from '@/features/authFiles/constants';
-import { Button } from '@/components/ui/Button';
 import { IconRefreshCw } from '@/components/ui/icons';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { QuotaProgressBar } from '@/features/authFiles/components/QuotaProgressBar';
 import styles from '@/pages/AuthFilesPage.module.scss';
 import { getAuthFileAuthIndex } from '@/features/authFiles/cooldown';
@@ -45,6 +52,23 @@ type QuotaState = { status?: string; error?: string; errorStatus?: number } | un
 
 const assertNever = (value: never): never => {
   throw new Error(`Unsupported quota type: ${value}`);
+};
+
+const earliestResetCreditExpiry = (credits: { expiresAt?: string }[] | undefined): string | null => {
+  if (!credits || credits.length === 0) return null;
+  let earliestMs = Infinity;
+  let earliest: string | null = null;
+  for (const credit of credits) {
+    const expiresAt = credit.expiresAt;
+    if (!expiresAt) continue;
+    const ms = toEpochMs(expiresAt);
+    if (ms == null) continue;
+    if (ms < earliestMs) {
+      earliestMs = ms;
+      earliest = expiresAt;
+    }
+  }
+  return earliest;
 };
 
 const getQuotaConfig = (type: QuotaProviderType) => {
@@ -159,21 +183,12 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
             }
           }
         }
-        const planType =
-          data && typeof data === 'object' && 'planType' in data
-            ? String((data as { planType?: unknown }).planType ?? '').trim()
-            : '';
-        if (planType) {
-          try {
-            await authFilesApi.patchFields(file.name, {
-              plan_type: planType,
-              chatgpt_plan_type: planType,
-              plan_checked_at: new Date().toISOString(),
-            });
+        try {
+          if (await persistCodexQuotaSnapshot(file.name, codexQuotaPersistInputFromData(data))) {
             authFileChanged = true;
-          } catch {
-            // Quota display still succeeds if plan persistence fails.
           }
+        } catch {
+          // Quota display still succeeds if snapshot persistence fails.
         }
         if (authFileChanged) {
           if (quotaType === 'codex') onCodexRefreshStateReset?.(file.name);
@@ -239,6 +254,11 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
             showNotification(t('codex_quota.reset_success', { name: file.name }), 'success');
           });
           if (applied) {
+            try {
+              await persistCodexQuotaSnapshot(file.name, codexQuotaPersistInputFromData(data));
+            } catch {
+              // Local consume already succeeded; keep the refreshed quota visible.
+            }
             onCodexRefreshStateReset?.(file.name);
             await onAuthFileUpdated?.();
           }
@@ -276,44 +296,65 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
   const quotaStatus = quota?.status ?? 'idle';
   const canRefreshQuota = !disableControls && !file.disabled && !resettingQuota;
   const canUseResetQuota = canRefreshQuota && quotaStatus !== 'loading';
-  const showResetQuotaAction = quota !== undefined && Boolean(config.canResetQuota?.(quota));
-  const resetQuotaAction =
-    config.resetQuota && showResetQuotaAction ? (
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        className={styles.quotaResetInlineButton}
-        onClick={() => resetQuotaForFile()}
-        disabled={!canUseResetQuota}
-        loading={resettingQuota}
-        title={t('codex_quota.reset_button')}
-        aria-label={t('codex_quota.reset_button')}
-      >
-        {!resettingQuota && <IconRefreshCw size={12} />}
-      </Button>
-    ) : undefined;
   const quotaErrorMessage = resolveQuotaErrorMessage(
     t,
     quota?.errorStatus,
     quota?.error || t('common.unknown_error')
   );
 
-  // Renewal (subscription active-until) is stored on the auth file itself, so it
-  // can be shown without a quota refresh. Rendered only for Codex cards here;
-  // the card's header already carries the plan badge.
+  // Renewal and reset-credit availability are stored on the auth file, so they
+  // survive a hard refresh. Live quota results always replace the snapshot.
   const subscriptionActiveUntil =
     quotaType === 'codex' ? resolveCodexSubscriptionActiveUntil(file) : null;
   const renewalDisplay = subscriptionActiveUntil
     ? formatRelativeTimeLabel(t, subscriptionActiveUntil).replace(/^In\s+/i, '')
     : '';
   const renewalTitle = subscriptionActiveUntil ? formatDateTimeValue(subscriptionActiveUntil) : '';
-  const resetCreditsCount =
+  const fileResetCredits = quotaType === 'codex' ? resolveCodexResetCredits(file) : null;
+  const liveResetCredits =
     quotaType === 'codex' && quota?.status === 'success'
-      ? ((quota as { rateLimitResetCreditsAvailableCount?: number | null })
-          .rateLimitResetCreditsAvailableCount ?? 0)
-      : 0;
+      ? {
+          availableCount:
+            (quota as { rateLimitResetCreditsAvailableCount?: number | null })
+              .rateLimitResetCreditsAvailableCount ?? 0,
+          credits:
+            (quota as { rateLimitResetCredits?: { expiresAt?: string }[] }).rateLimitResetCredits ??
+            [],
+        }
+      : null;
+  const resetCredits = liveResetCredits ?? fileResetCredits;
+  const resetCreditsCount = resetCredits?.availableCount ?? 0;
   const showResetCredits = quotaType === 'codex' && resetCreditsCount > 0;
+  const resetCreditExpiry = earliestResetCreditExpiry(resetCredits?.credits);
+  const resetCreditExpiryDisplay = resetCreditExpiry
+    ? formatRelativeTimeLabel(t, resetCreditExpiry).replace(/^In\s+/i, '')
+    : '';
+  const resetCreditsTitle =
+    resetCredits?.credits && resetCredits.credits.length > 0
+      ? resetCredits.credits
+          .map((credit, index) => {
+            const expiresAt = credit.expiresAt ?? '';
+            const when =
+              formatShanghaiDateTime(expiresAt) || formatDateTimeValue(expiresAt) || expiresAt;
+            return `${t('codex_quota.reset_credit_number', { index: index + 1 })}: ${when}`;
+          })
+          .join('\n')
+      : resetCreditExpiry
+        ? formatDateTimeValue(resetCreditExpiry)
+        : '';
+  const showResetQuotaAction = Boolean(config.resetQuota) && showResetCredits;
+  const resetQuotaAction = showResetQuotaAction ? (
+    <button
+      type="button"
+      className={styles.quotaResetInlineButton}
+      onClick={() => resetQuotaForFile()}
+      disabled={!canUseResetQuota}
+      title={t('codex_quota.reset_button')}
+      aria-label={t('codex_quota.reset_button')}
+    >
+      {resettingQuota ? <LoadingSpinner size={10} /> : <IconRefreshCw size={12} />}
+    </button>
+  ) : undefined;
   const showCodexMeta = renewalDisplay || showResetCredits;
 
   useEffect(() => {
@@ -333,18 +374,21 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
   return (
     <div className={styles.quotaSection}>
       {showCodexMeta && (
-        <div className={styles.codexPlan} title={renewalTitle || undefined}>
+        <div className={styles.codexPlan}>
           {renewalDisplay && (
-            <span className={styles.codexPlanItem}>
+            <span className={styles.codexPlanItem} title={renewalTitle || undefined}>
               <span className={styles.codexPlanLabel}>{t('codex_quota.renew_label')}</span>
               <span className={styles.codexPlanValue}>{renewalDisplay}</span>
             </span>
           )}
           {showResetCredits && (
-            <span className={styles.codexPlanItem}>
+            <span className={styles.codexPlanItem} title={resetCreditsTitle || undefined}>
               <span className={styles.codexPlanLabel}>{t('codex_quota.reset_credits_short')}</span>
               <span className={styles.codexPlanValue}>
                 {resetCreditsCount}
+                {resetCreditExpiryDisplay ? (
+                  <span className={styles.codexPlanExpiry}>· {resetCreditExpiryDisplay}</span>
+                ) : null}
                 {resetQuotaAction}
               </span>
             </span>

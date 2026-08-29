@@ -70,6 +70,7 @@ import {
   codexQuotaHasAvailableCapacity,
   fetchCodexUsageSnapshot,
 } from '@/components/quota/quotaConfigs';
+import { persistCodexQuotaSnapshot, codexQuotaPersistInputFromData } from '@/utils/quota';
 import {
   isAuthFilesStatusFilterMode,
   getDefaultAuthFilesSortMode,
@@ -528,16 +529,17 @@ export function AuthFilesPage() {
               }
             }
           }
-          if (snapshot.planType) {
-            try {
-              await authFilesApi.patchFields(file.name, {
-                plan_type: snapshot.planType,
-                chatgpt_plan_type: snapshot.planType,
-                plan_checked_at: checkedAt,
-              });
-            } catch {
-              persistenceFailed += 1;
-            }
+          try {
+            await persistCodexQuotaSnapshot(
+              file.name,
+              {
+                ...codexQuotaPersistInputFromData(snapshot),
+                resetCreditsFetched: false,
+              },
+              checkedAt
+            );
+          } catch {
+            persistenceFailed += 1;
           }
           successful += 1;
           setCodexRefreshByName((current) => ({

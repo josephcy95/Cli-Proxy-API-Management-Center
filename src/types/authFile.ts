@@ -39,6 +39,11 @@ export interface AuthFileItem {
   plan_type?: string;
   chatgpt_plan_type?: string;
   plan_checked_at?: string;
+  chatgpt_subscription_active_until?: string | number;
+  rate_limit_reset_credits_available_count?: number;
+  rate_limit_reset_credits_applicable_available_count?: number;
+  rate_limit_reset_credits?: unknown[];
+  rate_limit_reset_credits_checked_at?: string;
   lastRefresh?: string | number;
   modified?: number;
   weight?: number;
