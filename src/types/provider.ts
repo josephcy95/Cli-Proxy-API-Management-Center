@@ -57,7 +57,7 @@ export interface ProviderKeyConfig {
   /** Codex only: allow private instruction injection on this API-key credential. */
   allowPrivateInstructions?: boolean;
   cloak?: CloakConfig;
-  experimentalCchSigning?: boolean;
+  fingerprintProfile?: string;
   authIndex?: string;
 }
 

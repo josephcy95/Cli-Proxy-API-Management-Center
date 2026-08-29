@@ -133,8 +133,11 @@ export function ProviderResourceTable({
       if (r.brand === 'codex' && r.flags.allowPrivateInstructions) {
         items.push(renderFlagTag('jailbreak', t('providersPage.table.jailbreakTag')));
       }
-      if (r.brand === 'claude' && r.flags.cloakEnabled) {
+      if ((r.brand === 'claude' || r.brand === 'claudeApi') && r.flags.cloakEnabled) {
         items.push(renderFlagTag('cloak', t('providersPage.table.cloakTag')));
+      }
+      if ((r.brand === 'claude' || r.brand === 'claudeApi') && r.flags.claudeCodeCliProfile) {
+        items.push(renderFlagTag('cli-profile', t('providersPage.table.cliProfileTag')));
       }
     }
     return <div className={styles.metricsCell}>{items}</div>;
