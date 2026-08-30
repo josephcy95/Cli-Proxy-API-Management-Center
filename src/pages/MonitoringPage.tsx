@@ -1,4 +1,15 @@
-import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -42,9 +53,11 @@ import {
   calculateOutputTps,
   formatCompactTokens,
   formatTimestampParts,
+  formatVisibleTokenBreakdown,
   getAccountStatusKeyForEvent,
   getEffectiveServiceTier,
   getServiceTierTitle,
+  getTokenDetailLines,
 } from './monitoringMetrics';
 import styles from './MonitoringPage.module.scss';
 
@@ -139,16 +152,46 @@ const formatTime = (ms: number) => {
   return dateTimeFormatter.format(ms);
 };
 
-const formatTokensCompact = (e: UsageEvent) => {
-  const parts = [
-    `I ${formatCompactTokens(e.input_tokens)}`,
-    `O ${formatCompactTokens(e.output_tokens)}`,
-  ];
-  if (e.reasoning_tokens) parts.push(`R ${formatCompactTokens(e.reasoning_tokens)}`);
-  if (e.cache_read_tokens || e.cached_tokens) {
-    parts.push(`C ${formatCompactTokens(e.cache_read_tokens || e.cached_tokens)}`);
-  }
-  return parts.join(' · ');
+const USAGE_TOOLTIP_VIEWPORT_MARGIN = 8;
+const USAGE_TOOLTIP_OFFSET = 8;
+const USAGE_TOOLTIP_WIDTH = 220;
+const USAGE_TOOLTIP_Z_INDEX = 2010;
+
+const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const resolveUsageTooltipStyle = (anchor: HTMLElement): CSSProperties => {
+  const rect = anchor.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const width = Math.min(
+    USAGE_TOOLTIP_WIDTH,
+    Math.max(0, viewportWidth - USAGE_TOOLTIP_VIEWPORT_MARGIN * 2)
+  );
+  const left = clampValue(
+    rect.right - width,
+    USAGE_TOOLTIP_VIEWPORT_MARGIN,
+    Math.max(USAGE_TOOLTIP_VIEWPORT_MARGIN, viewportWidth - width - USAGE_TOOLTIP_VIEWPORT_MARGIN)
+  );
+  const spaceAbove = rect.top - USAGE_TOOLTIP_VIEWPORT_MARGIN - USAGE_TOOLTIP_OFFSET;
+  const spaceBelow =
+    viewportHeight - rect.bottom - USAGE_TOOLTIP_VIEWPORT_MARGIN - USAGE_TOOLTIP_OFFSET;
+  const openUp = spaceAbove >= spaceBelow;
+
+  return openUp
+    ? {
+        position: 'fixed',
+        bottom: viewportHeight - rect.top + USAGE_TOOLTIP_OFFSET,
+        left,
+        width,
+        zIndex: USAGE_TOOLTIP_Z_INDEX,
+      }
+    : {
+        position: 'fixed',
+        top: rect.bottom + USAGE_TOOLTIP_OFFSET,
+        left,
+        width,
+        zIndex: USAGE_TOOLTIP_Z_INDEX,
+      };
 };
 
 const formatRate = (value: number | undefined | null) => {
@@ -208,6 +251,88 @@ const sameFilterOptions = (left: UsageFilterOptions | null, right: UsageFilterOp
   sameStringList(left.sources, right.sources) &&
   sameStringList(left.api_keys, right.api_keys) &&
   sameStringList(left.api_key_hashes, right.api_key_hashes);
+
+function UsageTokenDetails({ event }: { event: UsageEvent }) {
+  const { t } = useTranslation();
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<CSSProperties | null>(null);
+
+  const updateTooltipStyle = useCallback(() => {
+    if (anchorRef.current) {
+      setTooltipStyle(resolveUsageTooltipStyle(anchorRef.current));
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setTooltipStyle(null);
+      return;
+    }
+    updateTooltipStyle();
+    const handleViewportChange = () => updateTooltipStyle();
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [open, updateTooltipStyle]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (anchorRef.current && !anchorRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [open]);
+
+  const details = getTokenDetailLines(event, {
+    total: t('monitoring.usage_total'),
+    input: t('monitoring.usage_input'),
+    output: t('monitoring.usage_output'),
+    reasoning: t('monitoring.usage_reasoning'),
+    cacheRead: t('monitoring.usage_cache_read'),
+    cacheCreation: t('monitoring.usage_cache_creation'),
+    legacyCached: t('monitoring.usage_cached_legacy'),
+  });
+
+  const tooltip = (
+    <div className={styles.usageTooltip} role="tooltip" style={tooltipStyle ?? undefined}>
+      {details.map((detail) => (
+        <div className={styles.usageTooltipLine} key={detail.label}>
+          <span>{detail.label}</span>
+          <strong>{detail.value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div
+      ref={anchorRef}
+      className={styles.usageAnchor}
+      tabIndex={0}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+      onPointerDown={(pointerEvent) => {
+        if (pointerEvent.pointerType === 'touch') {
+          pointerEvent.preventDefault();
+          setOpen((previous) => !previous);
+        }
+      }}
+    >
+      <span className={styles.num}>{formatCompactTokens(event.total_tokens)}</span>
+      <span className={styles.cellSecondary}>{formatVisibleTokenBreakdown(event)}</span>
+      {open && typeof document !== 'undefined' ? createPortal(tooltip, document.body) : null}
+    </div>
+  );
+}
 
 const MonitoringEventRow = memo(function MonitoringEventRow({
   event,
@@ -318,10 +443,7 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
         </span>
       </TableCell>
       <TableCell alignRight>
-        <div className={styles.cellStack} style={{ alignItems: 'flex-end' }}>
-          <span className={styles.num}>{formatCompactTokens(event.total_tokens)}</span>
-          <span className={styles.cellSecondary}>{formatTokensCompact(event)}</span>
-        </div>
+        <UsageTokenDetails event={event} />
       </TableCell>
       <TableCell alignRight>
         <span className={styles.num}>{formatUsd(event.estimated_cost)}</span>

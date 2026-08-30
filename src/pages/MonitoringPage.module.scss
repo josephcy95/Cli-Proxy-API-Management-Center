@@ -375,6 +375,55 @@ $control-h: 38px;
   white-space: nowrap;
 }
 
+.usageAnchor {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  cursor: help;
+  outline: none;
+
+  &:focus-visible {
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 35%, transparent);
+  }
+}
+
+.usageTooltip {
+  box-sizing: border-box;
+  display: grid;
+  gap: 5px;
+  max-width: calc(100vw - 16px);
+  padding: 9px 11px;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background: var(--bg-elevated, var(--bg-primary));
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.26);
+  color: var(--text-primary);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.usageTooltipLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 16px;
+  align-items: baseline;
+
+  span {
+    color: var(--text-secondary);
+  }
+
+  strong {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
 .timestamp {
   display: block;
   overflow: hidden;

@@ -11,6 +11,49 @@ export const formatCompactTokens = (value: number | null | undefined): string =>
   return `${compact} K`;
 };
 
+export const formatVisibleTokenBreakdown = (event: UsageEvent): string =>
+  `I ${formatCompactTokens(event.input_tokens)} · O ${formatCompactTokens(event.output_tokens)}`;
+
+export interface TokenDetailLine {
+  label: string;
+  value: string;
+}
+
+export const getTokenDetailLines = (
+  event: UsageEvent,
+  labels: {
+    total: string;
+    input: string;
+    output: string;
+    reasoning: string;
+    cacheRead: string;
+    cacheCreation: string;
+    legacyCached: string;
+  }
+): TokenDetailLine[] => {
+  const lines: TokenDetailLine[] = [
+    { label: labels.total, value: formatCompactTokens(event.total_tokens) },
+    { label: labels.input, value: formatCompactTokens(event.input_tokens) },
+    { label: labels.output, value: formatCompactTokens(event.output_tokens) },
+  ];
+  if (event.reasoning_tokens) {
+    lines.push({ label: labels.reasoning, value: formatCompactTokens(event.reasoning_tokens) });
+  }
+  if (event.cache_read_tokens) {
+    lines.push({ label: labels.cacheRead, value: formatCompactTokens(event.cache_read_tokens) });
+  }
+  if (event.cache_creation_tokens) {
+    lines.push({
+      label: labels.cacheCreation,
+      value: formatCompactTokens(event.cache_creation_tokens),
+    });
+  }
+  if (event.cached_tokens && !event.cache_read_tokens && !event.cache_creation_tokens) {
+    lines.push({ label: labels.legacyCached, value: formatCompactTokens(event.cached_tokens) });
+  }
+  return lines;
+};
+
 export const formatTimestampParts = (ms: number): { date: string; time: string } => {
   if (!Number.isFinite(ms) || ms <= 0) return { date: '—', time: '—' };
   const value = new Date(ms);

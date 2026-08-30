@@ -1,4 +1,13 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { StatusBarData, StatusBlockDetail } from '@/utils/recentRequests';
 
@@ -40,6 +49,59 @@ function formatSuccessRate(rate: number): string {
 
 type StylesModule = Record<string, string>;
 
+const TOOLTIP_VIEWPORT_MARGIN = 8;
+const TOOLTIP_OFFSET = 8;
+const TOOLTIP_MAX_WIDTH = 260;
+const TOOLTIP_Z_INDEX = 2010;
+
+const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+function resolveTooltipPosition(anchor: HTMLElement): {
+  style: CSSProperties;
+  placement: 'above' | 'below';
+} {
+  const rect = anchor.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const width = Math.min(
+    TOOLTIP_MAX_WIDTH,
+    Math.max(0, viewportWidth - TOOLTIP_VIEWPORT_MARGIN * 2)
+  );
+  const left = clampValue(
+    rect.left + rect.width / 2 - width / 2,
+    TOOLTIP_VIEWPORT_MARGIN,
+    Math.max(TOOLTIP_VIEWPORT_MARGIN, viewportWidth - width - TOOLTIP_VIEWPORT_MARGIN)
+  );
+  const spaceAbove = rect.top - TOOLTIP_VIEWPORT_MARGIN - TOOLTIP_OFFSET;
+  const spaceBelow = viewportHeight - rect.bottom - TOOLTIP_VIEWPORT_MARGIN - TOOLTIP_OFFSET;
+  const openUp = spaceAbove >= spaceBelow;
+  const maxHeight = Math.max(0, Math.min(180, openUp ? spaceAbove : spaceBelow));
+
+  return openUp
+    ? {
+        placement: 'above',
+        style: {
+          position: 'fixed',
+          bottom: viewportHeight - rect.top + TOOLTIP_OFFSET,
+          left,
+          width,
+          maxHeight,
+          zIndex: TOOLTIP_Z_INDEX,
+        },
+      }
+    : {
+        placement: 'below',
+        style: {
+          position: 'fixed',
+          top: rect.bottom + TOOLTIP_OFFSET,
+          left,
+          width,
+          maxHeight,
+          zIndex: TOOLTIP_Z_INDEX,
+        },
+      };
+}
+
 interface ProviderStatusBarProps {
   statusData: StatusBarData;
   styles?: StylesModule;
@@ -49,7 +111,10 @@ export function ProviderStatusBar({ statusData, styles: stylesProp }: ProviderSt
   const { t } = useTranslation();
   const s = (stylesProp || defaultStyles) as StylesModule;
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
+  const [tooltipStyle, setTooltipStyle] = useState<CSSProperties | null>(null);
+  const [tooltipPlacement, setTooltipPlacement] = useState<'above' | 'below'>('above');
   const blocksRef = useRef<HTMLDivElement>(null);
+  const activeBlockRef = useRef<HTMLDivElement>(null);
 
   const hasData = statusData.totalSuccess + statusData.totalFailure > 0;
   const rateClass = !hasData
@@ -72,38 +137,62 @@ export function ProviderStatusBar({ statusData, styles: stylesProp }: ProviderSt
     return () => document.removeEventListener('pointerdown', handler);
   }, [activeTooltip]);
 
-  const handlePointerEnter = useCallback((e: React.PointerEvent, idx: number) => {
+  const updateTooltipStyle = useCallback(() => {
+    if (activeBlockRef.current) {
+      const resolved = resolveTooltipPosition(activeBlockRef.current);
+      setTooltipStyle(resolved.style);
+      setTooltipPlacement(resolved.placement);
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (activeTooltip === null) {
+      setTooltipStyle(null);
+      return;
+    }
+    updateTooltipStyle();
+    const handleViewportChange = () => updateTooltipStyle();
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [activeTooltip, updateTooltipStyle]);
+
+  const handlePointerEnter = useCallback((e: ReactPointerEvent, idx: number) => {
     if (e.pointerType === 'mouse') {
+      activeBlockRef.current = e.currentTarget as HTMLDivElement;
       setActiveTooltip(idx);
     }
   }, []);
 
-  const handlePointerLeave = useCallback((e: React.PointerEvent) => {
+  const handlePointerLeave = useCallback((e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse') {
       setActiveTooltip(null);
     }
   }, []);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent, idx: number) => {
+  const handlePointerDown = useCallback((e: ReactPointerEvent, idx: number) => {
     if (e.pointerType === 'touch') {
       e.preventDefault();
+      activeBlockRef.current = e.currentTarget as HTMLDivElement;
       setActiveTooltip((prev) => (prev === idx ? null : idx));
     }
   }, []);
 
-  const getTooltipPositionClass = (idx: number, total: number): string => {
-    if (idx <= 2) return s.statusTooltipLeft;
-    if (idx >= total - 3) return s.statusTooltipRight;
-    return '';
-  };
-
-  const renderTooltip = (detail: StatusBlockDetail, idx: number) => {
+  const renderTooltip = (detail: StatusBlockDetail) => {
     const total = detail.success + detail.failure;
-    const posClass = getTooltipPositionClass(idx, statusData.blockDetails.length);
     const timeRange = `${formatTime(detail.startTime)} – ${formatTime(detail.endTime)}`;
 
     return (
-      <div className={`${s.statusTooltip} ${posClass}`}>
+      <div
+        className={`${s.statusTooltip} ${
+          tooltipPlacement === 'below' ? s.statusTooltipBelow : s.statusTooltipAbove
+        }`}
+        role="tooltip"
+        style={tooltipStyle ?? undefined}
+      >
         <span className={s.tooltipTime}>{timeRange}</span>
         {total > 0 ? (
           <span className={s.tooltipStats}>
@@ -142,7 +231,9 @@ export function ProviderStatusBar({ statusData, styles: stylesProp }: ProviderSt
                 className={`${s.statusBlock} ${isIdle ? s.statusBlockIdle : ''}`}
                 style={blockStyle}
               />
-              {isActive && renderTooltip(detail, idx)}
+              {isActive && typeof document !== 'undefined'
+                ? createPortal(renderTooltip(detail), document.body)
+                : null}
             </div>
           );
         })}

@@ -5,7 +5,9 @@ import {
   calculateOutputTps,
   formatCompactTokens,
   formatTimestampParts,
+  formatVisibleTokenBreakdown,
   getEffectiveServiceTier,
+  getTokenDetailLines,
 } from '../src/pages/monitoringMetrics';
 
 const event = (overrides: Partial<UsageEvent>): UsageEvent => ({
@@ -28,6 +30,56 @@ describe('monitoring metrics', () => {
     expect(formatCompactTokens(80512)).toBe('80.5 K');
     expect(formatCompactTokens(362)).toBe('362');
     expect(formatTimestampParts(new Date(2026, 7, 30, 16, 11, 32).getTime()).time).toBe('16:11:32');
+  });
+
+  test('keeps the visible usage breakdown to input and output', () => {
+    expect(
+      formatVisibleTokenBreakdown(
+        event({
+          input_tokens: 131700,
+          output_tokens: 630,
+          reasoning_tokens: 153,
+          cache_read_tokens: 112900,
+        })
+      )
+    ).toBe('I 131.7 K · O 630');
+  });
+
+  test('builds explicit token details without double-counting legacy cached values', () => {
+    const labels = {
+      total: 'Total',
+      input: 'Input',
+      output: 'Output',
+      reasoning: 'Reasoning',
+      cacheRead: 'Cache read',
+      cacheCreation: 'Cache write',
+      legacyCached: 'Cached (legacy)',
+    };
+    expect(
+      getTokenDetailLines(
+        event({
+          total_tokens: 132300,
+          input_tokens: 131700,
+          output_tokens: 630,
+          reasoning_tokens: 153,
+          cached_tokens: 112900,
+          cache_read_tokens: 112900,
+          cache_creation_tokens: 250,
+        }),
+        labels
+      )
+    ).toEqual([
+      { label: 'Total', value: '132.3 K' },
+      { label: 'Input', value: '131.7 K' },
+      { label: 'Output', value: '630' },
+      { label: 'Reasoning', value: '153' },
+      { label: 'Cache read', value: '112.9 K' },
+      { label: 'Cache write', value: '250' },
+    ]);
+    expect(getTokenDetailLines(event({ cached_tokens: 80512 }), labels).at(-1)).toEqual({
+      label: 'Cached (legacy)',
+      value: '80.5 K',
+    });
   });
 
   test('calculates output TPS from total elapsed time', () => {
