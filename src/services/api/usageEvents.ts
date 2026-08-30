@@ -57,6 +57,12 @@ export interface UsageSummary {
   priced_calls: number;
 }
 
+export interface UsageRecentRequestBucket {
+  time?: string;
+  success: number;
+  failed: number;
+}
+
 export interface UsageAccountStat {
   auth_index?: string;
   source?: string;
@@ -69,6 +75,7 @@ export interface UsageAccountStat {
   input_tokens: number;
   output_tokens: number;
   estimated_cost: number;
+  recent_requests?: UsageRecentRequestBucket[];
 }
 
 export interface UsageAPIKeyStat {
@@ -207,7 +214,8 @@ export const usageEventsApi = {
       timeout: TIMEOUT_MS,
     }),
 
-  getModelPrices: () => apiClient.get<ModelPricesResponse>('/model-prices', { timeout: TIMEOUT_MS }),
+  getModelPrices: () =>
+    apiClient.get<ModelPricesResponse>('/model-prices', { timeout: TIMEOUT_MS }),
 
   putModelPrices: (prices: ModelPrice[], replace = false) =>
     apiClient.put('/model-prices', { prices, replace }, { timeout: TIMEOUT_MS }),

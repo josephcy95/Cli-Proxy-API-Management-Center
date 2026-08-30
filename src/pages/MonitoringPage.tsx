@@ -36,9 +36,13 @@ import { parseApiKeyEntries } from '@/hooks/useVisualConfig';
 import { useNotificationStore } from '@/stores';
 import { getErrorMessage } from '@/utils/helpers';
 import { isScalar, isSeq, parseDocument } from 'yaml';
+import { statusBarDataFromRecentRequests, type StatusBarData } from '@/utils/recentRequests';
 import {
-  buildRecentStatusData,
+  accountStatusKey,
   calculateOutputTps,
+  formatCompactTokens,
+  formatTimestampParts,
+  getAccountStatusKeyForEvent,
   getEffectiveServiceTier,
   getServiceTierTitle,
 } from './monitoringMetrics';
@@ -101,6 +105,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',
+  hour12: false,
 });
 
 const rangeToMs = (key: RangeKey): { from_ms?: number; to_ms?: number } => {
@@ -135,10 +140,13 @@ const formatTime = (ms: number) => {
 };
 
 const formatTokensCompact = (e: UsageEvent) => {
-  const parts = [`I ${formatNumber(e.input_tokens)}`, `O ${formatNumber(e.output_tokens)}`];
-  if (e.reasoning_tokens) parts.push(`R ${formatNumber(e.reasoning_tokens)}`);
+  const parts = [
+    `I ${formatCompactTokens(e.input_tokens)}`,
+    `O ${formatCompactTokens(e.output_tokens)}`,
+  ];
+  if (e.reasoning_tokens) parts.push(`R ${formatCompactTokens(e.reasoning_tokens)}`);
   if (e.cache_read_tokens || e.cached_tokens) {
-    parts.push(`C ${formatNumber(e.cache_read_tokens || e.cached_tokens)}`);
+    parts.push(`C ${formatCompactTokens(e.cache_read_tokens || e.cached_tokens)}`);
   }
   return parts.join(' · ');
 };
@@ -209,11 +217,8 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
   successLabel,
   ttftLabel,
   elapsedLabel,
-  reasoningLabel,
-  serviceLabel,
-  tpsLabel,
+  recentStatusData,
   tpsHint,
-  usageLabels,
 }: {
   event: UsageEvent;
   apiKeyLabels: Record<string, string>;
@@ -222,20 +227,8 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
   successLabel: string;
   ttftLabel: string;
   elapsedLabel: string;
-  reasoningLabel: string;
-  serviceLabel: string;
-  tpsLabel: string;
   tpsHint: string;
-  usageLabels: {
-    total: string;
-    input: string;
-    output: string;
-    reasoning: string;
-    cached: string;
-    cacheRead: string;
-    cacheCreation: string;
-    cacheRate: string;
-  };
+  recentStatusData?: StatusBarData;
 }) {
   return (
     <TableRow>
@@ -272,15 +265,16 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
       </TableCell>
       <TableCell>
         <div className={styles.cellStack} title={getServiceTierTitle(event)}>
-          <span className={styles.cellPrimary}>
-            {event.reasoning_effort
-              ? `${reasoningLabel} ${event.reasoning_effort}`
-              : `${reasoningLabel} —`}
-          </span>
-          <span className={styles.cellSecondary}>
-            {serviceLabel} {getEffectiveServiceTier(event) || '—'}
-          </span>
+          <span className={styles.cellPrimary}>{event.reasoning_effort || '—'}</span>
+          <span className={styles.cellSecondary}>{getEffectiveServiceTier(event) || '—'}</span>
         </div>
+      </TableCell>
+      <TableCell>
+        {recentStatusData ? (
+          <ProviderStatusBar statusData={recentStatusData} styles={statusBarStyles} />
+        ) : (
+          '—'
+        )}
       </TableCell>
       <TableCell>
         <div className={styles.cellStack}>
@@ -310,70 +304,24 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
             <span>{elapsedLabel}</span>
             <strong>{formatDuration(event.latency_ms)}</strong>
           </span>
-          <span className={styles.latencyLine} title={tpsHint}>
-            <span>{tpsLabel}</span>
-            <strong>{formatRate(calculateOutputTps(event.output_tokens, event.latency_ms))}</strong>
-          </span>
         </div>
+      </TableCell>
+      <TableCell title={tpsHint}>
+        <span className={styles.num}>
+          {formatRate(calculateOutputTps(event.output_tokens, event.latency_ms))}
+        </span>
       </TableCell>
       <TableCell>
         <span className={styles.timestampStack} title={formatTime(event.timestamp_ms)}>
-          <span>
-            {event.timestamp_ms
-              ? new Intl.DateTimeFormat(undefined, {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                }).format(event.timestamp_ms)
-              : '—'}
-          </span>
-          <span>
-            {event.timestamp_ms
-              ? new Intl.DateTimeFormat(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                }).format(event.timestamp_ms)
-              : '—'}
-          </span>
+          <span>{formatTimestampParts(event.timestamp_ms).date}</span>
+          <span>{formatTimestampParts(event.timestamp_ms).time}</span>
         </span>
       </TableCell>
       <TableCell alignRight>
-        <details className={styles.usageDetails}>
-          <summary className={styles.usageSummary} title={usageLabels.output}>
-            <span className={styles.num}>{formatNumber(event.total_tokens)}</span>
-            <span className={styles.cellSecondary}>{formatTokensCompact(event)}</span>
-          </summary>
-          <div className={styles.usageTooltip}>
-            <span>
-              <b>{usageLabels.total}</b> {formatNumber(event.total_tokens)}
-            </span>
-            <span>
-              <b>{usageLabels.input}</b> {formatNumber(event.input_tokens)}
-            </span>
-            <span>
-              <b>{usageLabels.output}</b> {formatNumber(event.output_tokens)}
-            </span>
-            <span>
-              <b>{usageLabels.reasoning}</b> {formatNumber(event.reasoning_tokens)}
-            </span>
-            <span>
-              <b>{usageLabels.cached}</b> {formatNumber(event.cached_tokens)}
-            </span>
-            <span>
-              <b>{usageLabels.cacheRead}</b> {formatNumber(event.cache_read_tokens)}
-            </span>
-            <span>
-              <b>{usageLabels.cacheCreation}</b> {formatNumber(event.cache_creation_tokens)}
-            </span>
-            <span>
-              <b>{usageLabels.cacheRate}</b>{' '}
-              {event.input_tokens > 0
-                ? `${((event.cache_read_tokens / event.input_tokens) * 100).toFixed(1)}%`
-                : '—'}
-            </span>
-          </div>
-        </details>
+        <div className={styles.cellStack} style={{ alignItems: 'flex-end' }}>
+          <span className={styles.num}>{formatCompactTokens(event.total_tokens)}</span>
+          <span className={styles.cellSecondary}>{formatTokensCompact(event)}</span>
+        </div>
       </TableCell>
       <TableCell alignRight>
         <span className={styles.num}>{formatUsd(event.estimated_cost)}</span>
@@ -457,6 +405,7 @@ export function MonitoringPage() {
           usageEventsApi.getSummary(query),
           includeFilterOptions ? usageEventsApi.getFilterOptions(query) : Promise.resolve(null),
         ]);
+        const accountsRes = await usageEventsApi.getAccountStats(query).catch(() => null);
         const applyResults = () => {
           setEvents((previous) => mergeEvents(previous, eventsRes.events || []));
           setSummary((previous) => {
@@ -464,6 +413,7 @@ export function MonitoringPage() {
             return next && previous && sameRecord(previous, next) ? previous : next;
           });
           setStatsEnabledHint(summaryRes.usage_statistics_enabled ?? null);
+          if (accountsRes) setAccounts(accountsRes.accounts || []);
           if (filtersRes) {
             setFilterOptions((previous) =>
               sameFilterOptions(previous, filtersRes) ? previous : filtersRes
@@ -760,7 +710,6 @@ export function MonitoringPage() {
   };
 
   const statsOff = statsEnabledHint === false;
-  const recentStatusData = useMemo(() => buildRecentStatusData(events), [events]);
 
   // Prefer backend net_input_tokens (per-row billable input, summed in SQL).
   // Deriving net as aggregate(input) - aggregate(cache_read) under-counts longer
@@ -819,6 +768,19 @@ export function MonitoringPage() {
       ...values.map((s) => ({ value: s, label: s })),
     ];
   }, [filterOptions?.sources, source, t]);
+
+  const accountStatusByKey = useMemo(() => {
+    const map = new Map<string, StatusBarData>();
+    for (const account of accounts) {
+      if (account.recent_requests) {
+        map.set(
+          accountStatusKey(account),
+          statusBarDataFromRecentRequests(account.recent_requests)
+        );
+      }
+    }
+    return map;
+  }, [accounts]);
 
   const formatApiKeyDisplay = useCallback(
     (key?: string | null, hash?: string | null) => {
@@ -1022,11 +984,6 @@ export function MonitoringPage() {
         </div>
       ) : null}
 
-      <div className={styles.recentStatusSection}>
-        <span className={styles.recentStatusLabel}>{t('monitoring.recent_status')}</span>
-        <ProviderStatusBar statusData={recentStatusData} styles={statusBarStyles} />
-      </div>
-
       <div className={styles.summaryGrid}>
         <div className={styles.summaryCard}>
           <div className={styles.summaryLabel}>{t('monitoring.card_calls')}</div>
@@ -1105,14 +1062,16 @@ export function MonitoringPage() {
               className={styles.eventsTable}
               cols={
                 <>
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '6%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '9%' }} />
-                  <col style={{ width: '15%' }} />
                   <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '6%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '10%' }} />
                   <col style={{ width: '5%' }} />
                 </>
               }
@@ -1123,8 +1082,10 @@ export function MonitoringPage() {
                   <TableHead>{t('monitoring.col_api_key')}</TableHead>
                   <TableHead>{t('monitoring.col_model')}</TableHead>
                   <TableHead>{t('monitoring.col_effort')}</TableHead>
+                  <TableHead>{t('monitoring.recent_status')}</TableHead>
                   <TableHead>{t('monitoring.col_status')}</TableHead>
                   <TableHead>{t('monitoring.col_latency')}</TableHead>
+                  <TableHead>{t('monitoring.col_tps')}</TableHead>
                   <TableHead>{t('monitoring.col_time')}</TableHead>
                   <TableHead alignRight>{t('monitoring.col_usage')}</TableHead>
                   <TableHead alignRight>{t('monitoring.col_cost')}</TableHead>
@@ -1141,20 +1102,8 @@ export function MonitoringPage() {
                     successLabel={t('monitoring.status_success')}
                     ttftLabel={t('monitoring.col_ttft')}
                     elapsedLabel={t('monitoring.col_elapsed')}
-                    reasoningLabel={t('monitoring.reasoning_label')}
-                    serviceLabel={t('monitoring.service_label')}
-                    tpsLabel={t('monitoring.col_tps')}
                     tpsHint={t('monitoring.tps_hint')}
-                    usageLabels={{
-                      total: t('monitoring.usage_total'),
-                      input: t('monitoring.usage_input'),
-                      output: t('monitoring.usage_output'),
-                      reasoning: t('monitoring.usage_reasoning'),
-                      cached: t('monitoring.usage_cached'),
-                      cacheRead: t('monitoring.usage_cache_read'),
-                      cacheCreation: t('monitoring.usage_cache_creation'),
-                      cacheRate: t('monitoring.usage_cache_rate'),
-                    }}
+                    recentStatusData={accountStatusByKey.get(getAccountStatusKeyForEvent(event))}
                   />
                 ))}
               </TableBody>

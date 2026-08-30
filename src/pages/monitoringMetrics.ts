@@ -1,8 +1,32 @@
-import type { UsageEvent } from '@/services/api/usageEvents';
+import type { UsageAccountStat, UsageEvent } from '@/services/api/usageEvents';
 import type { StatusBarData, StatusBlockDetail, StatusBlockState } from '@/utils/recentRequests';
 
 const STATUS_BLOCK_COUNT = 20;
 const STATUS_BLOCK_DURATION_MS = 10 * 60 * 1000;
+
+export const formatCompactTokens = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
+  if (Math.abs(value) < 1000) return Math.round(value).toString();
+  const compact = (value / 1000).toFixed(1).replace(/\.0$/, '');
+  return `${compact} K`;
+};
+
+export const formatTimestampParts = (ms: number): { date: string; time: string } => {
+  if (!Number.isFinite(ms) || ms <= 0) return { date: '—', time: '—' };
+  const value = new Date(ms);
+  const pad = (part: number) => part.toString().padStart(2, '0');
+  return {
+    date: `${pad(value.getMonth() + 1)}/${pad(value.getDate())}/${value.getFullYear()}`,
+    time: `${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`,
+  };
+};
+
+export const accountStatusKey = (
+  stat: Pick<UsageAccountStat, 'auth_index' | 'source_hash' | 'source' | 'provider'>
+) =>
+  [stat.auth_index || '', stat.source_hash || stat.source || '', stat.provider || ''].join(
+    '\u0000'
+  );
 
 export const calculateOutputTps = (
   outputTokens: number | null | undefined,
@@ -25,6 +49,14 @@ export const calculateOutputTps = (
 
 export const getEffectiveServiceTier = (event: UsageEvent): string | undefined =>
   event.service_tier || event.response_service_tier || undefined;
+
+export const getAccountStatusKeyForEvent = (event: UsageEvent) =>
+  accountStatusKey({
+    auth_index: event.auth_index,
+    source_hash: event.source_hash,
+    source: event.source,
+    provider: event.provider,
+  });
 
 export const getServiceTierTitle = (event: UsageEvent): string | undefined => {
   const requested = event.service_tier || '';
