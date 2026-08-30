@@ -14,6 +14,8 @@ import {
   TableRow,
 } from '@/components/ui/Table';
 import { IconX } from '@/components/ui/icons';
+import { ProviderStatusBar } from '@/components/providers/ProviderStatusBar';
+import statusBarStyles from '@/features/providers/components/providerStatusBar.module.scss';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import {
   usageEventsApi,
@@ -34,6 +36,12 @@ import { parseApiKeyEntries } from '@/hooks/useVisualConfig';
 import { useNotificationStore } from '@/stores';
 import { getErrorMessage } from '@/utils/helpers';
 import { isScalar, isSeq, parseDocument } from 'yaml';
+import {
+  buildRecentStatusData,
+  calculateOutputTps,
+  getEffectiveServiceTier,
+  getServiceTierTitle,
+} from './monitoringMetrics';
 import styles from './MonitoringPage.module.scss';
 
 type RangeKey = '24h' | '7d' | '14d' | '30d' | 'all';
@@ -159,8 +167,7 @@ const sameRecord = (left: object, right: object) => {
   const next = right as Record<string, unknown>;
   const keys = Object.keys(next);
   return (
-    keys.length === Object.keys(previous).length &&
-    keys.every((key) => previous[key] === next[key])
+    keys.length === Object.keys(previous).length && keys.every((key) => previous[key] === next[key])
   );
 };
 
@@ -200,16 +207,35 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
   formatApiKeyDisplay,
   failedLabel,
   successLabel,
-  firstLabel,
-  totalLabel,
+  ttftLabel,
+  elapsedLabel,
+  reasoningLabel,
+  serviceLabel,
+  tpsLabel,
+  tpsHint,
+  usageLabels,
 }: {
   event: UsageEvent;
   apiKeyLabels: Record<string, string>;
   formatApiKeyDisplay: (key?: string | null, hash?: string | null) => string;
   failedLabel: string;
   successLabel: string;
-  firstLabel: string;
-  totalLabel: string;
+  ttftLabel: string;
+  elapsedLabel: string;
+  reasoningLabel: string;
+  serviceLabel: string;
+  tpsLabel: string;
+  tpsHint: string;
+  usageLabels: {
+    total: string;
+    input: string;
+    output: string;
+    reasoning: string;
+    cached: string;
+    cacheRead: string;
+    cacheCreation: string;
+    cacheRate: string;
+  };
 }) {
   return (
     <TableRow>
@@ -244,7 +270,18 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
           {event.model || event.alias || '—'}
         </span>
       </TableCell>
-      <TableCell>{event.reasoning_effort || '—'}</TableCell>
+      <TableCell>
+        <div className={styles.cellStack} title={getServiceTierTitle(event)}>
+          <span className={styles.cellPrimary}>
+            {event.reasoning_effort
+              ? `${reasoningLabel} ${event.reasoning_effort}`
+              : `${reasoningLabel} —`}
+          </span>
+          <span className={styles.cellSecondary}>
+            {serviceLabel} {getEffectiveServiceTier(event) || '—'}
+          </span>
+        </div>
+      </TableCell>
       <TableCell>
         <div className={styles.cellStack}>
           {event.failed ? (
@@ -266,25 +303,77 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
       <TableCell>
         <div className={styles.latencyStack}>
           <span className={styles.latencyLine}>
-            <span>{firstLabel}</span>
+            <span>{ttftLabel}</span>
             <strong>{formatDuration(event.ttft_ms)}</strong>
           </span>
           <span className={styles.latencyLine}>
-            <span>{totalLabel}</span>
+            <span>{elapsedLabel}</span>
             <strong>{formatDuration(event.latency_ms)}</strong>
+          </span>
+          <span className={styles.latencyLine} title={tpsHint}>
+            <span>{tpsLabel}</span>
+            <strong>{formatRate(calculateOutputTps(event.output_tokens, event.latency_ms))}</strong>
           </span>
         </div>
       </TableCell>
       <TableCell>
-        <span className={styles.timestamp} title={formatTime(event.timestamp_ms)}>
-          {formatTime(event.timestamp_ms)}
+        <span className={styles.timestampStack} title={formatTime(event.timestamp_ms)}>
+          <span>
+            {event.timestamp_ms
+              ? new Intl.DateTimeFormat(undefined, {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                }).format(event.timestamp_ms)
+              : '—'}
+          </span>
+          <span>
+            {event.timestamp_ms
+              ? new Intl.DateTimeFormat(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                }).format(event.timestamp_ms)
+              : '—'}
+          </span>
         </span>
       </TableCell>
       <TableCell alignRight>
-        <div className={styles.cellStack} style={{ alignItems: 'flex-end' }}>
-          <span className={styles.num}>{formatNumber(event.total_tokens)}</span>
-          <span className={styles.cellSecondary}>{formatTokensCompact(event)}</span>
-        </div>
+        <details className={styles.usageDetails}>
+          <summary className={styles.usageSummary} title={usageLabels.output}>
+            <span className={styles.num}>{formatNumber(event.total_tokens)}</span>
+            <span className={styles.cellSecondary}>{formatTokensCompact(event)}</span>
+          </summary>
+          <div className={styles.usageTooltip}>
+            <span>
+              <b>{usageLabels.total}</b> {formatNumber(event.total_tokens)}
+            </span>
+            <span>
+              <b>{usageLabels.input}</b> {formatNumber(event.input_tokens)}
+            </span>
+            <span>
+              <b>{usageLabels.output}</b> {formatNumber(event.output_tokens)}
+            </span>
+            <span>
+              <b>{usageLabels.reasoning}</b> {formatNumber(event.reasoning_tokens)}
+            </span>
+            <span>
+              <b>{usageLabels.cached}</b> {formatNumber(event.cached_tokens)}
+            </span>
+            <span>
+              <b>{usageLabels.cacheRead}</b> {formatNumber(event.cache_read_tokens)}
+            </span>
+            <span>
+              <b>{usageLabels.cacheCreation}</b> {formatNumber(event.cache_creation_tokens)}
+            </span>
+            <span>
+              <b>{usageLabels.cacheRate}</b>{' '}
+              {event.input_tokens > 0
+                ? `${((event.cache_read_tokens / event.input_tokens) * 100).toFixed(1)}%`
+                : '—'}
+            </span>
+          </div>
+        </details>
       </TableCell>
       <TableCell alignRight>
         <span className={styles.num}>{formatUsd(event.estimated_cost)}</span>
@@ -337,59 +426,65 @@ export function MonitoringPage() {
 
   // Build query at call time so refresh uses a fresh upper time bound.
   // Do not depend on filterOptions here — loading them would recreate this callback and loop.
-  const buildQuery = useCallback((limit = 200): UsageQuery => {
-    const base = rangeToMs(range);
-    const sourcePick = source.trim();
-    const apiKeyPick = apiKey.trim();
-    return {
-      ...base,
-      search: search.trim() || undefined,
-      models: model ? [model] : undefined,
-      providers: provider ? [provider] : undefined,
-      sources: sourcePick ? [sourcePick] : undefined,
-      api_keys: apiKeyPick ? [apiKeyPick] : undefined,
-      failed_only: statusFilter === 'failed' || undefined,
-      success_only: statusFilter === 'success' || undefined,
-      limit,
-    };
-  }, [range, search, model, provider, source, apiKey, statusFilter]);
-
-  const loadCore = useCallback(async (showLoading = true, includeFilterOptions = showLoading) => {
-    if (showLoading) setLoading(true);
-    setError('');
-    try {
-      const query = buildQuery();
-      const [eventsRes, summaryRes, filtersRes] = await Promise.all([
-        usageEventsApi.listEvents(query),
-        usageEventsApi.getSummary(query),
-        includeFilterOptions ? usageEventsApi.getFilterOptions(query) : Promise.resolve(null),
-      ]);
-      const applyResults = () => {
-        setEvents((previous) => mergeEvents(previous, eventsRes.events || []));
-        setSummary((previous) => {
-          const next = summaryRes.summary || null;
-          return next && previous && sameRecord(previous, next) ? previous : next;
-        });
-        setStatsEnabledHint(summaryRes.usage_statistics_enabled ?? null);
-        if (filtersRes) {
-          setFilterOptions((previous) =>
-            sameFilterOptions(previous, filtersRes) ? previous : filtersRes
-          );
-        }
+  const buildQuery = useCallback(
+    (limit = 200): UsageQuery => {
+      const base = rangeToMs(range);
+      const sourcePick = source.trim();
+      const apiKeyPick = apiKey.trim();
+      return {
+        ...base,
+        search: search.trim() || undefined,
+        models: model ? [model] : undefined,
+        providers: provider ? [provider] : undefined,
+        sources: sourcePick ? [sourcePick] : undefined,
+        api_keys: apiKeyPick ? [apiKeyPick] : undefined,
+        failed_only: statusFilter === 'failed' || undefined,
+        success_only: statusFilter === 'success' || undefined,
+        limit,
       };
-      if (showLoading) {
-        applyResults();
-      } else {
-        startTransition(applyResults);
+    },
+    [range, search, model, provider, source, apiKey, statusFilter]
+  );
+
+  const loadCore = useCallback(
+    async (showLoading = true, includeFilterOptions = showLoading) => {
+      if (showLoading) setLoading(true);
+      setError('');
+      try {
+        const query = buildQuery();
+        const [eventsRes, summaryRes, filtersRes] = await Promise.all([
+          usageEventsApi.listEvents(query),
+          usageEventsApi.getSummary(query),
+          includeFilterOptions ? usageEventsApi.getFilterOptions(query) : Promise.resolve(null),
+        ]);
+        const applyResults = () => {
+          setEvents((previous) => mergeEvents(previous, eventsRes.events || []));
+          setSummary((previous) => {
+            const next = summaryRes.summary || null;
+            return next && previous && sameRecord(previous, next) ? previous : next;
+          });
+          setStatsEnabledHint(summaryRes.usage_statistics_enabled ?? null);
+          if (filtersRes) {
+            setFilterOptions((previous) =>
+              sameFilterOptions(previous, filtersRes) ? previous : filtersRes
+            );
+          }
+        };
+        if (showLoading) {
+          applyResults();
+        } else {
+          startTransition(applyResults);
+        }
+      } catch (err) {
+        setError(getErrorMessage(err));
+        setEvents([]);
+        setSummary(null);
+      } finally {
+        if (showLoading) setLoading(false);
       }
-    } catch (err) {
-      setError(getErrorMessage(err));
-      setEvents([]);
-      setSummary(null);
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [buildQuery]);
+    },
+    [buildQuery]
+  );
 
   const loadLiveEvents = useCallback(async () => {
     try {
@@ -665,6 +760,7 @@ export function MonitoringPage() {
   };
 
   const statsOff = statsEnabledHint === false;
+  const recentStatusData = useMemo(() => buildRecentStatusData(events), [events]);
 
   // Prefer backend net_input_tokens (per-row billable input, summed in SQL).
   // Deriving net as aggregate(input) - aggregate(cache_read) under-counts longer
@@ -926,6 +1022,11 @@ export function MonitoringPage() {
         </div>
       ) : null}
 
+      <div className={styles.recentStatusSection}>
+        <span className={styles.recentStatusLabel}>{t('monitoring.recent_status')}</span>
+        <ProviderStatusBar statusData={recentStatusData} styles={statusBarStyles} />
+      </div>
+
       <div className={styles.summaryGrid}>
         <div className={styles.summaryCard}>
           <div className={styles.summaryLabel}>{t('monitoring.card_calls')}</div>
@@ -1038,8 +1139,22 @@ export function MonitoringPage() {
                     formatApiKeyDisplay={formatApiKeyDisplay}
                     failedLabel={t('monitoring.status_failed')}
                     successLabel={t('monitoring.status_success')}
-                    firstLabel={t('monitoring.latency_first')}
-                    totalLabel={t('monitoring.latency_total')}
+                    ttftLabel={t('monitoring.col_ttft')}
+                    elapsedLabel={t('monitoring.col_elapsed')}
+                    reasoningLabel={t('monitoring.reasoning_label')}
+                    serviceLabel={t('monitoring.service_label')}
+                    tpsLabel={t('monitoring.col_tps')}
+                    tpsHint={t('monitoring.tps_hint')}
+                    usageLabels={{
+                      total: t('monitoring.usage_total'),
+                      input: t('monitoring.usage_input'),
+                      output: t('monitoring.usage_output'),
+                      reasoning: t('monitoring.usage_reasoning'),
+                      cached: t('monitoring.usage_cached'),
+                      cacheRead: t('monitoring.usage_cache_read'),
+                      cacheCreation: t('monitoring.usage_cache_creation'),
+                      cacheRate: t('monitoring.usage_cache_rate'),
+                    }}
                   />
                 ))}
               </TableBody>
