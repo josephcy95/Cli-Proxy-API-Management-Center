@@ -237,8 +237,8 @@
 
 .filterControlsCodex {
   grid-template-columns:
-    minmax(220px, 1fr) minmax(96px, 120px) minmax(150px, 190px) minmax(280px, 320px)
-    minmax(150px, 190px);
+    minmax(220px, 0.7fr) minmax(96px, 120px) minmax(150px, 190px) minmax(280px, 320px)
+    minmax(200px, 240px);
   grid-template-areas:
     'search page-size sort codex-status codex-plan'
     'status status status status status';
@@ -440,10 +440,22 @@
   padding-right: 40px;
 }
 
-.searchIcon {
-  display: block;
+.searchClearButton {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
   color: var(--text-tertiary);
-  pointer-events: none;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
 }
 
 .pageSizeSelect {

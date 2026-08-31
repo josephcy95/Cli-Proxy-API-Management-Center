@@ -417,6 +417,7 @@
     "xai_status_other_403": "403 Others",
     "codex_plan_label": "Codex plan",
     "codex_plan_all": "All plans",
+    "codex_plan_paid": "Paid",
     "codex_plan_unknown": "Unknown plan",
     "priority_display": "Priority",
     "weight_display": "WRR weight",

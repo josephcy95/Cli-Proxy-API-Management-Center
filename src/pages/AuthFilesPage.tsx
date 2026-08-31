@@ -19,7 +19,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { IconFilterAll, IconSearch } from '@/components/ui/icons';
+import { IconFilterAll, IconX } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { copyToClipboard } from '@/utils/clipboard';
@@ -1157,7 +1157,22 @@ export function AuthFilesPage() {
                       setPage(1);
                     }}
                     placeholder={t('auth_files.search_placeholder')}
-                    rightElement={<IconSearch className={styles.searchIcon} size={18} />}
+                    rightElement={
+                      search ? (
+                        <button
+                          type="button"
+                          className={styles.searchClearButton}
+                          onClick={() => {
+                            setSearch('');
+                            setPage(1);
+                          }}
+                          aria-label={t('common.clear')}
+                          title={t('common.clear')}
+                        >
+                          <IconX size={16} />
+                        </button>
+                      ) : null
+                    }
                   />
                 </div>
                 <div className={`${styles.filterItem} ${styles.pageSizeItem}`}>
@@ -1222,25 +1237,36 @@ export function AuthFilesPage() {
                     </div>
                     <div className={`${styles.filterItem} ${styles.codexPlanItem}`}>
                       <label>{t('auth_files.codex_plan_label')}</label>
-                      <Select
-                        value={codexPlanFilter}
-                        options={[
-                          { value: 'all', label: t('auth_files.codex_plan_all') },
-                          { value: 'free', label: t('codex_quota.plan_free') },
-                          { value: 'k12', label: t('codex_quota.plan_k12') },
-                          { value: 'plus', label: t('codex_quota.plan_plus') },
-                          { value: 'team', label: t('codex_quota.plan_team') },
-                          { value: 'prolite', label: t('codex_quota.plan_prolite') },
-                          { value: 'pro', label: t('codex_quota.plan_pro') },
-                          { value: 'unknown', label: t('auth_files.codex_plan_unknown') },
-                        ]}
-                        onChange={(value) => {
-                          setCodexPlanFilter(value as CodexPlanFilter);
-                          setPage(1);
-                        }}
-                        ariaLabel={t('auth_files.codex_plan_label')}
-                        fullWidth
-                      />
+                      <div
+                        className={styles.codexStatusToggle}
+                        role="group"
+                        aria-label={t('auth_files.codex_plan_label')}
+                      >
+                        {(['all', 'paid', 'free'] as const).map((value) => (
+                          <Button
+                            key={value}
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className={`${styles.codexStatusButton} ${
+                              codexPlanFilter === value ? styles.codexStatusButtonActive : ''
+                            }`}
+                            onClick={() => {
+                              setCodexPlanFilter(value);
+                              setPage(1);
+                            }}
+                            aria-pressed={codexPlanFilter === value}
+                          >
+                            {t(
+                              value === 'all'
+                                ? 'auth_files.codex_plan_all'
+                                : value === 'paid'
+                                  ? 'auth_files.codex_plan_paid'
+                                  : 'codex_quota.plan_free'
+                            )}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   </>
                 )}

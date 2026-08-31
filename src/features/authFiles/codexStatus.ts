@@ -2,21 +2,13 @@ import { parsePriorityValue } from '@/features/authFiles/constants';
 import type { AuthFileItem, CodexQuotaWindow } from '@/types';
 import { normalizePlanType, resolveCodexPlanType } from '@/utils/quota';
 
-export const CODEX_PLAN_FILTERS = [
-  'all',
-  'free',
-  'k12',
-  'plus',
-  'team',
-  'prolite',
-  'pro',
-  'unknown',
-] as const;
+export const CODEX_PLAN_FILTERS = ['all', 'free', 'paid'] as const;
 
 /** Visible status filters. `other` remains an internal classification for All and sorting. */
 export const CODEX_STATUS_FILTERS = ['all', 'available', 'cooldown', 'denied'] as const;
 
 export type CodexPlanFilter = (typeof CODEX_PLAN_FILTERS)[number];
+type CodexPlanValue = 'free' | 'k12' | 'plus' | 'team' | 'prolite' | 'pro';
 export type CodexStatusFilter = (typeof CODEX_STATUS_FILTERS)[number];
 export type CodexAccountStatusKind = 'working' | 'other' | 'cooldown' | 'denied';
 
@@ -50,7 +42,7 @@ export const getCodexAvailabilityStatusRank = (kind: CodexAccountStatusKind): nu
 
 const PREMIUM_PLAN_TYPES = new Set(['prolite', 'pro-lite', 'pro_lite']);
 
-const normalizedPlanFilterValue = (value: string | null): CodexPlanFilter | null => {
+const normalizedPlanFilterValue = (value: string | null): CodexPlanValue | null => {
   const normalized = normalizePlanType(value);
   if (!normalized) return null;
   if (
@@ -68,7 +60,7 @@ const normalizedPlanFilterValue = (value: string | null): CodexPlanFilter | null
 export const getCodexPlanFilterValue = (
   file: AuthFileItem,
   refreshed?: CodexRefreshState
-): CodexPlanFilter | null =>
+): CodexPlanValue | null =>
   normalizedPlanFilterValue(refreshed?.planType ?? resolveCodexPlanType(file));
 
 /**
@@ -209,7 +201,7 @@ export const matchesCodexPlanFilter = (
 ): boolean => {
   if (filter === 'all') return true;
   const value = getCodexPlanFilterValue(file, refreshed);
-  return filter === 'unknown' ? value === null : value === filter;
+  return filter === 'free' ? value === 'free' : value !== null && value !== 'free';
 };
 
 /**

@@ -279,6 +279,7 @@
     "xai_status_other_403": "其他 403",
     "codex_plan_label": "Codex 套餐",
     "codex_plan_all": "全部套餐",
+    "codex_plan_paid": "付费",
     "codex_plan_unknown": "未知套餐",
     "priority_display": "优先级",
     "weight_display": "WRR 权重",

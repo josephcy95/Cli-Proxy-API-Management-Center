@@ -46,6 +46,13 @@ describe('Codex auth-file status', () => {
     expect(compareCodexAvailability(alpha, beta, 'working', 'working')).toBeLessThan(0);
   });
 
+  test('groups every known non-free plan under Paid', () => {
+    expect(matchesCodexPlanFilter({ ...file, plan_type: 'free' }, 'paid')).toBe(false);
+    expect(matchesCodexPlanFilter({ ...file, plan_type: 'plus' }, 'paid')).toBe(true);
+    expect(matchesCodexPlanFilter({ ...file, plan_type: 'pro' }, 'paid')).toBe(true);
+    expect(matchesCodexPlanFilter({ ...file, plan_type: 'mystery' }, 'paid')).toBe(false);
+  });
+
   test('uses a refreshed plan ahead of the stored plan for filtering', () => {
     const refreshed: CodexRefreshState = {
       status: 'success',
@@ -53,8 +60,8 @@ describe('Codex auth-file status', () => {
       windows: [],
     };
 
-    expect(matchesCodexPlanFilter(file, 'pro', refreshed)).toBe(true);
-    expect(matchesCodexPlanFilter(file, 'plus', refreshed)).toBe(false);
+    expect(matchesCodexPlanFilter(file, 'paid', refreshed)).toBe(true);
+    expect(matchesCodexPlanFilter(file, 'free', refreshed)).toBe(false);
   });
 
   test('prefers stored plan_type over stale JWT plus claims', () => {
@@ -71,7 +78,7 @@ describe('Codex auth-file status', () => {
 
     expect(resolveCodexPlanType(downgraded)).toBe('free');
     expect(matchesCodexPlanFilter(downgraded, 'free')).toBe(true);
-    expect(matchesCodexPlanFilter(downgraded, 'plus')).toBe(false);
+    expect(matchesCodexPlanFilter(downgraded, 'paid')).toBe(false);
   });
 
   test('falls back to chatgpt_plan_type then JWT plan', () => {
@@ -96,7 +103,7 @@ describe('Codex auth-file status', () => {
   test('recognizes the K12 plan type', () => {
     const k12File = { ...file, plan_type: 'k12' };
 
-    expect(matchesCodexPlanFilter(k12File, 'k12')).toBe(true);
+    expect(matchesCodexPlanFilter(k12File, 'paid')).toBe(true);
   });
 
   test('classifies full quota windows as cooldown', () => {
