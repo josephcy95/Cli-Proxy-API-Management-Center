@@ -870,15 +870,6 @@ export function AuthFilesPage() {
         badges.push(t('auth_files.codex_status_denied'));
       } else if (status.kind === 'cooldown') {
         badges.push(t('auth_files.codex_status_cooldown'));
-        if (status.fiveHourLimited) {
-          badges.push(t('auth_files.codex_status_five_hour_limited'));
-        }
-        if (status.weeklyLimited) {
-          badges.push(t('auth_files.codex_status_weekly_limited'));
-        }
-        if (status.monthlyLimited) {
-          badges.push(t('auth_files.codex_status_monthly_limited'));
-        }
       } else if (status.kind === 'other') {
         badges.push(t('auth_files.codex_status_other'));
       }
