@@ -62,6 +62,7 @@ export type UseAuthFilesDataResult = {
   batchDelete: (names: string[]) => void;
   batchResetCooldown: (files: AuthFileItem[]) => void;
   batchSetPriority: (names: string[], priority: number) => Promise<void>;
+  batchSetWeight: (names: string[], weight: number) => Promise<void>;
   batchSetJailbreak: (names: string[], allow: boolean) => Promise<void>;
 };
 
@@ -857,6 +858,50 @@ export function useAuthFilesData({ onCooldownReset }: UseAuthFilesDataOptions = 
     [files, loadFiles, showNotification, t]
   );
 
+  const batchSetWeight = useCallback(
+    async (names: string[], weight: number) => {
+      if (batchFieldsPendingRef.current) return;
+      const requestedNames = Array.from(new Set(names.map((name) => name.trim()).filter(Boolean)));
+      const targetNames = files
+        .filter((file) => requestedNames.includes(file.name) && !isRuntimeOnlyAuthFile(file))
+        .map((file) => file.name);
+      if (targetNames.length === 0) return;
+      batchFieldsPendingRef.current = true;
+      setBatchFieldsSaving(true);
+      try {
+        const results = await Promise.allSettled(
+          targetNames.map((name) => authFilesApi.patchFields(name, { weight }))
+        );
+        const succeededNames = new Set<string>();
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') succeededNames.add(targetNames[index]);
+        });
+        const successCount = succeededNames.size;
+        const failCount = targetNames.length - successCount;
+        if (successCount > 0) {
+          setFiles((prev) =>
+            prev.map((file) => (succeededNames.has(file.name) ? { ...file, weight } : file))
+          );
+          notifyAuthFilesChanged();
+        }
+        showNotification(
+          failCount === 0
+            ? t('auth_files.batch_weight_success', { count: successCount, weight })
+            : t('auth_files.batch_weight_partial', { success: successCount, failed: failCount }),
+          failCount === 0 ? 'success' : 'warning'
+        );
+        await loadFiles({ silent: true });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : '';
+        showNotification(`${t('notification.update_failed')}: ${message}`, 'error');
+      } finally {
+        batchFieldsPendingRef.current = false;
+        setBatchFieldsSaving(false);
+      }
+    },
+    [files, loadFiles, showNotification, t]
+  );
+
   const batchSetJailbreak = useCallback(
     async (names: string[], allow: boolean) => {
       if (batchFieldsPendingRef.current) return;
@@ -1044,6 +1089,7 @@ export function useAuthFilesData({ onCooldownReset }: UseAuthFilesDataOptions = 
     batchDelete,
     batchResetCooldown,
     batchSetPriority,
+    batchSetWeight,
     batchSetJailbreak,
   };
 }

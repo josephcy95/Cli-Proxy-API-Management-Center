@@ -540,7 +540,14 @@
     "codex_status_all_filter": "All",
     "codex_status_available": "Available",
     "codex_status_cooldown_filter": "Cooldown",
-    "codex_status_denied_filter": "Denied"
+    "codex_status_denied_filter": "Denied",
+    "sort_adaptive": "Adaptive candidate estimate",
+    "batch_weight_placeholder": "WRR weight, e.g. 1",
+    "batch_weight_title": "Apply this WRR weight to every selected file",
+    "batch_weight_button": "Set WRR weight",
+    "batch_weight_invalid": "Weight must be a safe integer no greater than 1,000,000",
+    "batch_weight_success": "WRR weight set to {{weight}} for {{count}} files",
+    "batch_weight_partial": "WRR weight set for {{success}} files, {{failed}} failed"
   },
   "antigravity_subscription": {
     "plan_unknown": "Unknown",

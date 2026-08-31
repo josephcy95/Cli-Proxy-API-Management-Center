@@ -1,4 +1,4 @@
-export const AUTH_FILES_SORT_MODES = ['priority', 'az', 'availability'] as const;
+export const AUTH_FILES_SORT_MODES = ['priority', 'az', 'availability', 'adaptive'] as const;
 export const AUTH_FILES_STATUS_FILTER_MODES = ['all', 'enabled', 'disabled', 'problem'] as const;
 
 export type AuthFilesSortMode = (typeof AUTH_FILES_SORT_MODES)[number];

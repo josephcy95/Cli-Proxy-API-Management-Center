@@ -402,7 +402,14 @@
     "codex_status_all_filter": "全部",
     "codex_status_available": "可用",
     "codex_status_cooldown_filter": "冷却中",
-    "codex_status_denied_filter": "拒绝"
+    "codex_status_denied_filter": "拒绝",
+    "sort_adaptive": "自适应候选估算",
+    "batch_weight_placeholder": "WRR 权重，例如 1",
+    "batch_weight_title": "将此 WRR 权重应用于所有选中文件",
+    "batch_weight_button": "设置 WRR 权重",
+    "batch_weight_invalid": "权重必须是不超过 1,000,000 的安全整数",
+    "batch_weight_success": "已将 WRR 权重 {{weight}} 设置到 {{count}} 个文件",
+    "batch_weight_partial": "已为 {{success}} 个文件设置 WRR 权重，{{failed}} 个失败"
   },
   "antigravity_subscription": {
     "plan_unknown": "未知",

@@ -71,6 +71,7 @@ import {
   fetchCodexUsageSnapshot,
 } from '@/components/quota/quotaConfigs';
 import { persistCodexQuotaSnapshot, codexQuotaPersistInputFromData } from '@/utils/quota';
+import { readCredentialWeight } from '@/utils/credentialWeight';
 import {
   isAuthFilesStatusFilterMode,
   getDefaultAuthFilesSortMode,
@@ -254,6 +255,7 @@ export function AuthFilesPage() {
   const [codexRefreshing, setCodexRefreshing] = useState(false);
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
   const [batchPriorityInput, setBatchPriorityInput] = useState('');
+  const [batchWeightInput, setBatchWeightInput] = useState('');
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
 
   const clearCodexRefreshState = useCallback((names: string[]) => {
@@ -306,6 +308,7 @@ export function AuthFilesPage() {
     batchDelete,
     batchResetCooldown,
     batchSetPriority,
+    batchSetWeight,
     batchSetJailbreak,
   } = useAuthFilesData({ onCooldownReset: clearCodexRefreshState });
 
@@ -684,6 +687,7 @@ export function AuthFilesPage() {
       isCodexSelected
         ? [
             { value: 'availability', label: t('auth_files.sort_availability') },
+            { value: 'adaptive', label: t('auth_files.sort_adaptive') },
             { value: 'priority', label: t('auth_files.sort_priority') },
             { value: 'az', label: t('auth_files.sort_az') },
           ]
@@ -757,6 +761,32 @@ export function AuthFilesPage() {
           getCodexAccountStatus(right, codexRefreshByName[right.name]).kind
         )
       );
+    } else if (sortMode === 'adaptive' && isCodexSelected) {
+      const score = (file: (typeof copy)[number]) => {
+        const refreshed = codexRefreshByName[file.name];
+        const weekly = refreshed?.windows.find((window) =>
+          /weekly|seven.?day|7.?day/i.test(`${window.id} ${window.label}`)
+        );
+        const persistedUsed = Number(
+          file['X-Codex-Primary-Used-Percent'] ?? file['X-Codex-Secondary-Used-Percent']
+        );
+        const used = weekly?.usedPercent ?? (Number.isFinite(persistedUsed) ? persistedUsed : 0);
+        const persistedReset = Number(
+          file['X-Codex-Primary-Reset-At'] ?? file['X-Codex-Secondary-Reset-At']
+        );
+        const resetAt = weekly?.resetAt ?? (Number.isFinite(persistedReset) ? persistedReset * 1000 : null);
+        const hours = resetAt ? Math.max((resetAt - Date.now()) / 3_600_000, 1 / 24) : 168;
+        const urgency = (100 - Math.max(0, Math.min(100, used))) / hours;
+        const priority = parsePriorityValue(file.priority) ?? 0;
+        const weight = readCredentialWeight(file.weight) ?? 1;
+        const status = getCodexAccountStatus(file, refreshed);
+        return { priority, urgency, weight, status: status.kind === 'working' ? 0 : 1 };
+      };
+      copy.sort((left, right) => {
+        const a = score(left);
+        const b = score(right);
+        return a.status - b.status || b.priority - a.priority || b.urgency - a.urgency || b.weight - a.weight || left.name.localeCompare(right.name);
+      });
     }
     return copy;
   }, [codexRefreshByName, filtered, isCodexSelected, sortMode]);
@@ -809,6 +839,20 @@ export function AuthFilesPage() {
         normalizeProviderKey(String(file.type ?? file.provider ?? '')) === 'codex'
     ).length;
   }, [files, selectedNames]);
+
+  const applyBatchWeight = useCallback(() => {
+    const trimmed = batchWeightInput.trim();
+    if (!/^[+-]?\d+$/.test(trimmed)) {
+      showNotification(t('auth_files.batch_weight_invalid'), 'error');
+      return;
+    }
+    const weight = Number(trimmed);
+    if (!Number.isSafeInteger(weight) || weight > 1_000_000) {
+      showNotification(t('auth_files.batch_weight_invalid'), 'error');
+      return;
+    }
+    void batchSetWeight(selectedNames, weight);
+  }, [batchSetWeight, batchWeightInput, selectedNames, showNotification, t]);
 
   const applyBatchPriority = useCallback(() => {
     const parsed = parsePriorityValue(batchPriorityInput);
@@ -1451,6 +1495,34 @@ export function AuthFilesPage() {
                         title={t('auth_files.batch_priority_title')}
                       >
                         {t('auth_files.batch_priority_button')}
+                      </Button>
+                    </div>
+                    <div className={styles.batchPriorityGroup}>
+                      <input
+                        type="number"
+                        step={1}
+                        className={styles.batchPriorityInput}
+                        value={batchWeightInput}
+                        placeholder={t('auth_files.batch_weight_placeholder')}
+                        aria-label={t('auth_files.weight_display')}
+                        disabled={batchFieldsButtonsDisabled}
+                        onChange={(event) => setBatchWeightInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.currentTarget.blur();
+                            applyBatchWeight();
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={applyBatchWeight}
+                        disabled={batchFieldsButtonsDisabled || !batchWeightInput.trim()}
+                        loading={batchFieldsSaving}
+                        title={t('auth_files.batch_weight_title')}
+                      >
+                        {t('auth_files.batch_weight_button')}
                       </Button>
                     </div>
                   </div>
