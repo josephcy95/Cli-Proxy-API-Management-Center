@@ -208,7 +208,7 @@ export function resolveCodexResetCredits(file: AuthFileItem): CodexResetCreditsF
   const metadata = toRecord(file.metadata);
   const attributes = toRecord(file.attributes);
 
-  const availableCount =
+  const storedAvailableCount =
     normalizeNumberValue(
       file.rate_limit_reset_credits_available_count ??
         file.rateLimitResetCreditsAvailableCount ??
@@ -229,6 +229,13 @@ export function resolveCodexResetCredits(file: AuthFileItem): CodexResetCreditsF
       metadata?.rate_limit_reset_credits ??
       metadata?.rateLimitResetCredits
   );
+  // Prefer explicit availability, but recover from stale zero counts when the
+  // persisted credit list still contains available credits.
+  const listedAvailableCount = credits.filter(
+    (credit) => !credit.status || credit.status.toLowerCase() === 'available'
+  ).length;
+  const availableCount = Math.max(storedAvailableCount, listedAvailableCount);
+
   const checkedAt = normalizeStringValue(
     file.rate_limit_reset_credits_checked_at ??
       file.rateLimitResetCreditsCheckedAt ??

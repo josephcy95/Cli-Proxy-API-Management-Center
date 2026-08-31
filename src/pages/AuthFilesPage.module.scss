@@ -405,6 +405,11 @@
 
 .codexPlanItem {
   grid-area: codex-plan;
+  min-width: 0;
+
+  .codexStatusToggle {
+    width: 100%;
+  }
 }
 
 .xaiStatusItem {

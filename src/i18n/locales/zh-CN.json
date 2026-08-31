@@ -520,7 +520,7 @@
     "reset_failed": "重置 \"{{name}}\" 的 Codex 额度失败：{{message}}",
     "plan_plus": "Plus",
     "plan_team": "Team",
-    "plan_free": "Free",
+    "plan_free": "免费",
     "plan_k12": "K12",
     "plan_pro": "Pro 20x",
     "plan_prolite": "Pro 5x"

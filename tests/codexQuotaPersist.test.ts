@@ -97,6 +97,19 @@ describe('Codex quota snapshot persistence', () => {
     expect(snapshot.credits[0]?.expiresAt).toBe('2026-09-01T04:00:00Z');
   });
 
+  test('recovers available reset credits when the stored count is stale', () => {
+    const snapshot = resolveCodexResetCredits({
+      name: 'codex.json',
+      type: 'codex',
+      rate_limit_reset_credits_available_count: 0,
+      rate_limit_reset_credits: [
+        { status: 'available', expires_at: '2026-09-20T22:51:30Z' },
+      ],
+    });
+
+    expect(snapshot.availableCount).toBe(1);
+  });
+
   test('maps a live quota payload into a persistable snapshot', () => {
     const input = codexQuotaPersistInputFromData({
       planType: 'plus',
