@@ -391,6 +391,29 @@ const readAdaptiveInfo = (file: AuthFileItem): CodexAdaptiveCandidateInfo | null
   return value && typeof value === 'object' ? value : null;
 };
 
+const compareAdaptiveScores = (
+  left: CodexAdaptiveSortScore,
+  right: CodexAdaptiveSortScore,
+  leftFile: AuthFileItem,
+  rightFile: AuthFileItem,
+  leftLoad = 0,
+  rightLoad = 0
+): number => {
+  if (left.candidate !== right.candidate) return left.candidate ? -1 : 1;
+  if (left.status !== right.status) return left.status - right.status;
+  if (left.deadline !== right.deadline) {
+    if (left.deadline == null) return 1;
+    if (right.deadline == null) return -1;
+    return left.deadline - right.deadline;
+  }
+  if (Math.abs(left.urgency - right.urgency) > 0.000001) {
+    return right.urgency - left.urgency;
+  }
+  if (left.priority !== right.priority) return right.priority - left.priority;
+  if (leftLoad !== rightLoad) return leftLoad - rightLoad;
+  return fileSortKey(leftFile).localeCompare(fileSortKey(rightFile));
+};
+
 const compareAuthoritativeAdaptive = (
   left: AuthFileItem,
   right: AuthFileItem,
@@ -404,40 +427,22 @@ const compareAuthoritativeAdaptive = (
     return null;
   }
 
-  // The backend snapshot is authoritative for rank, but a live/persisted quota
-  // limit still wins for the visible candidate state. This keeps the list from
-  // putting a card marked Cooldown above an account that can actually be used.
-  const leftCandidate = a.candidate && isCodexAdaptiveCandidate(left, leftRefreshed, now);
-  const rightCandidate = b.candidate && isCodexAdaptiveCandidate(right, rightRefreshed, now);
-  if (leftCandidate !== rightCandidate) return leftCandidate ? -1 : 1;
+  const leftScore = codexAdaptiveScore(left, now, leftRefreshed);
+  const rightScore = codexAdaptiveScore(right, now, rightRefreshed);
+  leftScore.candidate = a.candidate && leftScore.candidate;
+  rightScore.candidate = b.candidate && rightScore.candidate;
 
-  if (leftCandidate && rightCandidate && Number.isFinite(a.rank) && Number.isFinite(b.rank)) {
-    if (a.rank !== b.rank) return (a.rank as number) - (b.rank as number);
-  }
-
-  if (!leftCandidate && !rightCandidate) {
-    const statusDifference =
-      getCodexAvailabilityStatusRank(getCodexAccountStatus(left, leftRefreshed, now).kind) -
-      getCodexAvailabilityStatusRank(getCodexAccountStatus(right, rightRefreshed, now).kind);
-    if (statusDifference !== 0) return statusDifference;
-  }
-
-  const leftDeadline = toEpochMs(a.deadline) ?? null;
-  const rightDeadline = toEpochMs(b.deadline) ?? null;
-  if (leftDeadline !== rightDeadline) {
-    if (leftDeadline == null) return 1;
-    if (rightDeadline == null) return -1;
-    return leftDeadline - rightDeadline;
-  }
-  const leftUrgency = normalizeNumberValue(a.quota_urgency) ?? 0;
-  const rightUrgency = normalizeNumberValue(b.quota_urgency) ?? 0;
-  if (Math.abs(leftUrgency - rightUrgency) > 0.000001) return rightUrgency - leftUrgency;
-  const leftPriority = normalizeNumberValue(a.priority) ?? 0;
-  const rightPriority = normalizeNumberValue(b.priority) ?? 0;
-  if (leftPriority !== rightPriority) return rightPriority - leftPriority;
-  const leftLoad = normalizeNumberValue(a.in_flight) ?? 0;
-  const rightLoad = normalizeNumberValue(b.in_flight) ?? 0;
-  return leftLoad - rightLoad || fileSortKey(left).localeCompare(fileSortKey(right));
+  // Candidate/blocked state and live load come from the backend. Recalculate the
+  // order from the quota and expiry shown on the cards so a stale snapshot rank
+  // cannot disagree with both the visible data and the request-time router.
+  return compareAdaptiveScores(
+    leftScore,
+    rightScore,
+    left,
+    right,
+    normalizeNumberValue(a.in_flight) ?? 0,
+    normalizeNumberValue(b.in_flight) ?? 0
+  );
 };
 
 export const compareCodexAdaptive = (
@@ -456,17 +461,12 @@ export const compareCodexAdaptive = (
   );
   if (authoritative !== null) return authoritative;
 
-  const a = codexAdaptiveScore(left, now, leftRefreshed);
-  const b = codexAdaptiveScore(right, now, rightRefreshed);
-  if (a.candidate !== b.candidate) return a.candidate ? -1 : 1;
-  if (a.status !== b.status) return a.status - b.status;
-  if (a.deadline !== b.deadline) {
-    if (a.deadline == null) return 1;
-    if (b.deadline == null) return -1;
-    return a.deadline - b.deadline;
-  }
-  if (Math.abs(a.urgency - b.urgency) > 0.000001) return b.urgency - a.urgency;
-  return b.priority - a.priority || fileSortKey(left).localeCompare(fileSortKey(right));
+  return compareAdaptiveScores(
+    codexAdaptiveScore(left, now, leftRefreshed),
+    codexAdaptiveScore(right, now, rightRefreshed),
+    left,
+    right
+  );
 };
 
 const fileSortKey = (file: AuthFileItem): string => `${file.name}\u0000${file.id ?? ''}`;

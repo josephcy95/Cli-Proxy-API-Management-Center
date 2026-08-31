@@ -399,21 +399,26 @@ test('adaptive sorting prefers the earliest usable expiry over a later account w
   expect(compareCodexAdaptive(urgent, laterWithReset, now)).toBeLessThan(0);
 });
 
-test('adaptive sorting prefers backend candidate rank when it is available', () => {
-  const backendFirst = {
+test('adaptive sorting does not let a stale backend rank override the visible expiry', () => {
+  const now = Date.parse('2026-09-01T00:00:00Z');
+  const staleRankFirst = {
     ...file,
-    name: 'backend-first.json',
-    chatgpt_subscription_active_until: '2099-01-01T00:00:00Z',
-    codex_adaptive: { candidate: true, rank: 1, deadline: '2099-01-01T00:00:00Z' },
+    name: 'nineteen-days.json',
+    chatgpt_subscription_active_until: '2026-09-20T19:00:00Z',
+    'X-Codex-Secondary-Used-Percent': 4,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+    codex_adaptive: { candidate: true, rank: 1 },
   };
-  const backendSecond = {
+  const actuallyUrgent = {
     ...file,
-    name: 'backend-second.json',
-    chatgpt_subscription_active_until: '2026-09-01T01:00:00Z',
-    codex_adaptive: { candidate: true, rank: 2, deadline: '2026-09-01T01:00:00Z' },
+    name: 'joseph.json',
+    chatgpt_subscription_active_until: '2026-09-06T11:00:00Z',
+    'X-Codex-Secondary-Used-Percent': 36,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+    codex_adaptive: { candidate: true, rank: 5 },
   };
 
-  expect(compareCodexAdaptive(backendFirst, backendSecond)).toBeLessThan(0);
+  expect(compareCodexAdaptive(staleRankFirst, actuallyUrgent, now)).toBeGreaterThan(0);
 });
 
 test('adaptive sorting keeps a live cooldown behind a usable backend candidate', () => {
