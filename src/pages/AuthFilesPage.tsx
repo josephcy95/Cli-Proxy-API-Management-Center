@@ -70,7 +70,12 @@ import {
   codexQuotaHasAvailableCapacity,
   fetchCodexUsageSnapshot,
 } from '@/components/quota/quotaConfigs';
-import { persistCodexQuotaSnapshot, codexQuotaPersistInputFromData } from '@/utils/quota';
+import {
+  persistCodexQuotaSnapshot,
+  codexQuotaPersistInputFromData,
+  resolveCodexResetCredits,
+  resolveCodexSubscriptionActiveUntil,
+} from '@/utils/quota';
 import { readCredentialWeight } from '@/utils/credentialWeight';
 import {
   isAuthFilesStatusFilterMode,
@@ -86,6 +91,8 @@ import {
 } from '@/features/authFiles/uiState';
 import { authFilesApi } from '@/services/api';
 import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
+import { resolveAuthFileDisplayName } from '@/utils/authFileDisplay';
+import { toEpochMs } from '@/utils/format';
 import styles from './AuthFilesPage.module.scss';
 
 const DEFAULT_REGULAR_PAGE_SIZE = 50;
@@ -744,7 +751,11 @@ export function AuthFilesPage() {
   const sorted = useMemo(() => {
     const copy = [...filtered];
     if (sortMode === 'az') {
-      copy.sort((a, b) => a.name.localeCompare(b.name));
+      copy.sort(
+        (a, b) =>
+          resolveAuthFileDisplayName(a).localeCompare(resolveAuthFileDisplayName(b)) ||
+          a.name.localeCompare(b.name)
+      );
     } else if (sortMode === 'priority') {
       copy.sort((a, b) => {
         const pa = parsePriorityValue(a.priority) ?? 0;
@@ -767,25 +778,45 @@ export function AuthFilesPage() {
         const weekly = refreshed?.windows.find((window) =>
           /weekly|seven.?day|7.?day/i.test(`${window.id} ${window.label}`)
         );
-        const persistedUsed = Number(
-          file['X-Codex-Primary-Used-Percent'] ?? file['X-Codex-Secondary-Used-Percent']
-        );
-        const used = weekly?.usedPercent ?? (Number.isFinite(persistedUsed) ? persistedUsed : 0);
+        const used = weekly?.usedPercent ?? Number(file['X-Codex-Primary-Used-Percent'] ?? 0);
+        const remaining = Math.max(0, Math.min(100, 100 - (Number.isFinite(used) ? used : 0)));
         const persistedReset = Number(
           file['X-Codex-Primary-Reset-At'] ?? file['X-Codex-Secondary-Reset-At']
         );
-        const resetAt = weekly?.resetAt ?? (Number.isFinite(persistedReset) ? persistedReset * 1000 : null);
-        const hours = resetAt ? Math.max((resetAt - Date.now()) / 3_600_000, 1 / 24) : 168;
-        const urgency = (100 - Math.max(0, Math.min(100, used))) / hours;
+        const weeklyResetAt =
+          weekly?.resetAt ??
+          (Number.isFinite(persistedReset) && persistedReset > 0 ? persistedReset * 1000 : null);
+        const resetCredits = resolveCodexResetCredits(file);
+        const resetCreditExpiry = resetCredits.credits.reduce<number | null>((earliest, credit) => {
+          const value = toEpochMs(credit.expiresAt);
+          return value != null && (earliest == null || value < earliest) ? value : earliest;
+        }, null);
+        const subscriptionExpiry = toEpochMs(resolveCodexSubscriptionActiveUntil(file));
+        const deadlines = [weeklyResetAt, resetCreditExpiry, subscriptionExpiry].filter(
+          (value): value is number => typeof value === 'number' && Number.isFinite(value)
+        );
+        const deadline = deadlines.length > 0 ? Math.min(...deadlines) : null;
+        const hours = deadline
+          ? Math.max((deadline - Date.now()) / 3_600_000, 1 / 24)
+          : 168;
+        let burnUrgency = remaining * (1 + Math.min(resetCredits.availableCount, 2)) / hours;
+        if (remaining === 0 && resetCredits.availableCount > 0) burnUrgency = 1 / hours;
         const priority = parsePriorityValue(file.priority) ?? 0;
         const weight = readCredentialWeight(file.weight) ?? 1;
         const status = getCodexAccountStatus(file, refreshed);
-        return { priority, urgency, weight, status: status.kind === 'working' ? 0 : 1 };
+        return { priority, burnUrgency, weight, status: status.kind === 'working' ? 0 : 1 };
       };
       copy.sort((left, right) => {
         const a = score(left);
         const b = score(right);
-        return a.status - b.status || b.priority - a.priority || b.urgency - a.urgency || b.weight - a.weight || left.name.localeCompare(right.name);
+        return (
+          a.status - b.status ||
+          b.priority - a.priority ||
+          b.burnUrgency - a.burnUrgency ||
+          b.weight - a.weight ||
+          resolveAuthFileDisplayName(left).localeCompare(resolveAuthFileDisplayName(right)) ||
+          left.name.localeCompare(right.name)
+        );
       });
     }
     return copy;

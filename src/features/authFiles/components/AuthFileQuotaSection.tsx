@@ -21,7 +21,7 @@ import {
   useQuotaStore,
 } from '@/stores';
 import { authFilesApi } from '@/services/api';
-import type { AuthFileItem } from '@/types';
+import type { AuthFileItem, CodexQuotaState, CodexQuotaWindow } from '@/types';
 import {
   getStatusFromError,
   persistCodexQuotaSnapshot,
@@ -69,6 +69,29 @@ const earliestResetCreditExpiry = (credits: { expiresAt?: string }[] | undefined
     }
   }
   return earliest;
+};
+
+const persistedCodexQuotaState = (file: AuthFileItem, t: TFunction): CodexQuotaState | null => {
+  const read = (key: string) => Number(file[key]);
+  const windows: CodexQuotaWindow[] = [];
+  for (const [prefix, id, labelKey] of [
+    ['X-Codex-Primary-', 'five-hour', 'codex_quota.primary_window'],
+    ['X-Codex-Secondary-', 'weekly', 'codex_quota.secondary_window'],
+  ] as const) {
+    const usedPercent = read(`${prefix}Used-Percent`);
+    if (!Number.isFinite(usedPercent)) continue;
+    const resetAtValue = read(`${prefix}Reset-At`);
+    const resetAt = Number.isFinite(resetAtValue) && resetAtValue > 0 ? resetAtValue * 1000 : null;
+    windows.push({
+      id,
+      label: t(labelKey),
+      labelKey,
+      usedPercent: Math.max(0, Math.min(100, usedPercent)),
+      resetLabel: resetAt ? formatRelativeTimeLabel(t, resetAt) : '-',
+      resetAt,
+    });
+  }
+  return windows.length > 0 ? { status: 'success', windows } : null;
 };
 
 const getQuotaConfig = (type: QuotaProviderType) => {
@@ -131,6 +154,15 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'xai') return state.setXaiQuota as unknown as (updater: unknown) => void;
     return assertNever(quotaType);
   });
+
+  useEffect(() => {
+    if (quotaType !== 'codex' || quota) return;
+    const persisted = persistedCodexQuotaState(file, t);
+    if (!persisted) return;
+    updateQuotaState((prev: Record<string, unknown>) =>
+      prev[file.name] ? prev : { ...prev, [file.name]: persisted }
+    );
+  }, [file, quota, quotaType, t, updateQuotaState]);
 
   const refreshQuotaForFile = useCallback(async () => {
     if (disableControls) return;
