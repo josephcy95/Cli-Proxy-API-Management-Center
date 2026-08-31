@@ -28,6 +28,7 @@ import { resolveAuthFileDisplayName } from '@/utils/authFileDisplay';
 import {
   QUOTA_PROVIDER_TYPES,
   codexPlanBadgeKey,
+  formatCodexUsageLimitResetDuration,
   getAuthFileIcon,
   getAuthFileStatusMessage,
   getCodexPlanLabel,
@@ -206,6 +207,12 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
     : '';
   const displayName = resolveAuthFileDisplayName(file);
   const rawStatusMessage = getAuthFileStatusMessage(file);
+  const usageLimitResetDuration = isCodexFile
+    ? formatCodexUsageLimitResetDuration(rawStatusMessage)
+    : null;
+  const displayStatusMessage = usageLimitResetDuration
+    ? t('auth_files.codex_usage_limit_reset_in', { duration: usageLimitResetDuration })
+    : rawStatusMessage;
   const hasStatusWarning =
     Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
 
@@ -340,7 +347,7 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
           {rawStatusMessage && hasStatusWarning && (
             <div className={styles.healthStatusMessage} title={rawStatusMessage}>
               <IconInfo className={styles.messageIcon} size={14} />
-              <span>{rawStatusMessage}</span>
+              <span>{displayStatusMessage}</span>
             </div>
           )}
 

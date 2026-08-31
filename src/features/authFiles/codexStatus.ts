@@ -332,8 +332,12 @@ export type CodexAdaptiveSortScore = {
   priority: number;
 };
 
-const isCodexAdaptiveCandidate = (file: AuthFileItem, now: number): boolean => {
-  const status = getCodexAccountStatus(file, undefined, now);
+const isCodexAdaptiveCandidate = (
+  file: AuthFileItem,
+  refreshed: CodexRefreshState | undefined,
+  now: number
+): boolean => {
+  const status = getCodexAccountStatus(file, refreshed, now);
   const nextRetryAt = toEpochMs(file.next_retry_after ?? file.nextRetryAfter);
   return (
     status.kind === 'working' &&
@@ -343,8 +347,15 @@ const isCodexAdaptiveCandidate = (file: AuthFileItem, now: number): boolean => {
   );
 };
 
-const codexAdaptiveScore = (file: AuthFileItem, now: number): CodexAdaptiveSortScore => {
-  const windows = persistedCodexQuotaWindows(file, now);
+const codexAdaptiveScore = (
+  file: AuthFileItem,
+  now: number,
+  refreshed?: CodexRefreshState
+): CodexAdaptiveSortScore => {
+  const windows = mergeCodexQuotaWindows(
+    persistedCodexQuotaWindows(file, now),
+    refreshed?.windows ?? []
+  );
   const weekly = windows.find((window) => window.id === 'weekly');
   // Adaptive backend scoring is based on the weekly window. A five-hour-only
   // snapshot must not invent a different deadline or urgency in the UI.
@@ -365,10 +376,10 @@ const codexAdaptiveScore = (file: AuthFileItem, now: number): CodexAdaptiveSortS
   const deadline = deadlines.length > 0 ? Math.min(...deadlines) : null;
   const hours = deadline ? Math.max((deadline - now) / 3_600_000, 1 / 24) : 168;
   const usableRemaining = remaining === 0 && resetCredits.availableCount > 0 ? 1 : remaining;
-  const candidate = isCodexAdaptiveCandidate(file, now);
+  const candidate = isCodexAdaptiveCandidate(file, refreshed, now);
   return {
     candidate,
-    status: getCodexAccountStatus(file, undefined, now).kind === 'working' ? 0 : 1,
+    status: getCodexAvailabilityStatusRank(getCodexAccountStatus(file, refreshed, now).kind),
     deadline,
     urgency: (usableRemaining * (1 + Math.min(resetCredits.availableCount, 2))) / hours,
     priority: parsePriorityValue(file.priority) ?? 0,
@@ -382,17 +393,35 @@ const readAdaptiveInfo = (file: AuthFileItem): CodexAdaptiveCandidateInfo | null
 
 const compareAuthoritativeAdaptive = (
   left: AuthFileItem,
-  right: AuthFileItem
+  right: AuthFileItem,
+  leftRefreshed: CodexRefreshState | undefined,
+  rightRefreshed: CodexRefreshState | undefined,
+  now: number
 ): number | null => {
   const a = readAdaptiveInfo(left);
   const b = readAdaptiveInfo(right);
   if (!a || !b || typeof a.candidate !== 'boolean' || typeof b.candidate !== 'boolean') {
     return null;
   }
-  if (a.candidate !== b.candidate) return a.candidate ? -1 : 1;
-  if (a.candidate && b.candidate && Number.isFinite(a.rank) && Number.isFinite(b.rank)) {
+
+  // The backend snapshot is authoritative for rank, but a live/persisted quota
+  // limit still wins for the visible candidate state. This keeps the list from
+  // putting a card marked Cooldown above an account that can actually be used.
+  const leftCandidate = a.candidate && isCodexAdaptiveCandidate(left, leftRefreshed, now);
+  const rightCandidate = b.candidate && isCodexAdaptiveCandidate(right, rightRefreshed, now);
+  if (leftCandidate !== rightCandidate) return leftCandidate ? -1 : 1;
+
+  if (leftCandidate && rightCandidate && Number.isFinite(a.rank) && Number.isFinite(b.rank)) {
     if (a.rank !== b.rank) return (a.rank as number) - (b.rank as number);
   }
+
+  if (!leftCandidate && !rightCandidate) {
+    const statusDifference =
+      getCodexAvailabilityStatusRank(getCodexAccountStatus(left, leftRefreshed, now).kind) -
+      getCodexAvailabilityStatusRank(getCodexAccountStatus(right, rightRefreshed, now).kind);
+    if (statusDifference !== 0) return statusDifference;
+  }
+
   const leftDeadline = toEpochMs(a.deadline) ?? null;
   const rightDeadline = toEpochMs(b.deadline) ?? null;
   if (leftDeadline !== rightDeadline) {
@@ -408,22 +437,29 @@ const compareAuthoritativeAdaptive = (
   if (leftPriority !== rightPriority) return rightPriority - leftPriority;
   const leftLoad = normalizeNumberValue(a.in_flight) ?? 0;
   const rightLoad = normalizeNumberValue(b.in_flight) ?? 0;
-  return leftLoad - rightLoad;
+  return leftLoad - rightLoad || fileSortKey(left).localeCompare(fileSortKey(right));
 };
 
 export const compareCodexAdaptive = (
   left: AuthFileItem,
   right: AuthFileItem,
-  now = Date.now()
+  now = Date.now(),
+  leftRefreshed?: CodexRefreshState,
+  rightRefreshed?: CodexRefreshState
 ): number => {
-  const authoritative = compareAuthoritativeAdaptive(left, right);
-  if (authoritative !== null && authoritative !== 0) return authoritative;
-  if (authoritative === 0) return fileSortKey(left).localeCompare(fileSortKey(right));
+  const authoritative = compareAuthoritativeAdaptive(
+    left,
+    right,
+    leftRefreshed,
+    rightRefreshed,
+    now
+  );
+  if (authoritative !== null) return authoritative;
 
-  const a = codexAdaptiveScore(left, now);
-  const b = codexAdaptiveScore(right, now);
+  const a = codexAdaptiveScore(left, now, leftRefreshed);
+  const b = codexAdaptiveScore(right, now, rightRefreshed);
   if (a.candidate !== b.candidate) return a.candidate ? -1 : 1;
-  if (!a.candidate && a.status !== b.status) return a.status - b.status;
+  if (a.status !== b.status) return a.status - b.status;
   if (a.deadline !== b.deadline) {
     if (a.deadline == null) return 1;
     if (b.deadline == null) return -1;

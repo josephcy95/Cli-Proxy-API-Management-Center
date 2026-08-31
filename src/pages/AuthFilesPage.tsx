@@ -772,7 +772,15 @@ export function AuthFilesPage() {
       );
     } else if (sortMode === 'adaptive' && isCodexSelected) {
       const adaptiveNow = Date.now();
-      copy.sort((left, right) => compareCodexAdaptive(left, right, adaptiveNow));
+      copy.sort((left, right) =>
+        compareCodexAdaptive(
+          left,
+          right,
+          adaptiveNow,
+          codexRefreshByName[left.name],
+          codexRefreshByName[right.name]
+        )
+      );
     }
     return copy;
   }, [codexRefreshByName, filtered, isCodexSelected, sortMode]);

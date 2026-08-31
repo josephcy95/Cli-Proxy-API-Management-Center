@@ -260,6 +260,45 @@ export const getAuthFileStatusMessage = (file: AuthFileItem): string => {
   return String(raw).trim();
 };
 
+export const formatCodexUsageLimitResetDuration = (
+  statusMessage: string,
+  now = Date.now()
+): string | null => {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(statusMessage);
+  } catch {
+    return null;
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+
+  const root = payload as Record<string, unknown>;
+  const nested = root.error;
+  const error =
+    nested && typeof nested === 'object' && !Array.isArray(nested)
+      ? (nested as Record<string, unknown>)
+      : root;
+  if (String(error.type ?? '').trim().toLowerCase() !== 'usage_limit_reached') return null;
+
+  const resetAt = Number(error.resets_at ?? error.reset_at);
+  const resetInSeconds = Number(error.resets_in_seconds ?? error.reset_in_seconds);
+  const seconds = Number.isFinite(resetAt) && resetAt > 0
+    ? Math.max(0, ((resetAt < 1e11 ? resetAt * 1000 : resetAt) - now) / 1000)
+    : Number.isFinite(resetInSeconds) && resetInSeconds >= 0
+      ? resetInSeconds
+      : null;
+  if (seconds == null) return null;
+
+  const totalMinutes = Math.ceil(seconds / 60);
+  if (totalMinutes < 1) return '<1m';
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
+  if (hours > 0) return `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`;
+  return `${minutes}m`;
+};
+
 export const hasAuthFileStatusMessage = (file: AuthFileItem): boolean =>
   getAuthFileStatusMessage(file).length > 0;
 

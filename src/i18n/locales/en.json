@@ -537,6 +537,7 @@
     "allow_private_instructions_display": "Jailbreak enabled",
     "allow_private_instructions_badge": "JB",
     "disabled_reason_display": "Disabled reason",
+    "codex_usage_limit_reset_in": "Reset in {{duration}}",
     "sort_availability": "Availability first",
     "codex_status_all_filter": "All",
     "codex_status_available": "Available",

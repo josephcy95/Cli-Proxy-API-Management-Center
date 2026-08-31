@@ -416,6 +416,50 @@ test('adaptive sorting prefers backend candidate rank when it is available', () 
   expect(compareCodexAdaptive(backendFirst, backendSecond)).toBeLessThan(0);
 });
 
+test('adaptive sorting keeps a live cooldown behind a usable backend candidate', () => {
+  const now = Date.parse('2026-09-01T00:00:00Z');
+  const cooldown = {
+    ...file,
+    name: 'cooldown.json',
+    codex_adaptive: { candidate: true, rank: 1 },
+    chatgpt_subscription_active_until: '2026-09-03T00:00:00Z',
+  };
+  const usable = {
+    ...file,
+    name: 'usable.json',
+    codex_adaptive: { candidate: true, rank: 2 },
+    chatgpt_subscription_active_until: '2026-09-04T00:00:00Z',
+  };
+  const refreshed: CodexRefreshState = {
+    status: 'success',
+    planType: 'plus',
+    windows: [{ id: 'five-hour', label: '5h', usedPercent: 100, resetLabel: 'later' }],
+  };
+
+  expect(compareCodexAdaptive(cooldown, usable, now, refreshed)).toBeGreaterThan(0);
+});
+
+test('adaptive sorting uses live quota windows when calculating fallback urgency', () => {
+  const now = Date.parse('2026-09-01T00:00:00Z');
+  const refreshed: CodexRefreshState = {
+    status: 'success',
+    planType: 'plus',
+    windows: [{ id: 'weekly', label: 'Week', usedPercent: 95, resetLabel: 'later' }],
+  };
+  const liveNearlyEmpty = {
+    ...file,
+    name: 'live-nearly-empty.json',
+    chatgpt_subscription_active_until: '2026-09-03T00:00:00Z',
+  };
+  const liveFull = {
+    ...file,
+    name: 'live-full.json',
+    chatgpt_subscription_active_until: '2026-09-04T00:00:00Z',
+  };
+
+  expect(compareCodexAdaptive(liveNearlyEmpty, liveFull, now, refreshed)).toBeLessThan(0);
+});
+
 test('adaptive sorting reads reset-credit summaries nested in quota data', () => {
   const nested = {
     ...file,

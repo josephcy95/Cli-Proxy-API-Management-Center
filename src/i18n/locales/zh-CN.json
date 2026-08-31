@@ -399,6 +399,7 @@
     "allow_private_instructions_display": "破甲",
     "allow_private_instructions_badge": "JB",
     "disabled_reason_display": "禁用原因",
+    "codex_usage_limit_reset_in": "{{duration}} 后重置",
     "sort_availability": "可用优先",
     "codex_status_all_filter": "全部",
     "codex_status_available": "可用",
