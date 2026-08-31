@@ -55,6 +55,7 @@ const DEFAULT_FAILURE: CodexFailureConfig = {
 };
 
 const DEFAULT_ROUTING: CodexRoutingConfig = {
+  strategy: '',
   preferFreeForSharedModels: false,
 };
 
@@ -171,6 +172,7 @@ export function CodexInstructionsPage() {
 
   const routingDisabled = connectionStatus !== 'connected' || routingLoading || routingSaving;
   const routingDirty =
+    routingDraft.strategy !== routingSaved.strategy ||
     routingDraft.preferFreeForSharedModels !== routingSaved.preferFreeForSharedModels;
   const routingStatusClass = routingError
     ? styles.error
@@ -747,13 +749,44 @@ export function CodexInstructionsPage() {
             <div className={styles.settingCard}>
               <div className={styles.settingHeader}>
                 <div>
+                  <h2>{t('codex_config.routing.strategy_label')}</h2>
+                  <p className={styles.settingHint}>{t('codex_config.routing.strategy_hint')}</p>
+                </div>
+                <Select
+                  value={routingDraft.strategy}
+                  options={[
+                    {
+                      value: '',
+                      label: t('codex_config.routing.strategy_global'),
+                    },
+                    {
+                      value: 'adaptive',
+                      label: t('codex_config.routing.strategy_adaptive'),
+                    },
+                  ]}
+                  onChange={(strategy) =>
+                    setRoutingDraft((current) => ({
+                      ...current,
+                      strategy: strategy === 'adaptive' ? 'adaptive' : '',
+                    }))
+                  }
+                  disabled={routingDisabled}
+                  ariaLabel={t('codex_config.routing.strategy_label')}
+                />
+              </div>
+              <div className={styles.reasonNote}>{t('codex_config.routing.strategy_note')}</div>
+            </div>
+
+            <div className={styles.settingCard}>
+              <div className={styles.settingHeader}>
+                <div>
                   <h2>{t('codex_config.routing.prefer_free_label')}</h2>
                   <p className={styles.settingHint}>{t('codex_config.routing.prefer_free_hint')}</p>
                 </div>
                 <ToggleSwitch
                   checked={routingDraft.preferFreeForSharedModels}
                   onChange={(preferFreeForSharedModels) =>
-                    setRoutingDraft({ preferFreeForSharedModels })
+                    setRoutingDraft((current) => ({ ...current, preferFreeForSharedModels }))
                   }
                   disabled={routingDisabled}
                   ariaLabel={t('codex_config.routing.prefer_free_label')}

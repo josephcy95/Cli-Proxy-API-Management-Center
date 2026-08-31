@@ -1661,7 +1661,12 @@
       "status_loaded": "Routing loaded",
       "status_dirty": "Unsaved changes",
       "status_saving": "Saving routing...",
-      "status_load_failed": "Failed to load"
+      "status_load_failed": "Failed to load",
+      "strategy_label": "Strategy override",
+      "strategy_hint": "Choose whether Codex inherits the global routing strategy or uses the opt-in adaptive account router.",
+      "strategy_global": "Use global strategy",
+      "strategy_adaptive": "Adaptive",
+      "strategy_note": "Adaptive is Codex-only. Gemini, xAI, Claude, and other providers continue using the global strategy. It prefers higher priorities, limits concurrent requests per account, and lazily refreshes paid quota data."
     }
   },
   "codex_instructions": {

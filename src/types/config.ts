@@ -131,11 +131,15 @@ export interface RawCodexFailureConfig {
 }
 
 /** Codex account-tier routing policy (management /codex-routing-config). */
+export type CodexRoutingStrategy = '' | 'adaptive';
+
 export interface CodexRoutingConfig {
+  strategy: CodexRoutingStrategy;
   preferFreeForSharedModels: boolean;
 }
 
 export interface RawCodexRoutingConfig {
+  strategy?: string;
   'prefer-free-for-shared-models'?: boolean;
   preferFreeForSharedModels?: boolean;
 }

@@ -7,6 +7,7 @@ import type {
   CodexFailureConfig,
   CodexInstructionsConfig,
   CodexRoutingConfig,
+  CodexRoutingStrategy,
   Config,
   QoderConfig,
   RawCodexFailureConfig,
@@ -215,7 +216,10 @@ export function normalizeCodexFailureConfigResponse(
 export function normalizeCodexRoutingConfigResponse(
   raw: RawCodexRoutingConfig
 ): CodexRoutingConfig {
+  const strategy: CodexRoutingStrategy =
+    raw.strategy?.trim().toLowerCase() === 'adaptive' ? 'adaptive' : '';
   return {
+    strategy,
     preferFreeForSharedModels:
       typeof raw['prefer-free-for-shared-models'] === 'boolean'
         ? raw['prefer-free-for-shared-models']
@@ -225,6 +229,7 @@ export function normalizeCodexRoutingConfigResponse(
 
 function serializeCodexRoutingConfig(config: CodexRoutingConfig): RawCodexRoutingConfig {
   return {
+    strategy: config.strategy,
     'prefer-free-for-shared-models': config.preferFreeForSharedModels,
   };
 }
