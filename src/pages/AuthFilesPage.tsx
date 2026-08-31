@@ -51,6 +51,7 @@ import { useAuthFilesOauth } from '@/features/authFiles/hooks/useAuthFilesOauth'
 import { useAuthFilesPrefixProxyEditor } from '@/features/authFiles/hooks/useAuthFilesPrefixProxyEditor';
 import {
   CODEX_STATUS_FILTERS,
+  compareCodexAdaptive,
   compareCodexAvailability,
   getCodexAccountStatus,
   matchesCodexPlanFilter,
@@ -73,10 +74,7 @@ import {
 import {
   persistCodexQuotaSnapshot,
   codexQuotaPersistInputFromData,
-  resolveCodexResetCredits,
-  resolveCodexSubscriptionActiveUntil,
 } from '@/utils/quota';
-import { readCredentialWeight } from '@/utils/credentialWeight';
 import {
   isAuthFilesStatusFilterMode,
   getDefaultAuthFilesSortMode,
@@ -92,7 +90,6 @@ import {
 import { authFilesApi } from '@/services/api';
 import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
 import { resolveAuthFileDisplayName } from '@/utils/authFileDisplay';
-import { toEpochMs } from '@/utils/format';
 import styles from './AuthFilesPage.module.scss';
 
 const DEFAULT_REGULAR_PAGE_SIZE = 50;
@@ -581,11 +578,12 @@ export function AuthFilesPage() {
     );
     setCodexRefreshing(false);
     await loadFiles({ silent: true });
+    clearCodexRefreshState(codexFiles.map((file) => file.name));
     showNotification(
       t('auth_files.codex_refresh_result', { successful, failed, persistenceFailed }),
       failed > 0 || persistenceFailed > 0 ? 'warning' : 'success'
     );
-  }, [files, loadFiles, showNotification, t]);
+  }, [clearCodexRefreshState, files, loadFiles, showNotification, t]);
 
   useEffect(() => {
     const previousProvider = previousProviderRef.current;
@@ -773,51 +771,8 @@ export function AuthFilesPage() {
         )
       );
     } else if (sortMode === 'adaptive' && isCodexSelected) {
-      const score = (file: (typeof copy)[number]) => {
-        const refreshed = codexRefreshByName[file.name];
-        const weekly = refreshed?.windows.find((window) =>
-          /weekly|seven.?day|7.?day/i.test(`${window.id} ${window.label}`)
-        );
-        const used = weekly?.usedPercent ?? Number(file['X-Codex-Primary-Used-Percent'] ?? 0);
-        const remaining = Math.max(0, Math.min(100, 100 - (Number.isFinite(used) ? used : 0)));
-        const persistedReset = Number(
-          file['X-Codex-Primary-Reset-At'] ?? file['X-Codex-Secondary-Reset-At']
-        );
-        const weeklyResetAt =
-          weekly?.resetAt ??
-          (Number.isFinite(persistedReset) && persistedReset > 0 ? persistedReset * 1000 : null);
-        const resetCredits = resolveCodexResetCredits(file);
-        const resetCreditExpiry = resetCredits.credits.reduce<number | null>((earliest, credit) => {
-          const value = toEpochMs(credit.expiresAt);
-          return value != null && (earliest == null || value < earliest) ? value : earliest;
-        }, null);
-        const subscriptionExpiry = toEpochMs(resolveCodexSubscriptionActiveUntil(file));
-        const deadlines = [weeklyResetAt, resetCreditExpiry, subscriptionExpiry].filter(
-          (value): value is number => typeof value === 'number' && Number.isFinite(value)
-        );
-        const deadline = deadlines.length > 0 ? Math.min(...deadlines) : null;
-        const hours = deadline
-          ? Math.max((deadline - Date.now()) / 3_600_000, 1 / 24)
-          : 168;
-        let burnUrgency = remaining * (1 + Math.min(resetCredits.availableCount, 2)) / hours;
-        if (remaining === 0 && resetCredits.availableCount > 0) burnUrgency = 1 / hours;
-        const priority = parsePriorityValue(file.priority) ?? 0;
-        const weight = readCredentialWeight(file.weight) ?? 1;
-        const status = getCodexAccountStatus(file, refreshed);
-        return { priority, burnUrgency, weight, status: status.kind === 'working' ? 0 : 1 };
-      };
-      copy.sort((left, right) => {
-        const a = score(left);
-        const b = score(right);
-        return (
-          a.status - b.status ||
-          b.priority - a.priority ||
-          b.burnUrgency - a.burnUrgency ||
-          b.weight - a.weight ||
-          resolveAuthFileDisplayName(left).localeCompare(resolveAuthFileDisplayName(right)) ||
-          left.name.localeCompare(right.name)
-        );
-      });
+      const adaptiveNow = Date.now();
+      copy.sort((left, right) => compareCodexAdaptive(left, right, adaptiveNow));
     }
     return copy;
   }, [codexRefreshByName, filtered, isCodexSelected, sortMode]);

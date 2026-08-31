@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   compareCodexAvailability,
+  compareCodexAdaptive,
   getCodexAccountStatus,
   isPurposefullyDisabled,
   matchesCodexPlanFilter,
@@ -239,4 +240,193 @@ describe('Codex auth-file status', () => {
     expect(getCodexAccountStatus(parked, refreshed).kind).toBe('cooldown');
     expect(matchesCodexStatusFilter('available', parked, refreshed)).toBe(false);
   });
+});
+
+test('classifies persisted limit flags as cooldown', () => {
+  const flagged = {
+    ...file,
+    'X-Codex-Primary-Limit-Reached': 'true',
+    'X-Codex-Primary-Reset-After-Seconds': '3600',
+    codex_quota_observed_at: new Date().toISOString(),
+  };
+
+  expect(getCodexAccountStatus(flagged).kind).toBe('cooldown');
+});
+
+test('classifies both persisted quota windows by their durations', () => {
+  const permuted = {
+    ...file,
+    'X-Codex-Primary-Used-Percent': 70,
+    'X-Codex-Primary-Window-Minutes': 10080,
+    'X-Codex-Secondary-Used-Percent': 100,
+    'X-Codex-Secondary-Window-Minutes': 300,
+    'X-Codex-Secondary-Reset-After-Seconds': 3600,
+    codex_quota_observed_at: new Date().toISOString(),
+  };
+
+  expect(getCodexAccountStatus(permuted).kind).toBe('cooldown');
+});
+
+test('keeps persisted windows when a live response only contains a partial snapshot', () => {
+  const persisted = {
+    ...file,
+    'X-Codex-Primary-Used-Percent': 100,
+    'X-Codex-Primary-Window-Minutes': 300,
+    'X-Codex-Primary-Reset-After-Seconds': 3600,
+    codex_quota_observed_at: new Date().toISOString(),
+  };
+  const refreshed: CodexRefreshState = {
+    status: 'success',
+    planType: 'plus',
+    windows: [{ id: 'weekly', label: 'Week', usedPercent: 30, resetLabel: 'later' }],
+  };
+
+  expect(getCodexAccountStatus(persisted, refreshed).kind).toBe('cooldown');
+});
+
+test('adaptive sorting uses the persisted weekly window', () => {
+  const mostlyUsed = {
+    ...file,
+    name: 'mostly-used.json',
+    'X-Codex-Secondary-Used-Percent': 90,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+  };
+  const mostlyAvailable = {
+    ...file,
+    name: 'mostly-available.json',
+    'X-Codex-Secondary-Used-Percent': 10,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+  };
+
+  expect(compareCodexAdaptive(mostlyUsed, mostlyAvailable)).toBeGreaterThan(0);
+});
+
+test('adaptive sorting does not use the five-hour reset as the weekly ranking deadline', () => {
+  const now = Date.parse('2026-09-01T00:00:00Z');
+  const fiveHourOnly = {
+    ...file,
+    name: 'five-hour-only.json',
+    chatgpt_subscription_active_until: '2026-09-06T00:00:00Z',
+    'X-Codex-Primary-Used-Percent': 20,
+    'X-Codex-Primary-Window-Minutes': 300,
+    'X-Codex-Primary-Reset-After-Seconds': 3600,
+  };
+  const earlierExpiry = {
+    ...file,
+    name: 'earlier-expiry.json',
+    chatgpt_subscription_active_until: '2026-09-03T00:00:00Z',
+    'X-Codex-Secondary-Used-Percent': 20,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+  };
+
+  expect(compareCodexAdaptive(fiveHourOnly, earlierExpiry, now)).toBeGreaterThan(0);
+});
+
+test('adaptive sorting excludes active unavailable and quota-limited accounts', () => {
+  const now = Date.parse('2026-09-01T00:00:00Z');
+  const cooldown = {
+    ...file,
+    name: 'socialwisp.json',
+    chatgpt_subscription_active_until: '2026-09-03T10:00:00Z',
+    rate_limit_reset_credits_available_count: 1,
+    'quota': {
+      observed_at: '2026-09-01T00:00:00Z',
+      signals: {
+        'X-Codex-Primary-Used-Percent': '100',
+        'X-Codex-Primary-Window-Minutes': '300',
+        'X-Codex-Primary-Reset-After-Seconds': '7200',
+      },
+    },
+  };
+  const sounder = {
+    ...file,
+    name: 'sounder.json',
+    chatgpt_subscription_active_until: '2026-09-03T11:00:00Z',
+    'X-Codex-Secondary-Used-Percent': 20,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+  };
+  const lido = {
+    ...file,
+    name: 'lido.json',
+    chatgpt_subscription_active_until: '2026-09-03T23:00:00Z',
+    'X-Codex-Secondary-Used-Percent': 20,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+  };
+
+  expect(compareCodexAdaptive(cooldown, sounder, now)).toBeGreaterThan(0);
+  expect(compareCodexAdaptive(sounder, lido, now)).toBeLessThan(0);
+});
+
+test('adaptive sorting reads persisted quota signals from the management observation payload', () => {
+  const now = Date.parse('2026-09-01T00:00:00Z');
+  const nested = {
+    ...file,
+    name: 'nested.json',
+    quota: {
+      observed_at: '2026-09-01T00:00:00Z',
+      signals: {
+        'X-Codex-Primary-Used-Percent': '100',
+        'X-Codex-Primary-Window-Minutes': '300',
+        'X-Codex-Primary-Reset-After-Seconds': '7200',
+      },
+    },
+  };
+
+  expect(getCodexAccountStatus(nested, undefined, now).kind).toBe('cooldown');
+});
+
+test('adaptive sorting prefers the earliest usable expiry over a later account with more quota', () => {
+  const now = Date.parse('2026-09-01T00:00:00Z');
+  const urgent = {
+    ...file,
+    name: 'sounder.json',
+    chatgpt_subscription_active_until: '2026-09-03T11:00:00Z',
+    'X-Codex-Secondary-Used-Percent': 20,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+  };
+  const laterWithReset = {
+    ...file,
+    name: 'five-days-reset.json',
+    chatgpt_subscription_active_until: '2026-09-06T00:00:00Z',
+    rate_limit_reset_credits_available_count: 1,
+    rate_limit_reset_credits: [
+      { status: 'available', expires_at: '2026-09-06T00:00:00Z' },
+    ],
+    'X-Codex-Secondary-Used-Percent': 0,
+    'X-Codex-Secondary-Window-Minutes': 10080,
+  };
+
+  expect(compareCodexAdaptive(urgent, laterWithReset, now)).toBeLessThan(0);
+});
+
+test('adaptive sorting prefers backend candidate rank when it is available', () => {
+  const backendFirst = {
+    ...file,
+    name: 'backend-first.json',
+    chatgpt_subscription_active_until: '2099-01-01T00:00:00Z',
+    codex_adaptive: { candidate: true, rank: 1, deadline: '2099-01-01T00:00:00Z' },
+  };
+  const backendSecond = {
+    ...file,
+    name: 'backend-second.json',
+    chatgpt_subscription_active_until: '2026-09-01T01:00:00Z',
+    codex_adaptive: { candidate: true, rank: 2, deadline: '2026-09-01T01:00:00Z' },
+  };
+
+  expect(compareCodexAdaptive(backendFirst, backendSecond)).toBeLessThan(0);
+});
+
+test('adaptive sorting reads reset-credit summaries nested in quota data', () => {
+  const nested = {
+    ...file,
+    quota: {
+      observed_at: '2026-08-31T00:00:00Z',
+      rate_limit_reset_credits: {
+        available_count: 1,
+        applicable_available_count: 1,
+      },
+    },
+  };
+
+  expect(compareCodexAdaptive(nested, file)).toBeLessThanOrEqual(0);
 });

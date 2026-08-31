@@ -1,6 +1,13 @@
 import { parsePriorityValue } from '@/features/authFiles/constants';
-import type { AuthFileItem, CodexQuotaWindow } from '@/types';
-import { normalizePlanType, resolveCodexPlanType } from '@/utils/quota';
+import type { AuthFileItem, CodexAdaptiveCandidateInfo, CodexQuotaWindow } from '@/types';
+import {
+  normalizeNumberValue,
+  normalizePlanType,
+  resolveCodexPlanType,
+  resolveCodexResetCredits,
+  resolveCodexSubscriptionActiveUntil,
+} from '@/utils/quota';
+import { toEpochMs } from '@/utils/format';
 
 export const CODEX_PLAN_FILTERS = ['all', 'free', 'paid'] as const;
 
@@ -83,10 +90,124 @@ export const compareCodexAvailability = (
   return rightPriority - leftPriority || left.name.localeCompare(right.name);
 };
 
-const isWindowFull = (window: CodexQuotaWindow, kind: string): boolean =>
+const readFileValue = (file: AuthFileItem, key: string): unknown => {
+  const metadata = file.metadata && typeof file.metadata === 'object' ? file.metadata : null;
+  const quota = file.quota && typeof file.quota === 'object' ? file.quota : null;
+  const signals =
+    quota && typeof (quota as Record<string, unknown>).signals === 'object'
+      ? ((quota as Record<string, unknown>).signals as Record<string, unknown>)
+      : null;
+  return (
+    file[key] ??
+    (metadata as Record<string, unknown> | null)?.[key] ??
+    (quota as Record<string, unknown> | null)?.[key] ??
+    signals?.[key]
+  );
+};
+
+const readFileNumber = (file: AuthFileItem, key: string): number | null =>
+  normalizeNumberValue(readFileValue(file, key));
+
+const readPersistedObservedAt = (file: AuthFileItem): number | null => {
+  const direct = readFileValue(file, 'codex_quota_observed_at') ?? readFileValue(file, 'codexQuotaObservedAt');
+  if (direct != null) return toEpochMs(direct);
+  const quota = file.quota && typeof file.quota === 'object' ? file.quota : null;
+  return toEpochMs((quota as Record<string, unknown> | null)?.observed_at);
+};
+
+const persistedWindow = (
+  file: AuthFileItem,
+  prefix: 'Primary' | 'Secondary',
+  fallbackId: 'five-hour' | 'weekly',
+  now = Date.now()
+): CodexQuotaWindow | null => {
+  const usedPercent = readFileNumber(file, `X-Codex-${prefix}-Used-Percent`);
+  if (usedPercent === null) return null;
+  const windowMinutes = readFileNumber(file, `X-Codex-${prefix}-Window-Minutes`);
+  const resolvedId =
+    windowMinutes !== null && windowMinutes > 0
+      ? windowMinutes >= 10080
+        ? 'weekly'
+        : 'five-hour'
+      : fallbackId;
+  const resetAtValue = readFileNumber(file, `X-Codex-${prefix}-Reset-At`);
+  const resetAfterSeconds = readFileNumber(file, `X-Codex-${prefix}-Reset-After-Seconds`);
+  const observedAt = readPersistedObservedAt(file);
+  const candidateResetAt =
+    resetAtValue !== null && resetAtValue > 0
+      ? resetAtValue < 1e11
+        ? resetAtValue * 1000
+        : resetAtValue
+      : resetAfterSeconds !== null && resetAfterSeconds > 0 && observedAt !== null
+        ? observedAt + resetAfterSeconds * 1000
+        : null;
+  const resetAt =
+    candidateResetAt !== null &&
+    candidateResetAt > now - 14 * 24 * 60 * 60 * 1000 &&
+    candidateResetAt < now + 14 * 24 * 60 * 60 * 1000
+      ? candidateResetAt
+      : null;
+  return {
+    id: resolvedId,
+    label: resolvedId === 'weekly' ? 'Weekly' : 'Five hours',
+    usedPercent: Math.max(0, Math.min(100, usedPercent)),
+    resetLabel: '-',
+    resetAt,
+  };
+};
+
+export const persistedCodexQuotaWindows = (
+  file: AuthFileItem,
+  now = Date.now()
+): CodexQuotaWindow[] =>
+  [
+    persistedWindow(file, 'Primary', 'five-hour', now),
+    persistedWindow(file, 'Secondary', 'weekly', now),
+  ].filter((window): window is CodexQuotaWindow => window !== null);
+
+export const mergeCodexQuotaWindows = (
+  persisted: CodexQuotaWindow[],
+  live: CodexQuotaWindow[]
+): CodexQuotaWindow[] => {
+  const merged = new Map<string, CodexQuotaWindow>();
+  persisted.forEach((window) => merged.set(window.id, window));
+  live.forEach((window) => merged.set(window.id, window));
+  return Array.from(merged.values());
+};
+
+const isWindowFull = (window: CodexQuotaWindow, kind: string, now = Date.now()): boolean =>
   window.usedPercent !== null &&
   window.usedPercent >= 100 &&
+  (window.resetAt == null || window.resetAt > now) &&
   (window.id === kind || window.id.includes(kind));
+
+const persistedWindowLimited = (
+  file: AuthFileItem,
+  prefix: 'Primary' | 'Secondary',
+  kind: 'five-hour' | 'weekly',
+  now: number
+): boolean => {
+  const window = persistedWindow(file, prefix, kind, now);
+  const resetAt = window?.resetAt ?? null;
+  const resetIsActive = resetAt == null || resetAt > now;
+  const used = readFileNumber(file, `X-Codex-${prefix}-Used-Percent`);
+  const limitReached = String(readFileValue(file, `X-Codex-${prefix}-Limit-Reached`) ?? '')
+    .trim()
+    .toLowerCase();
+  const allowed = String(readFileValue(file, `X-Codex-${prefix}-Allowed`) ?? '')
+    .trim()
+    .toLowerCase();
+  return (
+    resetIsActive &&
+    ((used !== null && used >= 100) ||
+      limitReached === 'true' ||
+      limitReached === '1' ||
+      limitReached === 'yes' ||
+      allowed === 'false' ||
+      allowed === '0' ||
+      allowed === 'no')
+  );
+};
 
 const collectStatusText = (file: AuthFileItem, refreshed?: CodexRefreshState): string =>
   [
@@ -121,12 +242,21 @@ export const isPurposefullyDisabled = (file: AuthFileItem): boolean =>
  */
 export const getCodexAccountStatus = (
   file: AuthFileItem,
-  refreshed?: CodexRefreshState
+  refreshed?: CodexRefreshState,
+  now = Date.now()
 ): CodexAccountStatus => {
-  const windows = refreshed?.windows ?? [];
-  const fiveHourLimited = windows.some((window) => isWindowFull(window, 'five-hour'));
-  const weeklyLimited = windows.some((window) => isWindowFull(window, 'weekly'));
-  const monthlyLimited = windows.some((window) => isWindowFull(window, 'monthly'));
+  const persistedWindows = persistedCodexQuotaWindows(file, now);
+  const liveWindows = refreshed?.windows ?? [];
+  const windows = mergeCodexQuotaWindows(persistedWindows, liveWindows);
+  const fiveHourLimited =
+    windows.some((window) => isWindowFull(window, 'five-hour', now)) ||
+    (!liveWindows.some((window) => window.id === 'five-hour') &&
+      persistedWindowLimited(file, 'Primary', 'five-hour', now));
+  const weeklyLimited =
+    windows.some((window) => isWindowFull(window, 'weekly', now)) ||
+    (!liveWindows.some((window) => window.id === 'weekly') &&
+      persistedWindowLimited(file, 'Secondary', 'weekly', now));
+  const monthlyLimited = windows.some((window) => isWindowFull(window, 'monthly', now));
   const quotaLimited = fiveHourLimited || weeklyLimited || monthlyLimited;
   const purposefullyDisabled = isPurposefullyDisabled(file);
 
@@ -193,6 +323,117 @@ export const getCodexAccountStatus = (
     monthlyLimited,
   };
 };
+
+export type CodexAdaptiveSortScore = {
+  candidate: boolean;
+  status: number;
+  deadline: number | null;
+  urgency: number;
+  priority: number;
+};
+
+const isCodexAdaptiveCandidate = (file: AuthFileItem, now: number): boolean => {
+  const status = getCodexAccountStatus(file, undefined, now);
+  const nextRetryAt = toEpochMs(file.next_retry_after ?? file.nextRetryAfter);
+  return (
+    status.kind === 'working' &&
+    file.disabled !== true &&
+    file.unavailable !== true &&
+    (nextRetryAt == null || nextRetryAt <= now)
+  );
+};
+
+const codexAdaptiveScore = (file: AuthFileItem, now: number): CodexAdaptiveSortScore => {
+  const windows = persistedCodexQuotaWindows(file, now);
+  const weekly = windows.find((window) => window.id === 'weekly');
+  // Adaptive backend scoring is based on the weekly window. A five-hour-only
+  // snapshot must not invent a different deadline or urgency in the UI.
+  const used = weekly?.usedPercent ?? 0;
+  const remaining = Math.max(0, Math.min(100, 100 - used));
+  const resetCredits = resolveCodexResetCredits(file);
+  const resetCreditExpiry = resetCredits.credits.reduce<number | null>((earliest, credit) => {
+    const value = toEpochMs(credit.expiresAt);
+    return value != null && value > now && (earliest == null || value < earliest)
+      ? value
+      : earliest;
+  }, null);
+  const subscriptionExpiry = toEpochMs(resolveCodexSubscriptionActiveUntil(file));
+  const weeklyResetAt = weekly?.resetAt ?? null;
+  const deadlines = [weeklyResetAt, resetCreditExpiry, subscriptionExpiry].filter(
+    (value): value is number => value != null && Number.isFinite(value) && value > now
+  );
+  const deadline = deadlines.length > 0 ? Math.min(...deadlines) : null;
+  const hours = deadline ? Math.max((deadline - now) / 3_600_000, 1 / 24) : 168;
+  const usableRemaining = remaining === 0 && resetCredits.availableCount > 0 ? 1 : remaining;
+  const candidate = isCodexAdaptiveCandidate(file, now);
+  return {
+    candidate,
+    status: getCodexAccountStatus(file, undefined, now).kind === 'working' ? 0 : 1,
+    deadline,
+    urgency: (usableRemaining * (1 + Math.min(resetCredits.availableCount, 2))) / hours,
+    priority: parsePriorityValue(file.priority) ?? 0,
+  };
+};
+
+const readAdaptiveInfo = (file: AuthFileItem): CodexAdaptiveCandidateInfo | null => {
+  const value = file.codex_adaptive;
+  return value && typeof value === 'object' ? value : null;
+};
+
+const compareAuthoritativeAdaptive = (
+  left: AuthFileItem,
+  right: AuthFileItem
+): number | null => {
+  const a = readAdaptiveInfo(left);
+  const b = readAdaptiveInfo(right);
+  if (!a || !b || typeof a.candidate !== 'boolean' || typeof b.candidate !== 'boolean') {
+    return null;
+  }
+  if (a.candidate !== b.candidate) return a.candidate ? -1 : 1;
+  if (a.candidate && b.candidate && Number.isFinite(a.rank) && Number.isFinite(b.rank)) {
+    if (a.rank !== b.rank) return (a.rank as number) - (b.rank as number);
+  }
+  const leftDeadline = toEpochMs(a.deadline) ?? null;
+  const rightDeadline = toEpochMs(b.deadline) ?? null;
+  if (leftDeadline !== rightDeadline) {
+    if (leftDeadline == null) return 1;
+    if (rightDeadline == null) return -1;
+    return leftDeadline - rightDeadline;
+  }
+  const leftUrgency = normalizeNumberValue(a.quota_urgency) ?? 0;
+  const rightUrgency = normalizeNumberValue(b.quota_urgency) ?? 0;
+  if (Math.abs(leftUrgency - rightUrgency) > 0.000001) return rightUrgency - leftUrgency;
+  const leftPriority = normalizeNumberValue(a.priority) ?? 0;
+  const rightPriority = normalizeNumberValue(b.priority) ?? 0;
+  if (leftPriority !== rightPriority) return rightPriority - leftPriority;
+  const leftLoad = normalizeNumberValue(a.in_flight) ?? 0;
+  const rightLoad = normalizeNumberValue(b.in_flight) ?? 0;
+  return leftLoad - rightLoad;
+};
+
+export const compareCodexAdaptive = (
+  left: AuthFileItem,
+  right: AuthFileItem,
+  now = Date.now()
+): number => {
+  const authoritative = compareAuthoritativeAdaptive(left, right);
+  if (authoritative !== null && authoritative !== 0) return authoritative;
+  if (authoritative === 0) return fileSortKey(left).localeCompare(fileSortKey(right));
+
+  const a = codexAdaptiveScore(left, now);
+  const b = codexAdaptiveScore(right, now);
+  if (a.candidate !== b.candidate) return a.candidate ? -1 : 1;
+  if (!a.candidate && a.status !== b.status) return a.status - b.status;
+  if (a.deadline !== b.deadline) {
+    if (a.deadline == null) return 1;
+    if (b.deadline == null) return -1;
+    return a.deadline - b.deadline;
+  }
+  if (Math.abs(a.urgency - b.urgency) > 0.000001) return b.urgency - a.urgency;
+  return b.priority - a.priority || fileSortKey(left).localeCompare(fileSortKey(right));
+};
+
+const fileSortKey = (file: AuthFileItem): string => `${file.name}\u0000${file.id ?? ''}`;
 
 export const matchesCodexPlanFilter = (
   file: AuthFileItem,

@@ -1,5 +1,5 @@
 import { authFilesApi, type AuthFileFieldsPatch } from '@/services/api';
-import type { CodexRateLimitResetCredit } from '@/types';
+import type { CodexQuotaWindow, CodexRateLimitResetCredit } from '@/types';
 
 export type CodexQuotaPersistInput = {
   planType?: string | null;
@@ -7,6 +7,7 @@ export type CodexQuotaPersistInput = {
   rateLimitResetCreditsAvailableCount?: number | null;
   rateLimitResetCreditsApplicableAvailableCount?: number | null;
   rateLimitResetCredits?: CodexRateLimitResetCredit[] | null;
+  windows?: CodexQuotaWindow[] | null;
   /** True when the reset-credits details endpoint was read successfully. */
   resetCreditsFetched?: boolean;
 };
@@ -52,6 +53,14 @@ export const codexQuotaPersistInputFromData = (data: unknown): CodexQuotaPersist
     Number.isFinite(record.rateLimitResetCreditsApplicableAvailableCount)
       ? record.rateLimitResetCreditsApplicableAvailableCount
       : null;
+  const windows = Array.isArray(record.windows)
+    ? record.windows.filter(
+        (window): window is CodexQuotaWindow =>
+          Boolean(window) &&
+          typeof window === 'object' &&
+          typeof (window as Record<string, unknown>).id === 'string'
+      )
+    : null;
   return {
     planType: typeof record.planType === 'string' ? record.planType : null,
     subscriptionActiveUntil:
@@ -62,6 +71,7 @@ export const codexQuotaPersistInputFromData = (data: unknown): CodexQuotaPersist
     rateLimitResetCreditsAvailableCount: availableCount,
     rateLimitResetCreditsApplicableAvailableCount: applicableCount,
     rateLimitResetCredits: credits,
+    windows,
     resetCreditsFetched:
       typeof record.rateLimitResetCreditsError === 'string'
         ? record.rateLimitResetCreditsError.trim() === ''
@@ -92,7 +102,34 @@ export const buildCodexQuotaFieldsPatch = (
     patch.chatgpt_subscription_active_until = input.subscriptionActiveUntil;
   }
 
-  const fetchedCredits = input.resetCreditsFetched ? (input.rateLimitResetCredits ?? []) : null;
+  const checkedAtMs = Date.parse(checkedAt);
+  input.windows?.forEach((window) => {
+    const prefix =
+      window.id === 'five-hour' ? 'Primary' : window.id === 'weekly' ? 'Secondary' : null;
+    if (!prefix || window.usedPercent == null) return;
+    patch[`X-Codex-${prefix}-Used-Percent`] = window.usedPercent;
+    patch[`X-Codex-${prefix}-Window-Minutes`] = window.id === 'weekly' ? 10080 : 300;
+    if (window.resetAt != null && Number.isFinite(window.resetAt)) {
+      patch[`X-Codex-${prefix}-Reset-At`] = Math.floor(window.resetAt / 1000);
+      if (Number.isFinite(checkedAtMs)) {
+        patch[`X-Codex-${prefix}-Reset-After-Seconds`] = Math.max(
+          0,
+          Math.ceil((window.resetAt - checkedAtMs) / 1000)
+        );
+      }
+    } else {
+      patch[`X-Codex-${prefix}-Reset-At`] = null;
+      patch[`X-Codex-${prefix}-Reset-After-Seconds`] = null;
+    }
+  });
+  if (input.windows && input.windows.length > 0) {
+    patch.codex_quota_observed_at = checkedAt;
+  }
+
+  // The usage endpoint is allowed to return only a summary. Keep updating the
+  // counts, but only replace the durable credit list after the details endpoint
+  // completed successfully.
+  const fetchedCredits = input.resetCreditsFetched === true ? (input.rateLimitResetCredits ?? []) : null;
   let availableCount = input.rateLimitResetCreditsAvailableCount ?? null;
   if (availableCount == null && fetchedCredits) {
     availableCount = fetchedCredits.length;
@@ -109,10 +146,6 @@ export const buildCodexQuotaFieldsPatch = (
   }
   if (fetchedCredits) {
     patch.rate_limit_reset_credits = fetchedCredits.map(serializeResetCredit);
-    patch.rate_limit_reset_credits_checked_at ??= checkedAt;
-  } else if (availableCount === 0) {
-    // Usage confirmed none remain even if the details request was skipped/failed.
-    patch.rate_limit_reset_credits = [];
     patch.rate_limit_reset_credits_checked_at ??= checkedAt;
   }
 

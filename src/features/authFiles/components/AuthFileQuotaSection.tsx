@@ -21,7 +21,7 @@ import {
   useQuotaStore,
 } from '@/stores';
 import { authFilesApi } from '@/services/api';
-import type { AuthFileItem, CodexQuotaState, CodexQuotaWindow } from '@/types';
+import type { AuthFileItem, CodexQuotaState } from '@/types';
 import {
   getStatusFromError,
   persistCodexQuotaSnapshot,
@@ -41,6 +41,10 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { QuotaProgressBar } from '@/features/authFiles/components/QuotaProgressBar';
 import styles from '@/pages/AuthFilesPage.module.scss';
 import { getAuthFileAuthIndex } from '@/features/authFiles/cooldown';
+import {
+  mergeCodexQuotaWindows,
+  persistedCodexQuotaWindows,
+} from '@/features/authFiles/codexStatus';
 
 export type AuthFileQuotaRefreshBinding = {
   refresh: () => void;
@@ -54,7 +58,9 @@ const assertNever = (value: never): never => {
   throw new Error(`Unsupported quota type: ${value}`);
 };
 
-const earliestResetCreditExpiry = (credits: { expiresAt?: string }[] | undefined): string | null => {
+const earliestResetCreditExpiry = (
+  credits: { expiresAt?: string }[] | undefined
+): string | null => {
   if (!credits || credits.length === 0) return null;
   let earliestMs = Infinity;
   let earliest: string | null = null;
@@ -72,25 +78,16 @@ const earliestResetCreditExpiry = (credits: { expiresAt?: string }[] | undefined
 };
 
 const persistedCodexQuotaState = (file: AuthFileItem, t: TFunction): CodexQuotaState | null => {
-  const read = (key: string) => Number(file[key]);
-  const windows: CodexQuotaWindow[] = [];
-  for (const [prefix, id, labelKey] of [
-    ['X-Codex-Primary-', 'five-hour', 'codex_quota.primary_window'],
-    ['X-Codex-Secondary-', 'weekly', 'codex_quota.secondary_window'],
-  ] as const) {
-    const usedPercent = read(`${prefix}Used-Percent`);
-    if (!Number.isFinite(usedPercent)) continue;
-    const resetAtValue = read(`${prefix}Reset-At`);
-    const resetAt = Number.isFinite(resetAtValue) && resetAtValue > 0 ? resetAtValue * 1000 : null;
-    windows.push({
-      id,
+  const windows = persistedCodexQuotaWindows(file).map((window) => {
+    const labelKey =
+      window.id === 'weekly' ? 'codex_quota.secondary_window' : 'codex_quota.primary_window';
+    return {
+      ...window,
       label: t(labelKey),
       labelKey,
-      usedPercent: Math.max(0, Math.min(100, usedPercent)),
-      resetLabel: resetAt ? formatRelativeTimeLabel(t, resetAt) : '-',
-      resetAt,
-    });
-  }
+      resetLabel: window.resetAt ? formatRelativeTimeLabel(t, window.resetAt) : '-',
+    };
+  });
   return windows.length > 0 ? { status: 'success', windows } : null;
 };
 
@@ -131,7 +128,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
   const showConfirmation = useNotificationStore((state) => state.showConfirmation);
   const [resettingQuota, setResettingQuota] = useState(false);
 
-  const quota = useQuotaStore((state) => {
+  const liveQuota = useQuotaStore((state) => {
     if (quotaType === 'antigravity') return state.antigravityQuota[file.name] as QuotaState;
     if (quotaType === 'claude') return state.claudeQuota[file.name] as QuotaState;
     if (quotaType === 'codex') return state.codexQuota[file.name] as QuotaState;
@@ -155,20 +152,25 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     return assertNever(quotaType);
   });
 
-  useEffect(() => {
-    if (quotaType !== 'codex' || quota) return;
-    const persisted = persistedCodexQuotaState(file, t);
-    if (!persisted) return;
-    updateQuotaState((prev: Record<string, unknown>) =>
-      prev[file.name] ? prev : { ...prev, [file.name]: persisted }
-    );
-  }, [file, quota, quotaType, t, updateQuotaState]);
+  const persistedQuota = quotaType === 'codex' ? persistedCodexQuotaState(file, t) : null;
+  const codexLiveQuota = liveQuota as (CodexQuotaState & QuotaState) | undefined;
+  const quota =
+    quotaType !== 'codex'
+      ? liveQuota
+      : codexLiveQuota?.status === 'loading'
+        ? codexLiveQuota
+        : codexLiveQuota?.status === 'success'
+          ? {
+              ...codexLiveQuota,
+              windows: mergeCodexQuotaWindows(persistedQuota?.windows ?? [], codexLiveQuota.windows),
+            }
+          : persistedQuota ?? codexLiveQuota;
 
   const refreshQuotaForFile = useCallback(async () => {
     if (disableControls) return;
     if (isRuntimeOnlyAuthFile(file)) return;
     if (file.disabled) return;
-    if (quota?.status === 'loading') return;
+    if (liveQuota?.status === 'loading') return;
 
     const config = getQuotaConfig(quotaType) as unknown as {
       i18nPrefix: string;
@@ -247,7 +249,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     file,
     onAuthFileUpdated,
     onCodexRefreshStateReset,
-    quota?.status,
+    liveQuota?.status,
     quotaType,
     showNotification,
     t,
@@ -258,7 +260,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (disableControls) return;
     if (isRuntimeOnlyAuthFile(file)) return;
     if (file.disabled) return;
-    if (quota?.status === 'loading') return;
+    if (liveQuota?.status === 'loading') return;
     if (resettingQuota) return;
 
     const config = getQuotaConfig(quotaType) as unknown as {
@@ -309,7 +311,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     file,
     onAuthFileUpdated,
     onCodexRefreshStateReset,
-    quota?.status,
+    liveQuota?.status,
     quotaType,
     resettingQuota,
     showConfirmation,
@@ -335,7 +337,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
   );
 
   // Renewal and reset-credit availability are stored on the auth file, so they
-  // survive a hard refresh. Live quota results always replace the snapshot.
+  // survive a hard refresh. Live quota results are merged with that snapshot.
   const subscriptionActiveUntil =
     quotaType === 'codex' ? resolveCodexSubscriptionActiveUntil(file) : null;
   const renewalDisplay = subscriptionActiveUntil
@@ -343,18 +345,10 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     : '';
   const renewalTitle = subscriptionActiveUntil ? formatDateTimeValue(subscriptionActiveUntil) : '';
   const fileResetCredits = quotaType === 'codex' ? resolveCodexResetCredits(file) : null;
-  const liveResetCredits =
-    quotaType === 'codex' && quota?.status === 'success'
-      ? {
-          availableCount:
-            (quota as { rateLimitResetCreditsAvailableCount?: number | null })
-              .rateLimitResetCreditsAvailableCount ?? 0,
-          credits:
-            (quota as { rateLimitResetCredits?: { expiresAt?: string }[] }).rateLimitResetCredits ??
-            [],
-        }
-      : null;
-  const resetCredits = liveResetCredits ?? fileResetCredits;
+  // Reset-credit metadata comes from the persisted auth-file snapshot. The
+  // in-memory quota response may be partial/failed and must not hide a known
+  // credit until the next auth-files reload.
+  const resetCredits = fileResetCredits;
   const resetCreditsCount = resetCredits?.availableCount ?? 0;
   const showResetCredits = quotaType === 'codex' && resetCreditsCount > 0;
   const resetCreditExpiry = earliestResetCreditExpiry(resetCredits?.credits);

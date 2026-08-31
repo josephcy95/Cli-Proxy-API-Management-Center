@@ -42,14 +42,14 @@ describe('Codex quota snapshot persistence', () => {
     expect(patch.rate_limit_reset_credits).toBeUndefined();
   });
 
-  test('clears stored credits when usage reports zero remaining even without details', () => {
+  test('does not clear stored credit details when only the usage summary reports zero', () => {
     const patch = buildCodexQuotaFieldsPatch({
       rateLimitResetCreditsAvailableCount: 0,
       resetCreditsFetched: false,
     });
 
     expect(patch.rate_limit_reset_credits_available_count).toBe(0);
-    expect(patch.rate_limit_reset_credits).toEqual([]);
+    expect(patch.rate_limit_reset_credits).toBeUndefined();
   });
 
   test('serializes credit expiry timestamps for the auth file', () => {
@@ -95,6 +95,19 @@ describe('Codex quota snapshot persistence', () => {
     expect(snapshot.availableCount).toBe(2);
     expect(snapshot.checkedAt).toBe('2026-08-29T12:00:00Z');
     expect(snapshot.credits[0]?.expiresAt).toBe('2026-09-01T04:00:00Z');
+  });
+
+  test('shows applicable reset credits when the general count is stale', () => {
+    const snapshot = resolveCodexResetCredits({
+      name: 'codex.json',
+      type: 'codex',
+      rate_limit_reset_credits_available_count: 0,
+      rate_limit_reset_credits_applicable_available_count: 1,
+      rate_limit_reset_credits_checked_at: '2026-08-29T12:00:00Z',
+    });
+
+    expect(snapshot.availableCount).toBe(1);
+    expect(snapshot.applicableAvailableCount).toBe(1);
   });
 
   test('recovers available reset credits when the stored count is stale', () => {
@@ -144,5 +157,25 @@ describe('Codex quota snapshot persistence', () => {
     const patch = buildCodexQuotaFieldsPatch(input);
     expect(patch.rate_limit_reset_credits_available_count).toBe(1);
     expect(patch.rate_limit_reset_credits).toBeUndefined();
+  });
+});
+
+describe('Codex quota snapshot source merging', () => {
+  test('does not let an empty top-level reset list hide a nested available credit', () => {
+    const snapshot = resolveCodexResetCredits({
+      name: 'codex.json',
+      type: 'codex',
+      rate_limit_reset_credits_available_count: 0,
+      rate_limit_reset_credits: [],
+      metadata: {
+        rate_limit_reset_credits_available_count: 1,
+        rate_limit_reset_credits: {
+          credits: [{ status: 'available', expires_at: '2026-09-02T04:00:00Z' }],
+        },
+      },
+    });
+
+    expect(snapshot.availableCount).toBe(1);
+    expect(snapshot.credits).toHaveLength(1);
   });
 });

@@ -34,6 +34,15 @@ export type AuthFileFieldsPatch = {
   rate_limit_reset_credits?: Array<Record<string, string>>;
   rate_limit_reset_credits_checked_at?: string;
   expired?: string;
+  codex_quota_observed_at?: string;
+  'X-Codex-Primary-Used-Percent'?: number;
+  'X-Codex-Primary-Window-Minutes'?: number;
+  'X-Codex-Primary-Reset-At'?: number | null;
+  'X-Codex-Primary-Reset-After-Seconds'?: number | null;
+  'X-Codex-Secondary-Used-Percent'?: number;
+  'X-Codex-Secondary-Window-Minutes'?: number;
+  'X-Codex-Secondary-Reset-At'?: number | null;
+  'X-Codex-Secondary-Reset-After-Seconds'?: number | null;
 };
 type AuthFileBatchFailure = { name: string; error: string };
 type AuthFileBatchUploadResponse = {
@@ -375,10 +384,9 @@ export const authFilesApi = {
 
   /** Clear CPA-local quota/cooldown routing for one auth index. */
   resetQuota: (authIndex: string) =>
-    apiClient.post<{ status?: string; auth_index?: string; models?: string[] }>(
-      '/reset-quota',
-      { auth_index: authIndex }
-    ),
+    apiClient.post<{ status?: string; auth_index?: string; models?: string[] }>('/reset-quota', {
+      auth_index: authIndex,
+    }),
 
   beginCodexQuotaRecovery: () =>
     apiClient.post<{ observed_at?: string }>('/codex-quota-recovery/begin', {}),

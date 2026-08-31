@@ -147,6 +147,9 @@ export function resolveCodexSubscriptionActiveUntil(file: AuthFileItem): string 
     file.chatgptSubscriptionActiveUntil,
     file.subscription_active_until,
     file.subscriptionActiveUntil,
+    file.expired,
+    file.expires_at,
+    file.expires,
     subscription?.active_until,
     subscription?.activeUntil,
     idToken?.chatgpt_subscription_active_until,
@@ -155,6 +158,9 @@ export function resolveCodexSubscriptionActiveUntil(file: AuthFileItem): string 
     metadata?.chatgptSubscriptionActiveUntil,
     metadata?.subscription_active_until,
     metadata?.subscriptionActiveUntil,
+    metadata?.expired,
+    metadata?.expires_at,
+    metadata?.expires,
     metadataSubscription?.active_until,
     metadataSubscription?.activeUntil,
     metadataIdToken?.chatgpt_subscription_active_until,
@@ -198,49 +204,84 @@ const normalizeResetCredit = (value: unknown): CodexRateLimitResetCredit | null 
 };
 
 const readResetCreditsList = (value: unknown): CodexRateLimitResetCredit[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => normalizeResetCredit(item))
-    .filter((item): item is CodexRateLimitResetCredit => Boolean(item));
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeResetCredit(item))
+      .filter((item): item is CodexRateLimitResetCredit => Boolean(item));
+  }
+  const record = toRecord(value);
+  if (!record) return [];
+  for (const key of ['credits', 'items', 'data']) {
+    const nested = readResetCreditsList(record[key]);
+    if (nested.length > 0) return nested;
+  }
+  return [];
 };
 
 export function resolveCodexResetCredits(file: AuthFileItem): CodexResetCreditsFileSnapshot {
   const metadata = toRecord(file.metadata);
   const attributes = toRecord(file.attributes);
-
-  const storedAvailableCount =
-    normalizeNumberValue(
-      file.rate_limit_reset_credits_available_count ??
-        file.rateLimitResetCreditsAvailableCount ??
-        metadata?.rate_limit_reset_credits_available_count ??
-        metadata?.rateLimitResetCreditsAvailableCount ??
-        attributes?.rate_limit_reset_credits_available_count ??
-        attributes?.rateLimitResetCreditsAvailableCount
-    ) ?? 0;
-  const applicableAvailableCount = normalizeNumberValue(
-    file.rate_limit_reset_credits_applicable_available_count ??
-      file.rateLimitResetCreditsApplicableAvailableCount ??
-      metadata?.rate_limit_reset_credits_applicable_available_count ??
-      metadata?.rateLimitResetCreditsApplicableAvailableCount
+  const quota = toRecord(file.quota);
+  const quotaSignals = toRecord(quota?.signals);
+  const sources = [file, metadata, quota, quotaSignals, attributes].filter(
+    (source): source is Record<string, unknown> => source != null
   );
-  const credits = readResetCreditsList(
-    file.rate_limit_reset_credits ??
-      file.rateLimitResetCredits ??
-      metadata?.rate_limit_reset_credits ??
-      metadata?.rateLimitResetCredits
+  const readValue = (...keys: string[]): unknown => {
+    for (const source of sources) {
+      if (!source) continue;
+      for (const key of keys) {
+        if (source[key] != null) return source[key];
+      }
+    }
+    return undefined;
+  };
+
+  const resetCreditValues = sources.flatMap((source) => [
+    source['rate_limit_reset_credits'],
+    source['rateLimitResetCredits'],
+  ]);
+  const credits = resetCreditValues.flatMap((value) => readResetCreditsList(value));
+  const availableCounts = sources.flatMap((source) => [
+    normalizeNumberValue(
+      source['rate_limit_reset_credits_available_count'] ??
+        source['rateLimitResetCreditsAvailableCount']
+    ),
+    ...resetCreditValues.map((value) => {
+      const summary = toRecord(value);
+      return normalizeNumberValue(summary?.available_count ?? summary?.availableCount);
+    }),
+  ]);
+  const applicableCounts = sources.flatMap((source) => [
+    normalizeNumberValue(
+      source['rate_limit_reset_credits_applicable_available_count'] ??
+        source['rateLimitResetCreditsApplicableAvailableCount']
+    ),
+    ...resetCreditValues.map((value) => {
+      const summary = toRecord(value);
+      return normalizeNumberValue(
+        summary?.applicable_available_count ?? summary?.applicableAvailableCount
+      );
+    }),
+  ]);
+  const storedAvailableCount = Math.max(0, ...availableCounts.filter((value): value is number => value != null));
+  const applicableAvailableCount = applicableCounts.reduce<number | null>(
+    (highest, value) =>
+      value != null && (highest == null || value > highest) ? value : highest,
+    null
   );
   // Prefer explicit availability, but recover from stale zero counts when the
-  // persisted credit list still contains available credits.
+  // persisted credit list or summary still contains available credits.
   const listedAvailableCount = credits.filter(
     (credit) => !credit.status || credit.status.toLowerCase() === 'available'
   ).length;
-  const availableCount = Math.max(storedAvailableCount, listedAvailableCount);
+  const availableCount = Math.max(
+    storedAvailableCount,
+    applicableAvailableCount ?? 0,
+    listedAvailableCount
+  );
 
   const checkedAt = normalizeStringValue(
-    file.rate_limit_reset_credits_checked_at ??
-      file.rateLimitResetCreditsCheckedAt ??
-      metadata?.rate_limit_reset_credits_checked_at ??
-      metadata?.rateLimitResetCreditsCheckedAt
+    readValue('rate_limit_reset_credits_checked_at', 'rateLimitResetCreditsCheckedAt')
   );
 
   return {
