@@ -135,6 +135,7 @@ export function DashboardPage() {
   const [authFilesCount, setAuthFilesCount] = useState<number | null>(null);
   const [authFilesLoading, setAuthFilesLoading] = useState(false);
   const [checkingVersion, setCheckingVersion] = useState(false);
+  const [installingManagement, setInstallingManagement] = useState(false);
   const [requestLogModalOpen, setRequestLogModalOpen] = useState(false);
   const [requestLogDraft, setRequestLogDraft] = useState(false);
   const [requestLogTouched, setRequestLogTouched] = useState(false);
@@ -372,6 +373,23 @@ export function DashboardPage() {
     }
   };
 
+  const handleManagementInstall = useCallback(async () => {
+    if (connectionStatus !== 'connected') return;
+
+    setInstallingManagement(true);
+    try {
+      await versionApi.installLatestManagement();
+      showNotification(t('system_info.management_install_success'), 'success');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+      const suffix = message ? `: ${message}` : '';
+      showNotification(`${t('system_info.management_install_error')}${suffix}`, 'error');
+    } finally {
+      setInstallingManagement(false);
+    }
+  }, [connectionStatus, showNotification, t]);
+
   const handleVersionCheck = useCallback(async () => {
     setCheckingVersion(true);
     try {
@@ -537,9 +555,21 @@ export function DashboardPage() {
           <div className={styles.configGrid}>
             <div className={styles.configRow}>
               <span className={styles.configLabel}>{t('footer.version')}</span>
-              <button type="button" className={styles.versionTap} onClick={handleVersionTap}>
-                <span className={styles.configValue}>{appVersion}</span>
-              </button>
+              <span className={styles.configValueGroup}>
+                <button type="button" className={styles.versionTap} onClick={handleVersionTap}>
+                  <span className={styles.configValue}>{appVersion}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.inlineAction}
+                  onClick={() => void handleManagementInstall()}
+                  disabled={installingManagement || connectionStatus !== 'connected'}
+                >
+                  {installingManagement
+                    ? t('system_info.management_installing')
+                    : t('system_info.management_install_button')}
+                </button>
+              </span>
             </div>
             <div className={styles.configRow}>
               <span className={styles.configLabel}>{t('footer.api_version')}</span>
