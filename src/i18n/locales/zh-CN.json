@@ -1528,7 +1528,7 @@
       "strategy_hint": "选择 Codex 使用全局路由策略，或启用可选的自适应账号路由。",
       "strategy_global": "使用全局策略",
       "strategy_adaptive": "自适应",
-      "strategy_note": "自适应策略仅作用于 Codex。Gemini、xAI、Claude 和其他提供商仍使用全局策略。它优先使用高优先级账号，限制单账号并发，并按需刷新付费账号额度。"
+      "strategy_note": "自适应策略仅作用于内置调度器中的 Codex。Gemini、xAI、Claude 和其他提供商仍使用全局策略。Home、插件、固定账号和多提供商路由保持原有行为。它优先使用高优先级账号，限制单账号并发，并按需刷新付费账号额度。"
     }
   },
   "codex_instructions": {
