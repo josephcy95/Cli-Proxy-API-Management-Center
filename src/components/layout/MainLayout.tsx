@@ -49,6 +49,7 @@ import {
 } from '@/features/plugins/pluginResources';
 import { triggerHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { LANGUAGE_ORDER } from '@/utils/constants';
+import { getSidebarShortcutLabel, isSidebarToggleShortcut } from '@/utils/sidebarShortcut';
 import type { Theme } from '@/types';
 
 /** Same brand assets as OAuth Login (Codex / xAI Grok). */
@@ -256,6 +257,26 @@ export function MainLayout() {
   const isLogsPage = location.pathname.startsWith('/logs');
   const isPluginResourcePage = location.pathname.startsWith('/plugin-pages');
   const showSidebarLabels = !sidebarCollapsed || sidebarOpen;
+  const shortcutText =
+    typeof navigator !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.test(
+      (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ||
+        navigator.platform ||
+        navigator.userAgent ||
+        ''
+    )
+      ? getSidebarShortcutLabel(true)
+      : getSidebarShortcutLabel(false);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isSidebarToggleShortcut(event)) return;
+      event.preventDefault();
+      setSidebarCollapsed((prev) => !prev);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Keep floating header height available to sticky mobile elements and overlays.
   useLayoutEffect(() => {
@@ -579,7 +600,7 @@ export function MainLayout() {
         to={item.path}
         className={({ isActive }) => `${className} ${isActive ? 'active' : ''}`}
         onClick={() => setSidebarOpen(false)}
-        title={showSidebarLabels ? undefined : itemLabel}
+        title={showSidebarLabels ? undefined : `${itemLabel} (${shortcutText} toggles sidebar)`}
       >
         <span className="nav-icon">{item.icon}</span>
         {showSidebarLabels && (
