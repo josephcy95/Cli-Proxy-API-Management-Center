@@ -209,6 +209,16 @@ const persistedWindowLimited = (
   );
 };
 
+export const isCodexModelSupportErrorMessage = (message: string): boolean => {
+  const text = message.trim().toLowerCase();
+  return (
+    text.includes('model is not supported') ||
+    text.includes('model not supported') ||
+    text.includes('unsupported model') ||
+    text.includes('model_not_supported')
+  );
+};
+
 const collectStatusText = (file: AuthFileItem, refreshed?: CodexRefreshState): string =>
   [
     refreshed?.error,
@@ -268,6 +278,11 @@ export const getCodexAccountStatus = (
   const usageLimitOnly = [persistedStatusText, refreshStatusText].some(
     (text) => text.includes('usage_limit_reached') || text.includes('usage limit')
   );
+  // A model/tool mismatch is request-scoped. It does not make the OAuth account
+  // unhealthy, so keep the account available in this account-level view.
+  const modelSupportOnly = [persistedStatusText, refreshStatusText].some(
+    isCodexModelSupportErrorMessage
+  );
   // Only persisted automatic auth diagnostics are authoritative for denial.
   // Manual disables remain intentionally parked and are handled below.
   const automaticDisable =
@@ -301,8 +316,8 @@ export const getCodexAccountStatus = (
 
   if (
     (file.disabled !== true || purposefullyDisabled) &&
-    file.unavailable !== true &&
-    (purposefullyDisabled || refreshed?.status !== 'error')
+    (modelSupportOnly || file.unavailable !== true) &&
+    (purposefullyDisabled || refreshed?.status !== 'error' || modelSupportOnly)
   ) {
     return {
       kind: 'working',

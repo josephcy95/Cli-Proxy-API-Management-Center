@@ -870,8 +870,6 @@ export function AuthFilesPage() {
         badges.push(t('auth_files.codex_status_denied'));
       } else if (status.kind === 'cooldown') {
         badges.push(t('auth_files.codex_status_cooldown'));
-      } else if (status.kind === 'other') {
-        badges.push(t('auth_files.codex_status_other'));
       }
       map.set(file.name, badges);
     });

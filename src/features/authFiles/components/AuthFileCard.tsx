@@ -46,6 +46,7 @@ import {
   type ResolvedTheme,
 } from '@/features/authFiles/constants';
 import { canResetAuthCooldown } from '@/features/authFiles/cooldown';
+import { isCodexModelSupportErrorMessage } from '@/features/authFiles/codexStatus';
 import {
   AuthFileQuotaSection,
   type AuthFileQuotaRefreshBinding,
@@ -213,8 +214,11 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
   const displayStatusMessage = usageLimitResetDuration
     ? t('auth_files.codex_usage_limit_reset_in', { duration: usageLimitResetDuration })
     : rawStatusMessage;
+  const hideModelSupportWarning = isCodexFile && isCodexModelSupportErrorMessage(rawStatusMessage);
   const hasStatusWarning =
-    Boolean(rawStatusMessage) && !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
+    Boolean(rawStatusMessage) &&
+    !hideModelSupportWarning &&
+    !HEALTHY_STATUS_MESSAGES.has(rawStatusMessage.toLowerCase());
 
   const priorityValue = parsePriorityValue(file.priority ?? file['priority']);
   const weightValue = readCredentialWeight(file.weight ?? file['weight']);

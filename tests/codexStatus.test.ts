@@ -3,6 +3,7 @@ import {
   compareCodexAvailability,
   compareCodexAdaptive,
   getCodexAccountStatus,
+  isCodexModelSupportErrorMessage,
   isPurposefullyDisabled,
   matchesCodexPlanFilter,
   matchesCodexStatusFilter,
@@ -149,6 +150,19 @@ describe('Codex auth-file status', () => {
       status_message: 'invalid_token',
     };
     expect(getCodexAccountStatus(invalidToken).kind).toBe('denied');
+  });
+
+  test('keeps harness-specific model errors available at the account level', () => {
+    const fileWithHarnessError = {
+      ...file,
+      unavailable: true,
+      status_message:
+        'This model is not supported when using X-OpenAI-Internal-Codex-Responses-Lite.',
+    };
+
+    expect(getCodexAccountStatus(fileWithHarnessError).kind).toBe('working');
+    expect(matchesCodexStatusFilter('available', fileWithHarnessError)).toBe(true);
+    expect(isCodexModelSupportErrorMessage(fileWithHarnessError.status_message)).toBe(true);
   });
 
   test('treats usage_limit_reached as cooldown not denied', () => {
