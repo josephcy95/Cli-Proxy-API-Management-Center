@@ -3,6 +3,7 @@
  */
 
 import type { AuthFileItem, CodexRateLimitResetCredit } from '@/types';
+import { toEpochMs } from '@/utils/format';
 import {
   normalizeNumberValue,
   normalizeStringValue,
@@ -142,14 +143,13 @@ export function resolveCodexSubscriptionActiveUntil(file: AuthFileItem): string 
   const metadataSubscription = toRecord(metadata?.subscription);
   const attributesSubscription = toRecord(attributes?.subscription);
 
+  // `expired` is the OAuth access-token expiry, not the ChatGPT billing date.
+  // Prefer the latest subscription-specific value when snapshots and JWT claims differ.
   const candidates = [
     file.chatgpt_subscription_active_until,
     file.chatgptSubscriptionActiveUntil,
     file.subscription_active_until,
     file.subscriptionActiveUntil,
-    file.expired,
-    file.expires_at,
-    file.expires,
     subscription?.active_until,
     subscription?.activeUntil,
     idToken?.chatgpt_subscription_active_until,
@@ -158,9 +158,6 @@ export function resolveCodexSubscriptionActiveUntil(file: AuthFileItem): string 
     metadata?.chatgptSubscriptionActiveUntil,
     metadata?.subscription_active_until,
     metadata?.subscriptionActiveUntil,
-    metadata?.expired,
-    metadata?.expires_at,
-    metadata?.expires,
     metadataSubscription?.active_until,
     metadataSubscription?.activeUntil,
     metadataIdToken?.chatgpt_subscription_active_until,
@@ -175,12 +172,12 @@ export function resolveCodexSubscriptionActiveUntil(file: AuthFileItem): string 
     attributesIdToken?.chatgptSubscriptionActiveUntil,
   ];
 
-  for (const candidate of candidates) {
+  return candidates.reduce<string | number | null>((latest, candidate) => {
     const value = normalizeDateLikeValue(candidate);
-    if (value !== null) return value;
-  }
-
-  return null;
+    if (value === null) return latest;
+    if (latest === null) return value;
+    return (toEpochMs(value) ?? -Infinity) > (toEpochMs(latest) ?? -Infinity) ? value : latest;
+  }, null);
 }
 
 export type CodexResetCreditsFileSnapshot = {
