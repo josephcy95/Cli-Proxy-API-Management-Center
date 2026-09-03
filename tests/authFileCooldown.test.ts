@@ -33,6 +33,17 @@ describe('auth file cooldown reset helpers', () => {
     ).toBe(true);
   });
 
+  test('allows generic model cooldowns exposed as next_retry_after', () => {
+    expect(
+      canResetAuthCooldown(
+        baseFile({
+          type: 'codex',
+          next_retry_after: new Date(Date.now() + 60_000).toISOString(),
+        })
+      )
+    ).toBe(true);
+  });
+
   test('allows codex usage-limit cooldown messages', () => {
     expect(
       canResetAuthCooldown(
