@@ -121,15 +121,39 @@ export interface UsageQuery {
   fields?: Array<keyof UsageFilterOptions>;
 }
 
-export interface ModelPrice {
-  model: string;
-  prompt_per_1m: number;
-  completion_per_1m: number;
+export interface PriceRuleRates {
+  prompt_per_1m?: number;
+  completion_per_1m?: number;
   cache_per_1m?: number;
   cache_read_per_1m?: number;
   cache_creation_per_1m?: number;
+  prompt_configured?: boolean;
+  completion_configured?: boolean;
+  cache_configured?: boolean;
+  cache_read_configured?: boolean;
+  cache_creation_configured?: boolean;
+}
+
+export interface ModelPriceContextTier extends PriceRuleRates {
+  threshold_tokens: number;
+}
+
+export interface ModelPriceServiceTier extends PriceRuleRates {
+  mode: string;
+  service_tier: string;
+}
+
+export interface ModelPrice extends PriceRuleRates {
+  model: string;
+  prompt_per_1m: number;
+  completion_per_1m: number;
   source?: string;
   updated_at_ms?: number;
+  context_tiers?: ModelPriceContextTier[];
+  service_tiers?: ModelPriceServiceTier[];
+  source_model_id?: string;
+  raw_json?: string;
+  synced_at_ms?: number;
 }
 
 export interface ModelPriceAlias {
@@ -169,6 +193,7 @@ export interface PriceSyncResult {
   imported: number;
   skipped: number;
   skipped_manual?: number;
+  preserved?: string[];
   matched?: ModelPrice[];
   candidates?: PriceSyncCandidateSet[];
   unmatched?: string[];

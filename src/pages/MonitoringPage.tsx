@@ -64,6 +64,19 @@ import {
   getTokenDetailLines,
 } from './monitoringMetrics';
 import styles from './MonitoringPage.module.scss';
+import {
+  candidateIdentity,
+  candidatePrice,
+  hasPricingRules,
+  effectiveRuleRates,
+  parsePricingRules,
+  parseRuleRates,
+  priceRateFields,
+  ruleRateDraft,
+  type ContextRuleDraft,
+  type ServiceRuleDraft,
+  type RateDraft,
+} from './pricingRules';
 
 type PriceListFilter = 'all' | 'manual' | 'synced' | 'unpriced';
 
@@ -397,6 +410,65 @@ const MonitoringEventRow = memo(function MonitoringEventRow({
   );
 });
 
+function PricingRuleChips({ price }: { price: ModelPrice }) {
+  const { t } = useTranslation();
+  const rateInfo = (rule: Parameters<typeof effectiveRuleRates>[1]) => {
+    const rates = effectiveRuleRates(price, rule);
+    return [
+      t('monitoring.price_effective_rates'),
+      ...priceRateFields.map(
+        ([field, , label]) => `${t(`monitoring.${label}`)}: ${formatRate(rates[field])}`
+      ),
+    ].join('\n');
+  };
+  return (
+    <div className={styles.priceRuleChips}>
+      {price.context_tiers?.map((rule) => (
+        <span
+          key={rule.threshold_tokens}
+          className={styles.priceRuleChip}
+          tabIndex={0}
+          title={rateInfo(rule)}
+        >
+          {t('monitoring.price_context_threshold', { tokens: formatNumber(rule.threshold_tokens) })}
+        </span>
+      ))}
+      {price.service_tiers?.map((rule) => (
+        <span
+          key={`${rule.mode}:${rule.service_tier}`}
+          className={styles.priceRuleChip}
+          tabIndex={0}
+          title={rateInfo(rule)}
+        >
+          {rule.mode} / {rule.service_tier}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function RuleRateInputs({
+  value,
+  onChange,
+}: {
+  value: RateDraft;
+  onChange: (next: RateDraft) => void;
+}) {
+  const { t } = useTranslation();
+  return priceRateFields.map(([field, , label]) => (
+    <Input
+      key={field}
+      type="number"
+      min="0"
+      step="any"
+      label={t(`monitoring.${label}`)}
+      placeholder={t('monitoring.price_inherit')}
+      value={value[field]}
+      onChange={(event) => onChange({ ...value, [field]: event.target.value })}
+    />
+  ));
+}
+
 export function MonitoringPage() {
   const { t } = useTranslation();
   const showNotification = useNotificationStore((s) => s.showNotification);
@@ -458,6 +530,14 @@ export function MonitoringPage() {
   const [syncResult, setSyncResult] = useState<PriceSyncResult | null>(null);
   const [candidatePicks, setCandidatePicks] = useState<Record<string, string>>({});
   const [overrideManual, setOverrideManual] = useState(false);
+  const selectedPrice = prices.find((p) => p.model === priceModel.trim());
+  const [ruleEditor, setRuleEditor] = useState<{
+    price: ModelPrice;
+    context: ContextRuleDraft[];
+    service: ServiceRuleDraft[];
+  } | null>(null);
+  const [savingRules, setSavingRules] = useState(false);
+  const [ruleError, setRuleError] = useState('');
   const filters = useMemo<UsageQuery>(
     () => ({
       search: debouncedSearch.trim() || undefined,
@@ -576,16 +656,29 @@ export function MonitoringPage() {
   };
 
   const savePrice = async (asManual = true) => {
+    if (
+      hasPricingRules(selectedPrice) &&
+      !window.confirm(t('monitoring.price_clear_rules_confirm', { model: selectedPrice?.model }))
+    )
+      return;
     const modelName = priceModel.trim();
     if (!modelName) return;
     try {
+      const rates = parseRuleRates({
+        prompt_per_1m: pricePrompt || '0',
+        completion_per_1m: priceCompletion || '0',
+        cache_per_1m: '',
+        cache_read_per_1m: priceCacheRead,
+        cache_creation_per_1m: priceCacheWrite,
+      });
       await usageEventsApi.putModelPrices([
         {
+          ...rates,
           model: modelName,
-          prompt_per_1m: Number(pricePrompt) || 0,
-          completion_per_1m: Number(priceCompletion) || 0,
-          cache_read_per_1m: Number(priceCacheRead) || 0,
-          cache_creation_per_1m: Number(priceCacheWrite) || 0,
+          prompt_per_1m: rates.prompt_per_1m ?? 0,
+          completion_per_1m: rates.completion_per_1m ?? 0,
+          context_tiers: [],
+          service_tiers: [],
           source: asManual ? 'manual' : 'override',
         },
       ]);
@@ -598,7 +691,12 @@ export function MonitoringPage() {
       await loadPrices();
       await loadCore();
     } catch (err) {
-      showNotification(getErrorMessage(err), 'error');
+      showNotification(
+        err instanceof Error && err.message === 'price_invalid_rates'
+          ? t('monitoring.price_invalid_rates')
+          : getErrorMessage(err),
+        'error'
+      );
     }
   };
 
@@ -606,9 +704,55 @@ export function MonitoringPage() {
     setPriceModel(p.model);
     setPricePrompt(String(p.prompt_per_1m ?? ''));
     setPriceCompletion(String(p.completion_per_1m ?? ''));
-    setPriceCacheRead(p.cache_read_per_1m ? String(p.cache_read_per_1m) : '');
-    setPriceCacheWrite(p.cache_creation_per_1m ? String(p.cache_creation_per_1m) : '');
+    setPriceCacheRead(ruleRateDraft(p).cache_read_per_1m);
+    setPriceCacheWrite(ruleRateDraft(p).cache_creation_per_1m);
     setPriceListFilter('all');
+  };
+
+  const openRuleEditor = (price: ModelPrice) => {
+    setRuleError('');
+    setRuleEditor({
+      price,
+      context: (price.context_tiers || []).map((rule) => ({
+        ...ruleRateDraft(rule),
+        threshold_tokens: String(rule.threshold_tokens),
+      })),
+      service: (price.service_tiers || []).map((rule) => ({
+        ...ruleRateDraft(rule),
+        mode: rule.mode,
+        service_tier: rule.service_tier,
+      })),
+    });
+  };
+
+  const saveRules = async () => {
+    if (!ruleEditor || savingRules) return;
+    setRuleError('');
+    let rules: ReturnType<typeof parsePricingRules>;
+    try {
+      rules = parsePricingRules(ruleEditor.context, ruleEditor.service);
+    } catch (err) {
+      setRuleError(t(`monitoring.${getErrorMessage(err)}`));
+      return;
+    }
+    if (
+      hasPricingRules(ruleEditor.price) &&
+      !hasPricingRules({ ...ruleEditor.price, ...rules }) &&
+      !window.confirm(t('monitoring.price_clear_rules_confirm', { model: ruleEditor.price.model }))
+    )
+      return;
+    setSavingRules(true);
+    try {
+      await usageEventsApi.putModelPrices([{ ...ruleEditor.price, ...rules, source: 'manual' }]);
+      setRuleEditor(null);
+      showNotification(t('monitoring.price_saved'), 'success');
+      await loadPrices();
+      await loadCore();
+    } catch (err) {
+      setRuleError(getErrorMessage(err));
+    } finally {
+      setSavingRules(false);
+    }
   };
 
   const saveAlias = async () => {
@@ -663,7 +807,7 @@ export function MonitoringPage() {
       const picks: Record<string, string> = {};
       for (const set of result.candidates || []) {
         if (set.candidates?.[0]) {
-          picks[set.model] = set.candidates[0].source_model_id;
+          picks[set.model] = candidateIdentity(set.candidates[0]);
         }
       }
       setCandidatePicks(picks);
@@ -684,19 +828,13 @@ export function MonitoringPage() {
   };
 
   const applyCandidate = async (set: PriceSyncCandidateSet) => {
-    const pickId = candidatePicks[set.model];
-    const cand = set.candidates.find((c) => c.source_model_id === pickId) || set.candidates[0];
-    if (!cand) return;
+    if (!overrideManual && prices.some((p) => p.model === set.model && isManualSource(p.source))) {
+      showNotification(t('monitoring.price_manual_protected'), 'error');
+      return;
+    }
+    const price = candidatePrice(set, candidatePicks[set.model]);
+    if (!price) return;
     try {
-      const price: ModelPrice = {
-        model: set.model,
-        prompt_per_1m: cand.price.prompt_per_1m,
-        completion_per_1m: cand.price.completion_per_1m,
-        cache_per_1m: cand.price.cache_per_1m,
-        cache_read_per_1m: cand.price.cache_read_per_1m,
-        cache_creation_per_1m: cand.price.cache_creation_per_1m,
-        source: cand.price.source || 'sync',
-      };
       await usageEventsApi.putModelPrices([price]);
       showNotification(t('monitoring.candidate_applied', { model: set.model }), 'success');
       setSyncResult((prev) =>
@@ -862,6 +1000,163 @@ export function MonitoringPage() {
 
   return (
     <div className={styles.container}>
+      <Modal
+        open={ruleEditor !== null}
+        title={t('monitoring.price_rules_title', { model: ruleEditor?.price.model })}
+        closeDisabled={savingRules}
+        onClose={() => setRuleEditor(null)}
+        footer={
+          <>
+            <Button variant="secondary" disabled={savingRules} onClick={() => setRuleEditor(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button loading={savingRules} onClick={() => void saveRules()}>
+              {t('monitoring.price_save_rules')}
+            </Button>
+          </>
+        }
+      >
+        {ruleEditor ? (
+          <fieldset className={styles.ruleEditor} disabled={savingRules}>
+            <p className={styles.muted}>{t('monitoring.price_rules_hint')}</p>
+            <h4 className={styles.panelHeading}>{t('monitoring.price_context_rules')}</h4>
+            {ruleEditor.context.map((rule, index) => (
+              <fieldset key={index} className={styles.ruleFields}>
+                <legend>
+                  {t('monitoring.price_context_rules')} {index + 1}
+                </legend>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  label={t('monitoring.price_threshold')}
+                  value={rule.threshold_tokens}
+                  onChange={(event) =>
+                    setRuleEditor({
+                      ...ruleEditor,
+                      context: ruleEditor.context.map((r, i) =>
+                        i === index ? { ...r, threshold_tokens: event.target.value } : r
+                      ),
+                    })
+                  }
+                />
+                <RuleRateInputs
+                  value={rule}
+                  onChange={(rates) =>
+                    setRuleEditor({
+                      ...ruleEditor,
+                      context: ruleEditor.context.map((r, i) =>
+                        i === index ? { ...r, ...rates } : r
+                      ),
+                    })
+                  }
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setRuleEditor({
+                      ...ruleEditor,
+                      context: ruleEditor.context.filter((_, i) => i !== index),
+                    })
+                  }
+                >
+                  {t('common.delete')}
+                </Button>
+              </fieldset>
+            ))}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                setRuleEditor({
+                  ...ruleEditor,
+                  context: [...ruleEditor.context, { ...ruleRateDraft(), threshold_tokens: '' }],
+                })
+              }
+            >
+              {t('monitoring.price_add_context')}
+            </Button>
+            <h4 className={styles.panelHeading}>{t('monitoring.price_service_rules')}</h4>
+            {ruleEditor.service.map((rule, index) => (
+              <fieldset key={index} className={styles.ruleFields}>
+                <legend>
+                  {t('monitoring.price_service_rules')} {index + 1}
+                </legend>
+                <Input
+                  label={t('monitoring.price_service_mode')}
+                  placeholder="fast"
+                  value={rule.mode}
+                  onChange={(event) =>
+                    setRuleEditor({
+                      ...ruleEditor,
+                      service: ruleEditor.service.map((r, i) =>
+                        i === index ? { ...r, mode: event.target.value } : r
+                      ),
+                    })
+                  }
+                />
+                <Input
+                  label={t('monitoring.price_service_tier')}
+                  placeholder="priority"
+                  value={rule.service_tier}
+                  onChange={(event) =>
+                    setRuleEditor({
+                      ...ruleEditor,
+                      service: ruleEditor.service.map((r, i) =>
+                        i === index ? { ...r, service_tier: event.target.value } : r
+                      ),
+                    })
+                  }
+                />
+                <RuleRateInputs
+                  value={rule}
+                  onChange={(rates) =>
+                    setRuleEditor({
+                      ...ruleEditor,
+                      service: ruleEditor.service.map((r, i) =>
+                        i === index ? { ...r, ...rates } : r
+                      ),
+                    })
+                  }
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setRuleEditor({
+                      ...ruleEditor,
+                      service: ruleEditor.service.filter((_, i) => i !== index),
+                    })
+                  }
+                >
+                  {t('common.delete')}
+                </Button>
+              </fieldset>
+            ))}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                setRuleEditor({
+                  ...ruleEditor,
+                  service: [
+                    ...ruleEditor.service,
+                    { ...ruleRateDraft(), mode: '', service_tier: '' },
+                  ],
+                })
+              }
+            >
+              {t('monitoring.price_add_service')}
+            </Button>
+            {ruleError ? (
+              <p role="alert" className={styles.bannerError}>
+                {ruleError}
+              </p>
+            ) : null}
+          </fieldset>
+        ) : null}
+      </Modal>
       <Modal
         open={customOpen}
         title={t('monitoring.range_custom')}
@@ -1323,6 +1618,11 @@ export function MonitoringPage() {
                   {t('monitoring.sync_sources')}: {(syncResult.sources || []).join(', ')}
                 </span>
               ) : null}
+              {syncResult.preserved?.length ? (
+                <span className={styles.metaPill} title={syncResult.preserved.join(', ')}>
+                  {t('monitoring.sync_preserved')}: {syncResult.preserved.join(', ')}
+                </span>
+              ) : null}
             </div>
           ) : null}
 
@@ -1334,23 +1634,31 @@ export function MonitoringPage() {
               <div className={styles.candidatesList}>
                 {(syncResult?.candidates || []).map((set) => {
                   const options = set.candidates.map((c) => ({
-                    value: c.source_model_id,
-                    label: `${c.source_model_id} · ${Math.round(c.score * 100)}% · $${formatRate(c.price.prompt_per_1m)} / $${formatRate(c.price.completion_per_1m)}`,
+                    value: candidateIdentity(c),
+                    label: `${c.price.source || '—'} · ${c.source_model_id} · ${Math.round(c.score * 100)}% · $${formatRate(c.price.prompt_per_1m)} / $${formatRate(c.price.completion_per_1m)}`,
                   }));
+                  const selected = candidatePrice(set, candidatePicks[set.model]);
                   return (
                     <div key={set.model} className={styles.candidateBlock}>
                       <span className={styles.candidateModel} title={set.model}>
                         {set.model}
                       </span>
-                      <Select
-                        className={styles.candidateSelect}
-                        value={candidatePicks[set.model] || options[0]?.value || ''}
-                        options={options}
-                        onChange={(v) => setCandidatePicks((prev) => ({ ...prev, [set.model]: v }))}
-                        size="sm"
-                        fullWidth
-                        ariaLabel={t('monitoring.candidates_title')}
-                      />
+                      <div className={styles.candidateSelect}>
+                        <Select
+                          className={styles.candidateSelect}
+                          value={candidatePicks[set.model] || options[0]?.value || ''}
+                          options={options}
+                          onChange={(v) =>
+                            setCandidatePicks((prev) => ({ ...prev, [set.model]: v }))
+                          }
+                          size="sm"
+                          fullWidth
+                          ariaLabel={t('monitoring.candidates_title')}
+                        />
+                        {selected && hasPricingRules(selected) ? (
+                          <PricingRuleChips price={selected} />
+                        ) : null}
+                      </div>
                       <Button size="sm" onClick={() => void applyCandidate(set)}>
                         {t('monitoring.apply_candidate')}
                       </Button>
@@ -1445,18 +1753,38 @@ export function MonitoringPage() {
                         {formatRate(p.completion_per_1m)}
                       </TableCell>
                       <TableCell alignRight className={styles.num}>
-                        {p.cache_read_per_1m ? formatRate(p.cache_read_per_1m) : '—'}
+                        {formatRate(
+                          p.cache_read_configured ? (p.cache_read_per_1m ?? 0) : p.cache_read_per_1m
+                        )}
                       </TableCell>
                       <TableCell alignRight className={styles.num}>
-                        {p.cache_creation_per_1m ? formatRate(p.cache_creation_per_1m) : '—'}
+                        {formatRate(
+                          p.cache_creation_configured
+                            ? (p.cache_creation_per_1m ?? 0)
+                            : p.cache_creation_per_1m
+                        )}
                       </TableCell>
                       <TableCell>
-                        <span className={styles.cellSecondary}>{p.source || 'manual'}</span>
+                        <span
+                          className={styles.cellSecondary}
+                          title={[
+                            t('monitoring.price_canonical_id', { model: p.source_model_id || '—' }),
+                            t('monitoring.price_synced_at', {
+                              time: p.synced_at_ms ? formatTime(p.synced_at_ms) : '—',
+                            }),
+                          ].join('\n')}
+                        >
+                          {p.source || 'manual'}
+                        </span>
+                        {hasPricingRules(p) ? <PricingRuleChips price={p} /> : null}
                       </TableCell>
                       <TableCell>
                         <div className={styles.formActions}>
                           <Button variant="ghost" size="sm" onClick={() => startEditPrice(p)}>
                             {t('common.edit')}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => openRuleEditor(p)}>
+                            {t('monitoring.price_edit_rules')}
                           </Button>
                           <Button
                             variant="ghost"
@@ -1479,6 +1807,11 @@ export function MonitoringPage() {
             <section className={styles.editorBlock}>
               <h4 className={styles.panelHeading}>{t('monitoring.manual_price_title')}</h4>
               <p className={styles.muted}>{t('monitoring.manual_price_hint')}</p>
+              {hasPricingRules(selectedPrice) ? (
+                <p className={styles.banner}>
+                  {t('monitoring.price_clear_rules_warning', { model: selectedPrice?.model })}
+                </p>
+              ) : null}
               <div className={styles.formGrid}>
                 <Input
                   label={t('monitoring.col_model')}
@@ -1513,6 +1846,14 @@ export function MonitoringPage() {
                 <div className={styles.formActions}>
                   <Button size="sm" onClick={() => void savePrice(true)}>
                     {t('monitoring.save_price')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!selectedPrice}
+                    onClick={() => selectedPrice && openRuleEditor(selectedPrice)}
+                  >
+                    {t('monitoring.price_edit_rules')}
                   </Button>
                 </div>
               </div>
