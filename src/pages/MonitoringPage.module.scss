@@ -116,10 +116,49 @@ $control-h: 38px;
   }
 }
 
-.autoSelect {
-  width: 132px;
-  min-width: 120px;
-  flex: 0 0 auto;
+// Fixed-size status toggle: polling never changes toolbar geometry.
+.liveControl {
+  @include button-reset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 108px;
+  flex: 0 0 108px;
+  height: $control-h;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+  }
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+  }
+  &:disabled {
+    cursor: default;
+  }
+}
+.liveActive {
+  color: var(--success-badge-text);
+}
+.livePaused {
+  color: #a65b08;
+}
+:global([data-theme='dark']) .livePaused {
+  color: #f3b45b;
+}
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 7px;
 }
 
 // Row 2: five equal dropdowns filling the full width
@@ -799,17 +838,4 @@ $control-h: 38px;
   .pricesActionGroup {
     justify-content: flex-start;
   }
-}
-
-.rangeDescription,
-.sectionStatus {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.rangeDescription {
-  margin-top: 12px;
 }

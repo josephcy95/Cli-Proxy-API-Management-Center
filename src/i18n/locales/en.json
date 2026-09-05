@@ -301,9 +301,14 @@
     "range_apply": "Apply",
     "range_timezone": "Timezone: {{timezone}}. End time is inclusive.",
     "range_invalid": "Enter valid dates and times, with Start earlier than End.",
-    "range_paused": "Auto-refresh paused for this fixed range. Refresh manually to check for updates.",
     "section_summary": "Summary",
-    "section_filters": "Filters"
+    "section_filters": "Filters",
+    "live": "Live",
+    "paused": "Paused",
+    "live_toggle": "Live updates",
+    "live_unavailable": "Choose a preset and a request/statistics tab to enable live updates.",
+    "live_pause_hint": "Updates every 5 seconds. Click to pause.",
+    "live_resume_hint": "Click to resume updates every 5 seconds."
   },
   "dashboard": {
     "current_config": "Current Configuration",

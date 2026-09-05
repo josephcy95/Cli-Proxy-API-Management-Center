@@ -84,6 +84,9 @@ export function useMonitoringData(
   const [errors, setErrors] = useState<Partial<Record<Section, string>>>({});
   const requests = useRef(new Map<Section, AbortController>());
   const legacyRecent = useRef(false);
+  const selectionKey = JSON.stringify({ filters, range });
+  const summarySelection = useRef('');
+  const tableSelection = useRef('');
 
   const cancel = useCallback((section: Section) => {
     requests.current.get(section)?.abort();
@@ -173,7 +176,8 @@ export function useMonitoringData(
   );
 
   useEffect(() => {
-    setSummary(null);
+    if (summarySelection.current !== selectionKey) setSummary(null);
+    summarySelection.current = selectionKey;
     void run(
       'summary',
       (signal) => usageEventsApi.getSummary(query, signal),
@@ -183,7 +187,7 @@ export function useMonitoringData(
       }
     );
     return () => cancel('summary');
-  }, [query, run, cancel]);
+  }, [query, selectionKey, run, cancel]);
 
   useEffect(() => {
     setFilterOptions(null);
@@ -200,10 +204,9 @@ export function useMonitoringData(
   }, [facetKey, run, cancel]);
 
   useEffect(() => {
-    setEvents([]);
-    setAccounts([]);
-    setApiKeyStats([]);
-    setRecent([]);
+    // Keep the previous result visible while the new range loads; clearing it causes
+    // the table/cards to collapse and creates a distracting layout shift.
+    tableSelection.current = `${selectionKey}:${tab}`;
     setBusy((value) => ({
       ...value,
       events: false,
@@ -219,7 +222,7 @@ export function useMonitoringData(
       cancel('api_keys');
       cancel('recent');
     };
-  }, [query, loadTable, cancel]);
+  }, [query, selectionKey, tab, loadTable, cancel]);
 
   useEffect(() => {
     if (!autoMs || range.preset === 'custom' || tab === 'prices') return;

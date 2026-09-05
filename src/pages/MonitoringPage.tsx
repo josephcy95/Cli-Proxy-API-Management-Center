@@ -99,13 +99,6 @@ const parseApiKeyLabelMap = (yamlText: string): Record<string, string> => {
   return map;
 };
 
-const AUTO_OPTIONS = [
-  { label: 'Off', value: '0' },
-  { label: '5s', value: '5000' },
-  { label: '10s', value: '10000' },
-  { label: '30s', value: '30000' },
-] as const;
-
 const numberFormatters = {
   0: new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }),
   4: new Intl.NumberFormat(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }),
@@ -443,7 +436,9 @@ export function MonitoringPage() {
   const [source, setSource] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'failed'>('all');
-  const [autoMs, setAutoMs] = useState(5_000);
+  const [liveEnabled, setLiveEnabled] = useState(true);
+  const liveAvailable = range.preset !== 'custom' && tab !== 'prices';
+  const isLive = liveEnabled && liveAvailable;
   const [apiKeyLabels, setApiKeyLabels] = useState<Record<string, string>>({});
   const [prices, setPrices] = useState<ModelPrice[]>([]);
   const [aliases, setAliases] = useState<ModelPriceAlias[]>([]);
@@ -486,7 +481,7 @@ export function MonitoringPage() {
     busy,
     errors,
     refresh: loadCore,
-  } = useMonitoringData(filters, range, tab, autoMs);
+  } = useMonitoringData(filters, range, tab, liveEnabled ? 5_000 : 0);
   const loading = Object.values(busy).some(Boolean);
   const sectionLabels = {
     events: t('monitoring.tab_realtime'),
@@ -823,15 +818,6 @@ export function MonitoringPage() {
     ];
   }, [filterOptions?.api_keys, apiKey, apiKeyLabels, formatApiKeyDisplay, t]);
 
-  const autoOptions = useMemo(
-    () =>
-      AUTO_OPTIONS.map((opt) => ({
-        value: opt.value,
-        label: `${t('monitoring.auto_prefix')} ${opt.label}`,
-      })),
-    [t]
-  );
-
   const tabs: Array<[MonitoringTab, string, number | null]> = [
     ['realtime', t('monitoring.tab_realtime'), events.length],
     ['accounts', t('monitoring.tab_accounts'), null],
@@ -924,6 +910,11 @@ export function MonitoringPage() {
               type="button"
               className={`${styles.rangeChip} ${range.preset === 'custom' ? styles.rangeChipActive : ''}`}
               aria-pressed={range.preset === 'custom'}
+              title={
+                range.preset === 'custom'
+                  ? `${formatTime(range.from_ms)} — ${formatTime(range.to_ms)} (${timezone})`
+                  : undefined
+              }
               onClick={openCustom}
             >
               {t('monitoring.range_custom')}
@@ -947,26 +938,26 @@ export function MonitoringPage() {
               <IconX size={16} />
               {t('monitoring.clear')}
             </Button>
-            <Select
-              className={styles.autoSelect}
-              value={String(autoMs)}
-              disabled={range.preset === 'custom'}
-              options={autoOptions}
-              onChange={(v) => setAutoMs(Number(v))}
-              ariaLabel={t('monitoring.auto_refresh')}
-              size="sm"
-            />
+            <button
+              type="button"
+              className={`${styles.liveControl} ${isLive ? styles.liveActive : styles.livePaused}`}
+              aria-pressed={isLive}
+              aria-label={t('monitoring.live_toggle')}
+              disabled={!liveAvailable}
+              title={t(
+                !liveAvailable
+                  ? 'monitoring.live_unavailable'
+                  : isLive
+                    ? 'monitoring.live_pause_hint'
+                    : 'monitoring.live_resume_hint'
+              )}
+              onClick={() => setLiveEnabled((enabled) => !enabled)}
+            >
+              <span className={styles.liveDot} aria-hidden="true" />
+              {t(isLive ? 'monitoring.live' : 'monitoring.paused')}
+            </button>
           </div>
         </div>
-
-        {range.preset === 'custom' && (
-          <div className={styles.rangeDescription}>
-            <span>
-              {formatTime(range.from_ms)} — {formatTime(range.to_ms)} ({timezone})
-            </span>
-            <span>{t('monitoring.range_paused')}</span>
-          </div>
-        )}
 
         <div className={styles.filterSecondary}>
           <SearchableSelect
@@ -1034,15 +1025,6 @@ export function MonitoringPage() {
         </div>
       ) : null}
 
-      <div className={styles.sectionStatus} aria-live="polite">
-        {Object.entries(busy)
-          .filter(([, active]) => active)
-          .map(([section]) => (
-            <span key={section}>
-              {sectionLabels[section as keyof typeof sectionLabels]}: {t('common.loading')}
-            </span>
-          ))}
-      </div>
       {Object.entries(errors)
         .filter(([, message]) => message)
         .map(([section, message]) => (
@@ -1056,7 +1038,7 @@ export function MonitoringPage() {
           </div>
         ))}
 
-      <div className={styles.summaryGrid}>
+      <div className={styles.summaryGrid} aria-busy={Boolean(busy.summary)}>
         <div className={styles.summaryCard}>
           <div className={styles.summaryLabel}>{t('monitoring.card_calls')}</div>
           <div className={styles.summaryValue}>{formatNumber(summary?.total_calls)}</div>

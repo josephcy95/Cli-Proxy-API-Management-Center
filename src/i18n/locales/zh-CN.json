@@ -2125,9 +2125,14 @@
     "range_apply": "应用",
     "range_timezone": "时区：{{timezone}}。包含结束时间。",
     "range_invalid": "请输入有效的日期和时间，开始时间必须早于结束时间。",
-    "range_paused": "固定时间范围已暂停自动刷新，可手动刷新以检查更新。",
     "section_summary": "汇总",
-    "section_filters": "筛选项"
+    "section_filters": "筛选项",
+    "live": "实时",
+    "paused": "已暂停",
+    "live_toggle": "实时更新",
+    "live_unavailable": "选择预设时间范围及请求或统计页签以启用实时更新。",
+    "live_pause_hint": "每5秒更新一次，点击暂停。",
+    "live_resume_hint": "点击恢复每5秒更新。"
   },
   "relative_time": {
     "now": "刚刚",
