@@ -189,6 +189,15 @@ export interface PriceSyncSourceResult {
 }
 
 export interface PriceSyncResult {
+  unchanged?: number;
+  outcomes?: Array<{
+    model: string;
+    status: string;
+    reason?: string;
+    source?: string;
+    source_model_id?: string;
+    has_rules?: boolean;
+  }>;
   sources?: string[];
   imported: number;
   skipped: number;

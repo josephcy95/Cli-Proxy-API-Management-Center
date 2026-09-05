@@ -120,3 +120,55 @@ export function effectiveRuleRates(base: PriceRuleRates, rule: PriceRuleRates): 
   }
   return rates;
 }
+
+/** One write owns the complete model; editing base prices never silently discards rules. */
+export function parsePricingEditor(
+  price: ModelPrice,
+  base: RateDraft,
+  context: ContextRuleDraft[],
+  service: ServiceRuleDraft[]
+): ModelPrice {
+  const rates = parseRuleRates(base);
+  // Remove old rate values first: unconfigured fields must not retain stale positive numbers.
+  const clean = { ...price };
+  for (const [field, flag] of priceRateFields) {
+    delete clean[field];
+    delete clean[flag];
+  }
+  return {
+    ...clean,
+    ...rates,
+    prompt_per_1m: rates.prompt_per_1m ?? 0,
+    completion_per_1m: rates.completion_per_1m ?? 0,
+    ...parsePricingRules(context, service),
+    source: 'manual',
+  };
+}
+
+export function safeDraftRates(draft: RateDraft): PriceRuleRates {
+  try {
+    return parseRuleRates(draft);
+  } catch {
+    return {};
+  }
+}
+
+export function emptyRulesReason(price: ModelPrice) {
+  if (price.source === 'manual' || price.source === 'override') return 'price_rules_manual_empty';
+  return price.synced_at_ms ? 'price_rules_base_only' : 'price_rules_unchecked';
+}
+
+export function syncSummary(result: import('@/services/api/usageEvents').PriceSyncResult) {
+  return {
+    updated: result.imported,
+    unchanged: result.unchanged,
+    protected:
+      result.outcomes?.filter((outcome) => outcome.status === 'protected').length ??
+      result.skipped_manual ??
+      0,
+    matching: new Set([
+      ...(result.candidates || []).map((item) => item.model),
+      ...(result.unmatched || []),
+    ]).size,
+  };
+}

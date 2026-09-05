@@ -874,3 +874,42 @@ $control-h: 38px;
   border-radius: $radius-md;
   padding: 12px;
 }
+
+// Pricing stays in the monitoring palette: quiet, persistent status, no live-text animation.
+.priceRuleStatus {
+  display: block;
+  margin-top: 4px;
+  max-width: 32ch;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.syncReport {
+  min-width: 0;
+}
+
+.syncDetails {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+
+  summary {
+    width: fit-content;
+    cursor: pointer;
+    color: var(--text-primary);
+    padding: 4px 0;
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 3px;
+    }
+  }
+}
+
+.syncDecision {
+  padding: 8px 0;
+  border-top: 1px solid var(--border-color);
+  line-height: 1.6;
+}

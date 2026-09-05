@@ -64,13 +64,16 @@ import {
   getTokenDetailLines,
 } from './monitoringMetrics';
 import styles from './MonitoringPage.module.scss';
+import { MonitoringSettings } from './MonitoringSettings';
 import {
   candidateIdentity,
   candidatePrice,
+  emptyRulesReason,
+  safeDraftRates,
+  syncSummary,
   hasPricingRules,
   effectiveRuleRates,
-  parsePricingRules,
-  parseRuleRates,
+  parsePricingEditor,
   priceRateFields,
   ruleRateDraft,
   type ContextRuleDraft,
@@ -450,7 +453,9 @@ function PricingRuleChips({ price }: { price: ModelPrice }) {
 function RuleRateInputs({
   value,
   onChange,
+  inherited,
 }: {
+  inherited?: import('@/services/api/usageEvents').PriceRuleRates;
   value: RateDraft;
   onChange: (next: RateDraft) => void;
 }) {
@@ -463,6 +468,13 @@ function RuleRateInputs({
       step="any"
       label={t(`monitoring.${label}`)}
       placeholder={t('monitoring.price_inherit')}
+      hint={
+        value[field] === ''
+          ? t('monitoring.price_inherited_rate', { rate: formatRate(inherited?.[field] ?? 0) })
+          : Number(value[field]) === 0
+            ? t('monitoring.price_explicit_zero')
+            : undefined
+      }
       value={value[field]}
       onChange={(event) => onChange({ ...value, [field]: event.target.value })}
     />
@@ -517,10 +529,6 @@ export function MonitoringPage() {
   const [unpriced, setUnpriced] = useState<string[]>([]);
 
   const [priceModel, setPriceModel] = useState('');
-  const [pricePrompt, setPricePrompt] = useState('');
-  const [priceCompletion, setPriceCompletion] = useState('');
-  const [priceCacheRead, setPriceCacheRead] = useState('');
-  const [priceCacheWrite, setPriceCacheWrite] = useState('');
   const [aliasFrom, setAliasFrom] = useState('');
   const [aliasTo, setAliasTo] = useState('');
   const [priceSearch, setPriceSearch] = useState('');
@@ -528,11 +536,13 @@ export function MonitoringPage() {
 
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<PriceSyncResult | null>(null);
+  const [syncError, setSyncError] = useState('');
+  const [applyingCandidate, setApplyingCandidate] = useState(false);
   const [candidatePicks, setCandidatePicks] = useState<Record<string, string>>({});
-  const [overrideManual, setOverrideManual] = useState(false);
   const selectedPrice = prices.find((p) => p.model === priceModel.trim());
   const [ruleEditor, setRuleEditor] = useState<{
     price: ModelPrice;
+    base: RateDraft;
     context: ContextRuleDraft[];
     service: ServiceRuleDraft[];
   } | null>(null);
@@ -655,64 +665,11 @@ export function MonitoringPage() {
     }
   };
 
-  const savePrice = async (asManual = true) => {
-    if (
-      hasPricingRules(selectedPrice) &&
-      !window.confirm(t('monitoring.price_clear_rules_confirm', { model: selectedPrice?.model }))
-    )
-      return;
-    const modelName = priceModel.trim();
-    if (!modelName) return;
-    try {
-      const rates = parseRuleRates({
-        prompt_per_1m: pricePrompt || '0',
-        completion_per_1m: priceCompletion || '0',
-        cache_per_1m: '',
-        cache_read_per_1m: priceCacheRead,
-        cache_creation_per_1m: priceCacheWrite,
-      });
-      await usageEventsApi.putModelPrices([
-        {
-          ...rates,
-          model: modelName,
-          prompt_per_1m: rates.prompt_per_1m ?? 0,
-          completion_per_1m: rates.completion_per_1m ?? 0,
-          context_tiers: [],
-          service_tiers: [],
-          source: asManual ? 'manual' : 'override',
-        },
-      ]);
-      showNotification(t('monitoring.price_saved'), 'success');
-      setPriceModel('');
-      setPricePrompt('');
-      setPriceCompletion('');
-      setPriceCacheRead('');
-      setPriceCacheWrite('');
-      await loadPrices();
-      await loadCore();
-    } catch (err) {
-      showNotification(
-        err instanceof Error && err.message === 'price_invalid_rates'
-          ? t('monitoring.price_invalid_rates')
-          : getErrorMessage(err),
-        'error'
-      );
-    }
-  };
-
-  const startEditPrice = (p: ModelPrice) => {
-    setPriceModel(p.model);
-    setPricePrompt(String(p.prompt_per_1m ?? ''));
-    setPriceCompletion(String(p.completion_per_1m ?? ''));
-    setPriceCacheRead(ruleRateDraft(p).cache_read_per_1m);
-    setPriceCacheWrite(ruleRateDraft(p).cache_creation_per_1m);
-    setPriceListFilter('all');
-  };
-
   const openRuleEditor = (price: ModelPrice) => {
     setRuleError('');
     setRuleEditor({
       price,
+      base: ruleRateDraft(price),
       context: (price.context_tiers || []).map((rule) => ({
         ...ruleRateDraft(rule),
         threshold_tokens: String(rule.threshold_tokens),
@@ -728,22 +685,27 @@ export function MonitoringPage() {
   const saveRules = async () => {
     if (!ruleEditor || savingRules) return;
     setRuleError('');
-    let rules: ReturnType<typeof parsePricingRules>;
+    let edited: ModelPrice;
     try {
-      rules = parsePricingRules(ruleEditor.context, ruleEditor.service);
+      edited = parsePricingEditor(
+        ruleEditor.price,
+        ruleEditor.base,
+        ruleEditor.context,
+        ruleEditor.service
+      );
     } catch (err) {
       setRuleError(t(`monitoring.${getErrorMessage(err)}`));
       return;
     }
     if (
       hasPricingRules(ruleEditor.price) &&
-      !hasPricingRules({ ...ruleEditor.price, ...rules }) &&
+      !hasPricingRules(edited) &&
       !window.confirm(t('monitoring.price_clear_rules_confirm', { model: ruleEditor.price.model }))
     )
       return;
     setSavingRules(true);
     try {
-      await usageEventsApi.putModelPrices([{ ...ruleEditor.price, ...rules, source: 'manual' }]);
+      await usageEventsApi.putModelPrices([edited]);
       setRuleEditor(null);
       showNotification(t('monitoring.price_saved'), 'success');
       await loadPrices();
@@ -791,49 +753,56 @@ export function MonitoringPage() {
     }
   };
 
-  const syncPrices = async () => {
+  const syncPrices = async (model?: string, restore = false) => {
+    if (syncing || (restore && !window.confirm(t('monitoring.price_restore_confirm', { model }))))
+      return;
     setSyncing(true);
+    setSyncError('');
     try {
       const result = await usageEventsApi.syncModelPrices({
-        override_manual: overrideManual,
+        override_manual: restore,
+        ...(model ? { models: [model] } : {}),
         apply_matched: true,
       });
       setSyncResult(result);
       applyPricesResponse({
-        prices: result.prices,
-        aliases: result.aliases,
-        unpriced_models: result.unpriced_models,
+        prices: result.prices ?? prices,
+        aliases: result.aliases ?? aliases,
+        unpriced_models: result.unpriced_models ?? unpriced,
       });
-      const picks: Record<string, string> = {};
-      for (const set of result.candidates || []) {
-        if (set.candidates?.[0]) {
-          picks[set.model] = candidateIdentity(set.candidates[0]);
-        }
-      }
-      setCandidatePicks(picks);
-      showNotification(
-        t('monitoring.sync_success', {
-          imported: result.imported,
-          candidates: result.candidates?.length ?? 0,
-          unmatched: result.unmatched?.length ?? 0,
-        }),
-        'success'
-      );
+      setCandidatePicks({});
       await loadCore();
     } catch (err) {
-      showNotification(getErrorMessage(err), 'error');
+      setSyncError(getErrorMessage(err));
+      const data = (err as { data?: Partial<PriceSyncResult> })?.data;
+      setSyncResult(
+        data?.source_results || data?.outcomes
+          ? {
+              imported: 0,
+              skipped: 0,
+              unchanged: 0,
+              source_results: data.source_results,
+              outcomes: data.outcomes,
+              preserved: data.preserved,
+            }
+          : null
+      );
+      setCandidatePicks({});
     } finally {
       setSyncing(false);
     }
   };
 
   const applyCandidate = async (set: PriceSyncCandidateSet) => {
-    if (!overrideManual && prices.some((p) => p.model === set.model && isManualSource(p.source))) {
-      showNotification(t('monitoring.price_manual_protected'), 'error');
+    if (applyingCandidate || !candidatePicks[set.model]) return;
+    if (
+      prices.some((p) => p.model === set.model && isManualSource(p.source)) &&
+      !window.confirm(t('monitoring.price_restore_confirm', { model: set.model }))
+    )
       return;
-    }
     const price = candidatePrice(set, candidatePicks[set.model]);
     if (!price) return;
+    setApplyingCandidate(true);
     try {
       await usageEventsApi.putModelPrices([price]);
       showNotification(t('monitoring.candidate_applied', { model: set.model }), 'success');
@@ -848,7 +817,9 @@ export function MonitoringPage() {
       await loadPrices();
       await loadCore();
     } catch (err) {
-      showNotification(getErrorMessage(err), 'error');
+      showNotification(`${t('monitoring.price_sync_failed')} ${getErrorMessage(err)}`, 'error');
+    } finally {
+      setApplyingCandidate(false);
     }
   };
 
@@ -1002,7 +973,8 @@ export function MonitoringPage() {
     <div className={styles.container}>
       <Modal
         open={ruleEditor !== null}
-        title={t('monitoring.price_rules_title', { model: ruleEditor?.price.model })}
+        width={820}
+        title={t('monitoring.price_editor_title', { model: ruleEditor?.price.model })}
         closeDisabled={savingRules}
         onClose={() => setRuleEditor(null)}
         footer={
@@ -1011,14 +983,29 @@ export function MonitoringPage() {
               {t('common.cancel')}
             </Button>
             <Button loading={savingRules} onClick={() => void saveRules()}>
-              {t('monitoring.price_save_rules')}
+              {t('monitoring.price_save_manual')}
             </Button>
           </>
         }
       >
         {ruleEditor ? (
           <fieldset className={styles.ruleEditor} disabled={savingRules}>
+            <p className={styles.muted}>{t('monitoring.price_manual_scope')}</p>
+            <fieldset className={styles.ruleFields}>
+              <legend>{t('monitoring.price_base_rates')}</legend>
+              <RuleRateInputs
+                value={ruleEditor.base}
+                inherited={effectiveRuleRates({}, safeDraftRates(ruleEditor.base))}
+                onChange={(base) => setRuleEditor({ ...ruleEditor, base })}
+              />
+            </fieldset>
             <p className={styles.muted}>{t('monitoring.price_rules_hint')}</p>
+            <p className={styles.muted}>{t('monitoring.price_precedence')}</p>
+            {!ruleEditor.context.length && !ruleEditor.service.length ? (
+              <p className={styles.banner}>
+                {t(`monitoring.${emptyRulesReason(ruleEditor.price)}`)}
+              </p>
+            ) : null}
             <h4 className={styles.panelHeading}>{t('monitoring.price_context_rules')}</h4>
             {ruleEditor.context.map((rule, index) => (
               <fieldset key={index} className={styles.ruleFields}>
@@ -1042,6 +1029,10 @@ export function MonitoringPage() {
                 />
                 <RuleRateInputs
                   value={rule}
+                  inherited={effectiveRuleRates(
+                    safeDraftRates(ruleEditor.base),
+                    safeDraftRates(rule)
+                  )}
                   onChange={(rates) =>
                     setRuleEditor({
                       ...ruleEditor,
@@ -1111,6 +1102,10 @@ export function MonitoringPage() {
                 />
                 <RuleRateInputs
                   value={rule}
+                  inherited={effectiveRuleRates(
+                    safeDraftRates(ruleEditor.base),
+                    safeDraftRates(rule)
+                  )}
                   onChange={(rates) =>
                     setRuleEditor({
                       ...ruleEditor,
@@ -1226,6 +1221,7 @@ export function MonitoringPage() {
           </div>
 
           <div className={styles.filterActions}>
+            <MonitoringSettings />
             <Button variant="secondary" size="sm" onClick={() => void refresh()} disabled={loading}>
               {t('common.refresh')}
             </Button>
@@ -1583,47 +1579,71 @@ export function MonitoringPage() {
               <p className={styles.pricesHint}>{t('monitoring.prices_hint')}</p>
             </div>
             <div className={styles.pricesActionGroup}>
-              <label className={styles.overrideRow}>
-                <input
-                  type="checkbox"
-                  checked={overrideManual}
-                  onChange={(e) => setOverrideManual(e.target.checked)}
-                />
-                {t('monitoring.override_manual')}
-              </label>
               <Button size="sm" loading={syncing} onClick={() => void syncPrices()}>
                 {t('monitoring.sync_prices')}
               </Button>
             </div>
           </section>
 
-          {syncResult ? (
-            <div className={styles.syncMeta}>
-              <span className={styles.metaPill}>
-                {t('monitoring.sync_imported')}: {syncResult.imported}
-              </span>
-              <span className={styles.metaPill}>
-                {t('monitoring.sync_candidates')}: {syncResult.candidates?.length ?? 0}
-              </span>
-              <span className={styles.metaPill}>
-                {t('monitoring.sync_unmatched')}: {syncResult.unmatched?.length ?? 0}
-              </span>
-              {(syncResult.skipped_manual ?? 0) > 0 ? (
-                <span className={styles.metaPill}>
-                  {t('monitoring.sync_skipped_manual')}: {syncResult.skipped_manual}
-                </span>
-              ) : null}
-              {(syncResult.sources || []).length > 0 ? (
-                <span className={styles.metaPill}>
-                  {t('monitoring.sync_sources')}: {(syncResult.sources || []).join(', ')}
-                </span>
-              ) : null}
-              {syncResult.preserved?.length ? (
-                <span className={styles.metaPill} title={syncResult.preserved.join(', ')}>
-                  {t('monitoring.sync_preserved')}: {syncResult.preserved.join(', ')}
-                </span>
-              ) : null}
+          {syncError ? (
+            <div role="alert" className={styles.bannerError}>
+              {t('monitoring.price_sync_failed')} {syncError}
             </div>
+          ) : null}
+          {syncResult ? (
+            <section className={styles.syncReport} aria-label={t('monitoring.sync_report')}>
+              <div className={styles.syncMeta}>
+                {Object.entries(syncSummary(syncResult)).map(([key, count]) => (
+                  <span key={key} className={styles.metaPill}>
+                    {t(`monitoring.sync_count_${key}`)}: {count ?? '—'}
+                  </span>
+                ))}
+              </div>
+              <details className={styles.syncDetails}>
+                <summary>{t('monitoring.sync_details')}</summary>
+                {syncResult.unchanged === undefined ? (
+                  <p>{t('monitoring.sync_legacy_summary')}</p>
+                ) : null}
+                {(syncResult.source_results || []).map((source) => (
+                  <p key={source.source}>
+                    <strong>{source.source}</strong> ·{' '}
+                    {source.error || t('monitoring.sync_source_loaded', { count: source.models })}
+                    {source.error ? ` · ${t('monitoring.price_sync_failed')}` : ''}
+                  </p>
+                ))}
+                {syncResult.preserved?.length ? (
+                  <p>
+                    {t('monitoring.sync_preserved')}: {syncResult.preserved.join(', ')}
+                  </p>
+                ) : null}
+                {(syncResult.outcomes || []).map((outcome) => (
+                  <div key={outcome.model} className={styles.syncDecision}>
+                    <strong>{outcome.model}</strong> ·{' '}
+                    {t(`monitoring.sync_status_${outcome.status}`, {
+                      defaultValue: outcome.status,
+                    })}
+                    {outcome.source
+                      ? ` · ${outcome.source} / ${outcome.source_model_id || '—'}`
+                      : ''}
+                    <div>{outcome.reason}</div>
+                  </div>
+                ))}
+                {!syncResult.outcomes?.length ? (
+                  <>
+                    {(syncResult.matched || []).map((price) => (
+                      <p key={price.model}>
+                        {price.model} · {price.source} / {price.source_model_id || '—'}
+                      </p>
+                    ))}
+                    {(syncResult.unmatched || []).map((model) => (
+                      <p key={model}>
+                        {model} · {t('monitoring.sync_status_no_supported_rules')}
+                      </p>
+                    ))}
+                  </>
+                ) : null}
+              </details>
+            </section>
           ) : null}
 
           {/* 2. Mapping candidates when needed */}
@@ -1635,9 +1655,11 @@ export function MonitoringPage() {
                 {(syncResult?.candidates || []).map((set) => {
                   const options = set.candidates.map((c) => ({
                     value: candidateIdentity(c),
-                    label: `${c.price.source || '—'} · ${c.source_model_id} · ${Math.round(c.score * 100)}% · $${formatRate(c.price.prompt_per_1m)} / $${formatRate(c.price.completion_per_1m)}`,
+                    label: `${c.price.source || '—'} · ${c.source_model_id} · ${t('monitoring.price_candidate_base', { prompt: formatRate(c.price.prompt_per_1m), completion: formatRate(c.price.completion_per_1m) })} · ${t('monitoring.price_candidate_rules', { contextCount: c.price.context_tiers?.length ?? 0, service: c.price.service_tiers?.length ?? 0 })}`,
                   }));
-                  const selected = candidatePrice(set, candidatePicks[set.model]);
+                  const selected = candidatePicks[set.model]
+                    ? candidatePrice(set, candidatePicks[set.model])
+                    : undefined;
                   return (
                     <div key={set.model} className={styles.candidateBlock}>
                       <span className={styles.candidateModel} title={set.model}>
@@ -1646,7 +1668,8 @@ export function MonitoringPage() {
                       <div className={styles.candidateSelect}>
                         <Select
                           className={styles.candidateSelect}
-                          value={candidatePicks[set.model] || options[0]?.value || ''}
+                          value={candidatePicks[set.model] || ''}
+                          placeholder={t('monitoring.price_choose_model')}
                           options={options}
                           onChange={(v) =>
                             setCandidatePicks((prev) => ({ ...prev, [set.model]: v }))
@@ -1655,11 +1678,33 @@ export function MonitoringPage() {
                           fullWidth
                           ariaLabel={t('monitoring.candidates_title')}
                         />
-                        {selected && hasPricingRules(selected) ? (
-                          <PricingRuleChips price={selected} />
+                        {selected ? (
+                          <>
+                            <p className={styles.muted}>
+                              {t('monitoring.price_candidate_rates', {
+                                rates: priceRateFields
+                                  .map(
+                                    ([field, , label]) =>
+                                      `${t(`monitoring.${label}`)}: $${formatRate(effectiveRuleRates(selected, {})[field] ?? 0)}`
+                                  )
+                                  .join(' · '),
+                              })}
+                            </p>
+                            {hasPricingRules(selected) ? (
+                              <PricingRuleChips price={selected} />
+                            ) : (
+                              <p className={styles.muted}>
+                                {t('monitoring.price_rules_base_only')}
+                              </p>
+                            )}
+                          </>
                         ) : null}
                       </div>
-                      <Button size="sm" onClick={() => void applyCandidate(set)}>
+                      <Button
+                        size="sm"
+                        disabled={!selected || applyingCandidate || syncing}
+                        onClick={() => void applyCandidate(set)}
+                      >
                         {t('monitoring.apply_candidate')}
                       </Button>
                     </div>
@@ -1776,15 +1821,34 @@ export function MonitoringPage() {
                         >
                           {p.source || 'manual'}
                         </span>
-                        {hasPricingRules(p) ? <PricingRuleChips price={p} /> : null}
+                        {hasPricingRules(p) ? (
+                          <PricingRuleChips price={p} />
+                        ) : (
+                          <span className={styles.priceRuleStatus}>
+                            {t(`monitoring.${emptyRulesReason(p)}`)}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className={styles.formActions}>
-                          <Button variant="ghost" size="sm" onClick={() => startEditPrice(p)}>
+                          <Button variant="ghost" size="sm" onClick={() => openRuleEditor(p)}>
                             {t('common.edit')}
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => openRuleEditor(p)}>
-                            {t('monitoring.price_edit_rules')}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={syncing}
+                            onClick={() => void syncPrices(p.model)}
+                          >
+                            {t('monitoring.price_sync_model')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={syncing}
+                            onClick={() => void syncPrices(p.model, true)}
+                          >
+                            {t('monitoring.price_restore')}
                           </Button>
                           <Button
                             variant="ghost"
@@ -1807,11 +1871,6 @@ export function MonitoringPage() {
             <section className={styles.editorBlock}>
               <h4 className={styles.panelHeading}>{t('monitoring.manual_price_title')}</h4>
               <p className={styles.muted}>{t('monitoring.manual_price_hint')}</p>
-              {hasPricingRules(selectedPrice) ? (
-                <p className={styles.banner}>
-                  {t('monitoring.price_clear_rules_warning', { model: selectedPrice?.model })}
-                </p>
-              ) : null}
               <div className={styles.formGrid}>
                 <Input
                   label={t('monitoring.col_model')}
@@ -1819,43 +1878,21 @@ export function MonitoringPage() {
                   onChange={(e) => setPriceModel(e.target.value)}
                   placeholder="gpt-5.5"
                 />
-                <Input
-                  label={t('monitoring.price_prompt')}
-                  value={pricePrompt}
-                  onChange={(e) => setPricePrompt(e.target.value)}
-                  placeholder="1.25"
-                />
-                <Input
-                  label={t('monitoring.price_completion')}
-                  value={priceCompletion}
-                  onChange={(e) => setPriceCompletion(e.target.value)}
-                  placeholder="10"
-                />
-                <Input
-                  label={t('monitoring.price_cache_read')}
-                  value={priceCacheRead}
-                  onChange={(e) => setPriceCacheRead(e.target.value)}
-                  placeholder="0.125"
-                />
-                <Input
-                  label={t('monitoring.price_cache_write')}
-                  value={priceCacheWrite}
-                  onChange={(e) => setPriceCacheWrite(e.target.value)}
-                  placeholder="1.5625"
-                />
-                <div className={styles.formActions}>
-                  <Button size="sm" onClick={() => void savePrice(true)}>
-                    {t('monitoring.save_price')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={!selectedPrice}
-                    onClick={() => selectedPrice && openRuleEditor(selectedPrice)}
-                  >
-                    {t('monitoring.price_edit_rules')}
-                  </Button>
-                </div>
+                <Button
+                  size="sm"
+                  disabled={!priceModel.trim()}
+                  onClick={() =>
+                    openRuleEditor(
+                      selectedPrice || {
+                        model: priceModel.trim(),
+                        prompt_per_1m: 0,
+                        completion_per_1m: 0,
+                      }
+                    )
+                  }
+                >
+                  {t('monitoring.price_open_editor')}
+                </Button>
               </div>
             </section>
 

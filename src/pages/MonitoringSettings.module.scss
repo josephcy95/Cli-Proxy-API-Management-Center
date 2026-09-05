@@ -1,0 +1,29 @@
+.content {
+  display: grid;
+  gap: 12px;
+  p {
+    margin: 0;
+  }
+}
+.warning {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning-color) 35%, var(--border-color));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning-color) 10%, var(--bg-secondary));
+  label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+  }
+}
+.muted {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.feedback {
+  min-height: 24px;
+}
+.error {
+  color: var(--danger-color);
+}
