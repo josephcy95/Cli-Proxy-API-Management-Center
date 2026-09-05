@@ -78,6 +78,11 @@ export interface UsageAccountStat {
   recent_requests?: UsageRecentRequestBucket[];
 }
 
+export type UsageAccountRecentRequests = Pick<
+  UsageAccountStat,
+  'auth_index' | 'source' | 'source_hash' | 'provider' | 'recent_requests'
+>;
+
 export interface UsageAPIKeyStat {
   api_key?: string;
   api_key_hash?: string;
@@ -113,6 +118,7 @@ export interface UsageQuery {
   success_only?: boolean;
   limit?: number;
   before_id?: number;
+  fields?: Array<keyof UsageFilterOptions>;
 }
 
 export interface ModelPrice {
@@ -181,6 +187,7 @@ export interface PriceSyncRequest {
 export interface UsageEventsResponse {
   events: UsageEvent[];
   next_before_id?: number;
+  fields?: Array<keyof UsageFilterOptions>;
   generated_at_ms?: number;
   store_path?: string;
 }
@@ -195,24 +202,40 @@ const TIMEOUT_MS = 30_000;
 const SYNC_TIMEOUT_MS = 90_000;
 
 export const usageEventsApi = {
-  listEvents: (query: UsageQuery = {}) =>
-    apiClient.post<UsageEventsResponse>('/usage-events', query, { timeout: TIMEOUT_MS }),
+  listEvents: (query: UsageQuery = {}, signal?: AbortSignal) =>
+    apiClient.post<UsageEventsResponse>('/usage-events', query, { signal, timeout: TIMEOUT_MS }),
 
-  getSummary: (query: UsageQuery = {}) =>
-    apiClient.post<UsageSummaryResponse>('/usage-summary', query, { timeout: TIMEOUT_MS }),
+  getSummary: (query: UsageQuery = {}, signal?: AbortSignal) =>
+    apiClient.post<UsageSummaryResponse>('/usage-summary', query, { signal, timeout: TIMEOUT_MS }),
 
-  getFilterOptions: (query: UsageQuery = {}) =>
-    apiClient.post<UsageFilterOptions>('/usage-filter-options', query, { timeout: TIMEOUT_MS }),
+  getFilterOptions: (query: UsageQuery = {}, signal?: AbortSignal) =>
+    apiClient.post<UsageFilterOptions>('/usage-filter-options', query, {
+      signal,
+      timeout: TIMEOUT_MS,
+    }),
 
-  getAccountStats: (query: UsageQuery = {}) =>
+  getAccountStats: (query: UsageQuery = {}, signal?: AbortSignal) =>
     apiClient.post<{ accounts: UsageAccountStat[] }>('/usage-account-stats', query, {
+      signal,
       timeout: TIMEOUT_MS,
     }),
 
-  getAPIKeyStats: (query: UsageQuery = {}) =>
+  getAPIKeyStats: (query: UsageQuery = {}, signal?: AbortSignal) =>
     apiClient.post<{ api_keys: UsageAPIKeyStat[] }>('/usage-api-key-stats', query, {
+      signal,
       timeout: TIMEOUT_MS,
     }),
+
+  getAccountRecentRequests: (
+    query: UsageQuery,
+    accounts: UsageAccountRecentRequests[],
+    signal?: AbortSignal
+  ) =>
+    apiClient.post<{ accounts: UsageAccountRecentRequests[] }>(
+      '/usage-account-recent-requests',
+      { ...query, accounts },
+      { signal, timeout: TIMEOUT_MS }
+    ),
 
   getModelPrices: () =>
     apiClient.get<ModelPricesResponse>('/model-prices', { timeout: TIMEOUT_MS }),

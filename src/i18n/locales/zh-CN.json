@@ -2117,7 +2117,17 @@
     "price_filter_synced": "已同步",
     "price_filter_manual": "手动",
     "price_filter_unpriced": "未定价",
-    "alias_list": "价格别名"
+    "alias_list": "价格别名",
+    "range_label": "日期范围",
+    "range_custom": "自定义…",
+    "range_start": "开始时间",
+    "range_end": "结束时间",
+    "range_apply": "应用",
+    "range_timezone": "时区：{{timezone}}。包含结束时间。",
+    "range_invalid": "请输入有效的日期和时间，开始时间必须早于结束时间。",
+    "range_paused": "固定时间范围已暂停自动刷新，可手动刷新以检查更新。",
+    "section_summary": "汇总",
+    "section_filters": "筛选项"
   },
   "relative_time": {
     "now": "刚刚",

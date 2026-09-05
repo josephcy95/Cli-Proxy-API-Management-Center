@@ -1,6 +1,5 @@
 import {
   memo,
-  startTransition,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -13,6 +12,15 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
+import {
+  monitoringBounds,
+  localDateTime,
+  parseLocalDateTime,
+  type MonitoringRange,
+  type PresetRange,
+} from './monitoringRange';
+import { useMonitoringData, type MonitoringTab } from './useMonitoringData';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -34,12 +42,8 @@ import {
   type ModelPriceAlias,
   type PriceSyncCandidateSet,
   type PriceSyncResult,
-  type UsageAccountStat,
-  type UsageAPIKeyStat,
   type UsageEvent,
-  type UsageFilterOptions,
   type UsageQuery,
-  type UsageSummary,
 } from '@/services/api/usageEvents';
 import { configFileApi } from '@/services/api/configFile';
 import { apiClient } from '@/services/api/client';
@@ -61,8 +65,6 @@ import {
 } from './monitoringMetrics';
 import styles from './MonitoringPage.module.scss';
 
-type RangeKey = '24h' | '7d' | '14d' | '30d' | 'all';
-type TabKey = 'realtime' | 'accounts' | 'api_keys' | 'prices';
 type PriceListFilter = 'all' | 'manual' | 'synced' | 'unpriced';
 
 /** Parse optional display names stored as YAML EOL comments on api-keys. */
@@ -104,9 +106,6 @@ const AUTO_OPTIONS = [
   { label: '30s', value: '30000' },
 ] as const;
 
-const MS_PER_HOUR = 60 * 60 * 1000;
-const MS_PER_DAY = 24 * MS_PER_HOUR;
-
 const numberFormatters = {
   0: new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }),
   4: new Intl.NumberFormat(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 2 }),
@@ -120,14 +119,6 @@ const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   second: '2-digit',
   hour12: false,
 });
-
-const rangeToMs = (key: RangeKey): { from_ms?: number; to_ms?: number } => {
-  const now = Date.now();
-  if (key === 'all') return {};
-  if (key === '24h') return { from_ms: now - 24 * MS_PER_HOUR, to_ms: now };
-  const days = key === '7d' ? 7 : key === '14d' ? 14 : 30;
-  return { from_ms: now - days * MS_PER_DAY, to_ms: now };
-};
 
 const formatNumber = (value: number | undefined | null, digits = 0) => {
   if (value === undefined || value === null || !Number.isFinite(value)) return '—';
@@ -212,45 +203,6 @@ const selectText = (element: HTMLElement) => {
   selection.removeAllRanges();
   selection.addRange(range);
 };
-
-const sameRecord = (left: object, right: object) => {
-  const previous = left as Record<string, unknown>;
-  const next = right as Record<string, unknown>;
-  const keys = Object.keys(next);
-  return (
-    keys.length === Object.keys(previous).length && keys.every((key) => previous[key] === next[key])
-  );
-};
-
-const mergeEvents = (previous: UsageEvent[], next: UsageEvent[]) => {
-  if (previous.length === 0) return next;
-  const previousById = new Map(previous.map((event) => [event.id, event]));
-  let changed = previous.length !== next.length;
-  const merged = next.map((event) => {
-    const previousEvent = previousById.get(event.id);
-    if (!previousEvent || !sameRecord(previousEvent, event)) {
-      changed = true;
-      return event;
-    }
-    return previousEvent;
-  });
-  return changed ? merged : previous;
-};
-
-const sameStringList = (left: string[] | undefined, right: string[] | undefined) =>
-  left !== undefined &&
-  right !== undefined &&
-  left.length === right.length &&
-  left.every((value, index) => value === right[index]);
-
-const sameFilterOptions = (left: UsageFilterOptions | null, right: UsageFilterOptions) =>
-  left !== null &&
-  sameStringList(left.models, right.models) &&
-  sameStringList(left.providers, right.providers) &&
-  sameStringList(left.auth_indices, right.auth_indices) &&
-  sameStringList(left.sources, right.sources) &&
-  sameStringList(left.api_keys, right.api_keys) &&
-  sameStringList(left.api_key_hashes, right.api_key_hashes);
 
 function UsageTokenDetails({ event }: { event: UsageEvent }) {
   const { t } = useTranslation();
@@ -456,27 +408,46 @@ export function MonitoringPage() {
   const { t } = useTranslation();
   const showNotification = useNotificationStore((s) => s.showNotification);
 
-  const [range, setRange] = useState<RangeKey>('24h');
-  const [tab, setTab] = useState<TabKey>('realtime');
+  const [range, setRange] = useState<MonitoringRange>({ preset: '24h' });
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [rangeError, setRangeError] = useState('');
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const openCustom = () => {
+    const bounds = monitoringBounds(range.preset === 'all' ? { preset: '24h' } : range);
+    setCustomStart(localDateTime(bounds.from_ms!));
+    setCustomEnd(localDateTime(bounds.to_ms!));
+    setRangeError('');
+    setCustomOpen(true);
+  };
+  const applyCustom = () => {
+    const from = parseLocalDateTime(customStart);
+    const to = parseLocalDateTime(customEnd);
+    if (from === null || to === null || from >= to) {
+      setRangeError(t('monitoring.range_invalid'));
+      return;
+    }
+    setRange({ preset: 'custom', from_ms: from, to_ms: to });
+    setCustomOpen(false);
+  };
+  const [tab, setTab] = useState<MonitoringTab>('realtime');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
   const [model, setModel] = useState('');
   const [provider, setProvider] = useState('');
   const [source, setSource] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'failed'>('all');
   const [autoMs, setAutoMs] = useState(5_000);
-  const [loading, setLoading] = useState(false);
-  const [events, setEvents] = useState<UsageEvent[]>([]);
-  const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const [accounts, setAccounts] = useState<UsageAccountStat[]>([]);
-  const [apiKeyStats, setApiKeyStats] = useState<UsageAPIKeyStat[]>([]);
   const [apiKeyLabels, setApiKeyLabels] = useState<Record<string, string>>({});
-  const [filterOptions, setFilterOptions] = useState<UsageFilterOptions | null>(null);
   const [prices, setPrices] = useState<ModelPrice[]>([]);
   const [aliases, setAliases] = useState<ModelPriceAlias[]>([]);
   const [unpriced, setUnpriced] = useState<string[]>([]);
-  const [error, setError] = useState('');
-  const [statsEnabledHint, setStatsEnabledHint] = useState<boolean | null>(null);
 
   const [priceModel, setPriceModel] = useState('');
   const [pricePrompt, setPricePrompt] = useState('');
@@ -492,100 +463,39 @@ export function MonitoringPage() {
   const [syncResult, setSyncResult] = useState<PriceSyncResult | null>(null);
   const [candidatePicks, setCandidatePicks] = useState<Record<string, string>>({});
   const [overrideManual, setOverrideManual] = useState(false);
-  const pollInFlightRef = useRef(false);
-
-  // Build query at call time so refresh uses a fresh upper time bound.
-  // Do not depend on filterOptions here — loading them would recreate this callback and loop.
-  const buildQuery = useCallback(
-    (limit = 200): UsageQuery => {
-      const base = rangeToMs(range);
-      const sourcePick = source.trim();
-      const apiKeyPick = apiKey.trim();
-      return {
-        ...base,
-        search: search.trim() || undefined,
-        models: model ? [model] : undefined,
-        providers: provider ? [provider] : undefined,
-        sources: sourcePick ? [sourcePick] : undefined,
-        api_keys: apiKeyPick ? [apiKeyPick] : undefined,
-        failed_only: statusFilter === 'failed' || undefined,
-        success_only: statusFilter === 'success' || undefined,
-        limit,
-      };
-    },
-    [range, search, model, provider, source, apiKey, statusFilter]
+  const filters = useMemo<UsageQuery>(
+    () => ({
+      search: debouncedSearch.trim() || undefined,
+      models: model ? [model] : undefined,
+      providers: provider ? [provider] : undefined,
+      sources: source.trim() ? [source.trim()] : undefined,
+      api_keys: apiKey.trim() ? [apiKey.trim()] : undefined,
+      failed_only: statusFilter === 'failed' || undefined,
+      success_only: statusFilter === 'success' || undefined,
+    }),
+    [debouncedSearch, model, provider, source, apiKey, statusFilter]
   );
-
-  const loadCore = useCallback(
-    async (showLoading = true, includeFilterOptions = showLoading) => {
-      if (showLoading) setLoading(true);
-      setError('');
-      try {
-        const query = buildQuery();
-        const [eventsRes, summaryRes, filtersRes] = await Promise.all([
-          usageEventsApi.listEvents(query),
-          usageEventsApi.getSummary(query),
-          includeFilterOptions ? usageEventsApi.getFilterOptions(query) : Promise.resolve(null),
-        ]);
-        const accountsRes = await usageEventsApi.getAccountStats(query).catch(() => null);
-        const applyResults = () => {
-          setEvents((previous) => mergeEvents(previous, eventsRes.events || []));
-          setSummary((previous) => {
-            const next = summaryRes.summary || null;
-            return next && previous && sameRecord(previous, next) ? previous : next;
-          });
-          setStatsEnabledHint(summaryRes.usage_statistics_enabled ?? null);
-          if (accountsRes) setAccounts(accountsRes.accounts || []);
-          if (filtersRes) {
-            setFilterOptions((previous) =>
-              sameFilterOptions(previous, filtersRes) ? previous : filtersRes
-            );
-          }
-        };
-        if (showLoading) {
-          applyResults();
-        } else {
-          startTransition(applyResults);
-        }
-      } catch (err) {
-        setError(getErrorMessage(err));
-        setEvents([]);
-        setSummary(null);
-      } finally {
-        if (showLoading) setLoading(false);
-      }
-    },
-    [buildQuery]
-  );
-
-  const loadLiveEvents = useCallback(async () => {
-    try {
-      const response = await usageEventsApi.listEvents(buildQuery());
-      startTransition(() => {
-        setEvents((previous) => mergeEvents(previous, response.events || []));
-      });
-    } catch {
-      // Keep the last successful event list visible during a transient poll failure.
-    }
-  }, [buildQuery]);
-
-  const loadAccounts = useCallback(async () => {
-    try {
-      const res = await usageEventsApi.getAccountStats(buildQuery());
-      setAccounts(res.accounts || []);
-    } catch (err) {
-      showNotification(getErrorMessage(err), 'error');
-    }
-  }, [buildQuery, showNotification]);
-
-  const loadApiKeyStats = useCallback(async () => {
-    try {
-      const res = await usageEventsApi.getAPIKeyStats(buildQuery());
-      setApiKeyStats(res.api_keys || []);
-    } catch (err) {
-      showNotification(getErrorMessage(err), 'error');
-    }
-  }, [buildQuery, showNotification]);
+  const {
+    events,
+    summary,
+    accounts,
+    apiKeyStats,
+    recent,
+    filterOptions,
+    statsEnabledHint,
+    busy,
+    errors,
+    refresh: loadCore,
+  } = useMonitoringData(filters, range, tab, autoMs);
+  const loading = Object.values(busy).some(Boolean);
+  const sectionLabels = {
+    events: t('monitoring.tab_realtime'),
+    summary: t('monitoring.section_summary'),
+    filters: t('monitoring.section_filters'),
+    accounts: t('monitoring.tab_accounts'),
+    api_keys: t('monitoring.tab_api_keys'),
+    recent: t('monitoring.recent_status'),
+  };
 
   const loadApiKeyLabels = useCallback(async () => {
     try {
@@ -615,40 +525,18 @@ export function MonitoringPage() {
   }, [applyPricesResponse, showNotification]);
 
   const refresh = useCallback(async () => {
-    await loadCore();
+    loadCore();
     void loadApiKeyLabels();
-    if (tab === 'accounts') await loadAccounts();
-    if (tab === 'api_keys') await loadApiKeyStats();
     if (tab === 'prices') await loadPrices();
-  }, [loadCore, loadAccounts, loadApiKeyStats, loadApiKeyLabels, loadPrices, tab]);
+  }, [loadCore, loadApiKeyLabels, loadPrices, tab]);
 
   useHeaderRefresh(refresh);
-
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
+    void loadApiKeyLabels();
+  }, [loadApiKeyLabels]);
   useEffect(() => {
-    if (!autoMs) return;
-    const id = window.setInterval(() => {
-      if (pollInFlightRef.current) return;
-      pollInFlightRef.current = true;
-      void (async () => {
-        try {
-          if (tab === 'realtime') {
-            await loadLiveEvents();
-          } else if (tab === 'accounts') {
-            await loadAccounts();
-          } else if (tab === 'api_keys') {
-            await loadApiKeyStats();
-          }
-        } finally {
-          pollInFlightRef.current = false;
-        }
-      })();
-    }, autoMs);
-    return () => window.clearInterval(id);
-  }, [autoMs, loadAccounts, loadApiKeyStats, loadLiveEvents, tab]);
+    if (tab === 'prices') void loadPrices();
+  }, [tab, loadPrices]);
 
   const clearFilters = () => {
     setSearch('');
@@ -657,7 +545,8 @@ export function MonitoringPage() {
     setSource('');
     setApiKey('');
     setStatusFilter('all');
-    setRange('24h');
+    setRange({ preset: '24h' });
+    setDebouncedSearch('');
   };
 
   // When cascaded options shrink, drop selections that no longer exist in the data.
@@ -684,7 +573,6 @@ export function MonitoringPage() {
   const enableStatistics = async () => {
     try {
       await apiClient.put('/usage-statistics-enabled', { value: true });
-      setStatsEnabledHint(true);
       showNotification(t('monitoring.stats_enabled'), 'success');
       await refresh();
     } catch (err) {
@@ -844,7 +732,7 @@ export function MonitoringPage() {
         : summary.input_tokens
     : undefined;
 
-  const rangeOptions: Array<[RangeKey, string]> = [
+  const rangeOptions: Array<[PresetRange, string]> = [
     ['24h', t('monitoring.range_24h')],
     ['7d', '7d'],
     ['14d', '14d'],
@@ -893,7 +781,7 @@ export function MonitoringPage() {
 
   const accountStatusByKey = useMemo(() => {
     const map = new Map<string, StatusBarData>();
-    for (const account of accounts) {
+    for (const account of recent) {
       if (account.recent_requests) {
         map.set(
           accountStatusKey(account),
@@ -902,7 +790,7 @@ export function MonitoringPage() {
       }
     }
     return map;
-  }, [accounts]);
+  }, [recent]);
 
   const formatApiKeyDisplay = useCallback(
     (key?: string | null, hash?: string | null) => {
@@ -944,7 +832,7 @@ export function MonitoringPage() {
     [t]
   );
 
-  const tabs: Array<[TabKey, string, number | null]> = [
+  const tabs: Array<[MonitoringTab, string, number | null]> = [
     ['realtime', t('monitoring.tab_realtime'), events.length],
     ['accounts', t('monitoring.tab_accounts'), null],
     ['api_keys', t('monitoring.tab_api_keys'), null],
@@ -988,19 +876,58 @@ export function MonitoringPage() {
 
   return (
     <div className={styles.container}>
+      <Modal
+        open={customOpen}
+        title={t('monitoring.range_custom')}
+        onClose={() => setCustomOpen(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCustomOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={applyCustom}>{t('monitoring.range_apply')}</Button>
+          </>
+        }
+      >
+        <p>{t('monitoring.range_timezone', { timezone })}</p>
+        <Input
+          type="datetime-local"
+          step={1}
+          label={t('monitoring.range_start')}
+          value={customStart}
+          onChange={(event) => setCustomStart(event.target.value)}
+        />
+        <Input
+          type="datetime-local"
+          step={1}
+          label={t('monitoring.range_end')}
+          value={customEnd}
+          onChange={(event) => setCustomEnd(event.target.value)}
+          error={rangeError}
+        />
+      </Modal>
       <div className={styles.filterSection}>
         <div className={styles.filterPrimary}>
-          <div className={styles.rangeGroup} role="group" aria-label={t('monitoring.range_24h')}>
+          <div className={styles.rangeGroup} role="group" aria-label={t('monitoring.range_label')}>
             {rangeOptions.map(([key, label]) => (
               <button
                 key={key}
                 type="button"
-                className={`${styles.rangeChip} ${range === key ? styles.rangeChipActive : ''}`}
-                onClick={() => setRange(key)}
+                className={`${styles.rangeChip} ${range.preset === key ? styles.rangeChipActive : ''}`}
+                aria-pressed={range.preset === key}
+                onClick={() => setRange({ preset: key })}
               >
                 {label}
               </button>
             ))}
+            <button
+              type="button"
+              className={`${styles.rangeChip} ${range.preset === 'custom' ? styles.rangeChipActive : ''}`}
+              aria-pressed={range.preset === 'custom'}
+              onClick={openCustom}
+            >
+              {t('monitoring.range_custom')}
+            </button>
           </div>
 
           <div className={styles.searchWrap}>
@@ -1023,6 +950,7 @@ export function MonitoringPage() {
             <Select
               className={styles.autoSelect}
               value={String(autoMs)}
+              disabled={range.preset === 'custom'}
               options={autoOptions}
               onChange={(v) => setAutoMs(Number(v))}
               ariaLabel={t('monitoring.auto_refresh')}
@@ -1030,6 +958,15 @@ export function MonitoringPage() {
             />
           </div>
         </div>
+
+        {range.preset === 'custom' && (
+          <div className={styles.rangeDescription}>
+            <span>
+              {formatTime(range.from_ms)} — {formatTime(range.to_ms)} ({timezone})
+            </span>
+            <span>{t('monitoring.range_paused')}</span>
+          </div>
+        )}
 
         <div className={styles.filterSecondary}>
           <SearchableSelect
@@ -1097,14 +1034,27 @@ export function MonitoringPage() {
         </div>
       ) : null}
 
-      {error ? (
-        <div className={`${styles.banner} ${styles.bannerError}`}>
-          <span>{error}</span>
-          <Button variant="secondary" size="sm" onClick={() => void refresh()}>
-            {t('common.retry')}
-          </Button>
-        </div>
-      ) : null}
+      <div className={styles.sectionStatus} aria-live="polite">
+        {Object.entries(busy)
+          .filter(([, active]) => active)
+          .map(([section]) => (
+            <span key={section}>
+              {sectionLabels[section as keyof typeof sectionLabels]}: {t('common.loading')}
+            </span>
+          ))}
+      </div>
+      {Object.entries(errors)
+        .filter(([, message]) => message)
+        .map(([section, message]) => (
+          <div key={section} className={`${styles.banner} ${styles.bannerError}`} role="alert">
+            <span>
+              {sectionLabels[section as keyof typeof sectionLabels]}: {message}
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => void refresh()}>
+              {t('common.retry')}
+            </Button>
+          </div>
+        ))}
 
       <div className={styles.summaryGrid}>
         <div className={styles.summaryCard}>
@@ -1159,9 +1109,6 @@ export function MonitoringPage() {
             className={`${styles.tabItem} ${tab === key ? styles.tabActive : ''}`}
             onClick={() => {
               setTab(key);
-              if (key === 'accounts') void loadAccounts();
-              if (key === 'api_keys') void loadApiKeyStats();
-              if (key === 'prices') void loadPrices();
             }}
           >
             {label}
@@ -1175,7 +1122,7 @@ export function MonitoringPage() {
           {events.length === 0 ? (
             <div className={styles.emptyWrap}>
               <EmptyState
-                title={t('monitoring.empty_events')}
+                title={t(busy.events ? 'common.loading' : 'monitoring.empty_events')}
                 description={t('monitoring.empty_events_hint')}
               />
             </div>
@@ -1238,7 +1185,9 @@ export function MonitoringPage() {
         <div className={styles.tableSection}>
           {accounts.length === 0 ? (
             <div className={styles.emptyWrap}>
-              <EmptyState title={t('monitoring.empty_accounts')} />
+              <EmptyState
+                title={t(busy.accounts ? 'common.loading' : 'monitoring.empty_accounts')}
+              />
             </div>
           ) : (
             <Table>
@@ -1289,7 +1238,9 @@ export function MonitoringPage() {
         <div className={styles.tableSection}>
           {apiKeyStats.length === 0 ? (
             <div className={styles.emptyWrap}>
-              <EmptyState title={t('monitoring.empty_api_keys')} />
+              <EmptyState
+                title={t(busy.api_keys ? 'common.loading' : 'monitoring.empty_api_keys')}
+              />
             </div>
           ) : (
             <Table>

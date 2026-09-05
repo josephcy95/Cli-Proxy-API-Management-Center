@@ -293,7 +293,17 @@
     "price_filter_synced": "Synced",
     "price_filter_manual": "Manual",
     "price_filter_unpriced": "Unpriced",
-    "alias_list": "Price aliases"
+    "alias_list": "Price aliases",
+    "range_label": "Date range",
+    "range_custom": "Custom…",
+    "range_start": "Start",
+    "range_end": "End",
+    "range_apply": "Apply",
+    "range_timezone": "Timezone: {{timezone}}. End time is inclusive.",
+    "range_invalid": "Enter valid dates and times, with Start earlier than End.",
+    "range_paused": "Auto-refresh paused for this fixed range. Refresh manually to check for updates.",
+    "section_summary": "Summary",
+    "section_filters": "Filters"
   },
   "dashboard": {
     "current_config": "Current Configuration",

@@ -800,3 +800,16 @@ $control-h: 38px;
     justify-content: flex-start;
   }
 }
+
+.rangeDescription,
+.sectionStatus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rangeDescription {
+  margin-top: 12px;
+}
