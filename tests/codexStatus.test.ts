@@ -298,6 +298,40 @@ test('keeps persisted windows when a live response only contains a partial snaps
   expect(getCodexAccountStatus(persisted, refreshed).kind).toBe('cooldown');
 });
 
+test('adaptive sorting prioritizes past-due usable subscriptions with or without backend scores', () => {
+  const now = Date.parse('2026-09-01T00:00:00Z');
+  for (const codex_adaptive of [undefined, { candidate: true, rank: 2 }]) {
+    const pastDue = {
+      ...file,
+      name: 'past-due.json',
+      chatgpt_subscription_active_until: '2026-08-31T00:00:00Z',
+      codex_adaptive,
+    };
+    const active = {
+      ...file,
+      name: 'active.json',
+      chatgpt_subscription_active_until: '2026-09-02T00:00:00Z',
+      codex_adaptive,
+    };
+    expect(compareCodexAdaptive(pastDue, active, now)).toBeLessThan(0);
+    expect(compareCodexAdaptive(active, pastDue, now)).toBeGreaterThan(0);
+    expect(compareCodexAdaptive({ ...pastDue, disabled: true }, active, now)).toBeGreaterThan(0);
+    expect(compareCodexAdaptive({ ...pastDue, unavailable: true }, active, now)).toBeGreaterThan(0);
+    const refreshed: CodexRefreshState = {
+      status: 'success',
+      windows: [{ id: 'weekly', label: 'Week', usedPercent: 100, resetLabel: 'later' }],
+    };
+    expect(compareCodexAdaptive(pastDue, active, now, refreshed)).toBeGreaterThan(0);
+    expect(
+      compareCodexAdaptive(
+        { ...pastDue, chatgpt_subscription_active_until: new Date(now).toISOString() },
+        active,
+        now
+      )
+    ).toBeLessThan(0);
+  }
+});
+
 test('adaptive sorting uses the persisted weekly window', () => {
   const mostlyUsed = {
     ...file,

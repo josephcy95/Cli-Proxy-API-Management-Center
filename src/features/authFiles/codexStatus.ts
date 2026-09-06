@@ -341,6 +341,7 @@ export const getCodexAccountStatus = (
 
 export type CodexAdaptiveSortScore = {
   candidate: boolean;
+  expired: boolean;
   status: number;
   deadline: number | null;
   urgency: number;
@@ -394,6 +395,7 @@ const codexAdaptiveScore = (
   const candidate = isCodexAdaptiveCandidate(file, refreshed, now);
   return {
     candidate,
+    expired: subscriptionExpiry != null && subscriptionExpiry <= now,
     status: getCodexAvailabilityStatusRank(getCodexAccountStatus(file, refreshed, now).kind),
     deadline,
     urgency: (usableRemaining * (1 + Math.min(resetCredits.availableCount, 2))) / hours,
@@ -416,6 +418,8 @@ const compareAdaptiveScores = (
 ): number => {
   if (left.candidate !== right.candidate) return left.candidate ? -1 : 1;
   if (left.status !== right.status) return left.status - right.status;
+  // Match the router: drain past-due subscriptions while they remain usable.
+  if (left.expired !== right.expired) return left.expired ? -1 : 1;
   if (left.deadline !== right.deadline) {
     if (left.deadline == null) return 1;
     if (right.deadline == null) return -1;

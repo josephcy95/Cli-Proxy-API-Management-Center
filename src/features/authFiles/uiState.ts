@@ -31,7 +31,7 @@ export const isAuthFilesSortMode = (value: unknown): value is AuthFilesSortMode 
   typeof value === 'string' && AUTH_FILES_SORT_MODE_SET.has(value as AuthFilesSortMode);
 
 export const getDefaultAuthFilesSortMode = (provider: string): AuthFilesSortMode =>
-  provider.trim().toLowerCase() === 'codex' ? 'availability' : 'priority';
+  provider.trim().toLowerCase() === 'codex' ? 'adaptive' : 'priority';
 
 /** Migrate legacy persisted sort values and keep provider-specific modes scoped. */
 export const normalizePersistedAuthFilesSortMode = (

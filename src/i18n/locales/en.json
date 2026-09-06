@@ -617,7 +617,7 @@
     "codex_status_available": "Available",
     "codex_status_cooldown_filter": "Cooldown",
     "codex_status_denied_filter": "Denied",
-    "sort_adaptive": "Adaptive candidate estimate",
+    "sort_adaptive": "Adaptive candidate",
     "batch_weight_placeholder": "WRR weight, e.g. 1",
     "batch_weight_title": "Apply this WRR weight to every selected file",
     "batch_weight_button": "Set WRR weight",

@@ -6,13 +6,13 @@ import {
 } from '@/features/authFiles/uiState';
 
 describe('auth-files sort state', () => {
-  test('defaults Codex to availability and other providers to priority', () => {
-    expect(getDefaultAuthFilesSortMode('codex')).toBe('availability');
+  test('defaults Codex to adaptive and other providers to priority', () => {
+    expect(getDefaultAuthFilesSortMode('codex')).toBe('adaptive');
     expect(getDefaultAuthFilesSortMode('xai')).toBe('priority');
   });
 
   test('migrates obsolete plan sorts to the current provider default', () => {
-    expect(normalizePersistedAuthFilesSortMode('plan-desc', 'codex')).toBe('availability');
+    expect(normalizePersistedAuthFilesSortMode('plan-desc', 'codex')).toBe('adaptive');
     expect(normalizePersistedAuthFilesSortMode('plan-asc', 'xai')).toBe('priority');
     expect(normalizePersistedAuthFilesSortMode('availability', 'xai')).toBe('priority');
     expect(normalizePersistedAuthFilesSortMode('az', 'codex')).toBe('az');

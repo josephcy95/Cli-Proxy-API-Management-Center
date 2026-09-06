@@ -691,8 +691,8 @@ export function AuthFilesPage() {
     () =>
       isCodexSelected
         ? [
-            { value: 'availability', label: t('auth_files.sort_availability') },
             { value: 'adaptive', label: t('auth_files.sort_adaptive') },
+            { value: 'availability', label: t('auth_files.sort_availability') },
             { value: 'priority', label: t('auth_files.sort_priority') },
             { value: 'az', label: t('auth_files.sort_az') },
           ]
