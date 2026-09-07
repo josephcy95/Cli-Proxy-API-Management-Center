@@ -14,6 +14,16 @@ import { resolveCodexPlanType } from '@/utils/quota';
 const file = { name: 'codex.json', type: 'codex', plan_type: 'plus' };
 
 describe('Codex auth-file status', () => {
+  test('adaptive sorting prioritizes paid accounts, then unknown plans, then free accounts', () => {
+    const paid = { ...file, name: 'paid.json', plan_type: 'pro', disabled: true };
+    const unknown = { ...file, name: 'unknown.json', plan_type: undefined, disabled: true };
+    const free = { ...file, name: 'free.json', plan_type: 'free', disabled: false };
+
+    expect(compareCodexAdaptive(paid, free)).toBeLessThan(0);
+    expect(compareCodexAdaptive(unknown, free)).toBeLessThan(0);
+    expect(compareCodexAdaptive(paid, unknown)).toBeLessThan(0);
+  });
+
   test('keeps internal other status out of visible filters while All includes it', () => {
     const other = { ...file, unavailable: true };
 

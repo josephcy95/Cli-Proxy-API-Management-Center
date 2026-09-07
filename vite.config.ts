@@ -37,6 +37,16 @@ function getVersion(): string {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Local preview only: a fixed public-data route, not an arbitrary URL proxy.
+  server: {
+    proxy: {
+      '^/__dev/codex-radar/(intelligence-efficiency-metrics|visual-spatial-reasoning|radar-insights)(\\?refresh=1)?$': {
+        target: 'https://codexradar.com',
+        changeOrigin: true,
+        rewrite: (url) => url.replace('/__dev/codex-radar/', '/api/'),
+      },
+    },
+  },
   plugins: [
     react(),
     viteSingleFile({

@@ -464,6 +464,16 @@ const compareAuthoritativeAdaptive = (
   );
 };
 
+const getCodexAdaptivePlanRank = (
+  file: AuthFileItem,
+  refreshed?: CodexRefreshState
+): number => {
+  const plan = getCodexPlanFilterValue(file, refreshed);
+  if (plan === 'free') return 2;
+  if (plan === null) return 1;
+  return 0;
+};
+
 export const compareCodexAdaptive = (
   left: AuthFileItem,
   right: AuthFileItem,
@@ -471,6 +481,11 @@ export const compareCodexAdaptive = (
   leftRefreshed?: CodexRefreshState,
   rightRefreshed?: CodexRefreshState
 ): number => {
+  const planDifference =
+    getCodexAdaptivePlanRank(left, leftRefreshed) -
+    getCodexAdaptivePlanRank(right, rightRefreshed);
+  if (planDifference !== 0) return planDifference;
+
   const authoritative = compareAuthoritativeAdaptive(
     left,
     right,

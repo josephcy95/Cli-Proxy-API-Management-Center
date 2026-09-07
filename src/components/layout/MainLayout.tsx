@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { PageTransition } from '@/components/common/PageTransition';
 import { CodexResetNotice } from '@/components/layout/CodexResetNotice';
+import { ModelIqNotice } from '@/components/layout/ModelIqNotice';
 import { MainRoutes } from '@/router/MainRoutes';
 import { pluginsApi } from '@/services/api';
 import {
@@ -703,6 +704,7 @@ export function MainLayout() {
           >
             {headerIcons.refresh}
           </Button>
+          <ModelIqNotice />
           <CodexResetNotice />
           <Button
             variant="ghost"

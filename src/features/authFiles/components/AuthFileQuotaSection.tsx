@@ -127,6 +127,12 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
   const showNotification = useNotificationStore((state) => state.showNotification);
   const showConfirmation = useNotificationStore((state) => state.showConfirmation);
   const [resettingQuota, setResettingQuota] = useState(false);
+  const [renewalNow, setRenewalNow] = useState(Date.now);
+  useEffect(() => {
+    if (quotaType !== 'codex' || compact) return;
+    const timer = window.setInterval(() => setRenewalNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, [quotaType, compact]);
 
   const liveQuota = useQuotaStore((state) => {
     if (quotaType === 'antigravity') return state.antigravityQuota[file.name] as QuotaState;
@@ -344,6 +350,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     ? formatRelativeTimeLabel(t, subscriptionActiveUntil).replace(/^In\s+/i, '')
     : '';
   const renewalTitle = subscriptionActiveUntil ? formatDateTimeValue(subscriptionActiveUntil) : '';
+  const renewalAt = toEpochMs(subscriptionActiveUntil);
+  const renewalExpired = renewalAt !== null && renewalAt <= renewalNow;
   const fileResetCredits = quotaType === 'codex' ? resolveCodexResetCredits(file) : null;
   // Reset-credit metadata comes from the persisted auth-file snapshot. The
   // in-memory quota response may be partial/failed and must not hide a known
@@ -404,7 +412,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
           {renewalDisplay && (
             <span className={styles.codexPlanItem} title={renewalTitle || undefined}>
               <span className={styles.codexPlanLabel}>{t('codex_quota.renew_label')}</span>
-              <span className={styles.codexPlanValue}>{renewalDisplay}</span>
+              <span className={`${styles.codexPlanValue} ${renewalExpired ? styles.codexPlanValueExpired : ''}`}>{renewalDisplay}</span>
             </span>
           )}
           {showResetCredits && (

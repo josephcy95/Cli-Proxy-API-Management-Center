@@ -199,7 +199,7 @@ export function CodexResetNotice() {
               </div>
               <p className="codex-reset-message">{latestReset.text}</p>
               <div className="codex-reset-footer">
-                <span>{t('codex_resets.unofficial')}</span>
+                <span><a href="https://codex-resets.com/" target="_blank" rel="noreferrer">View on codex-resets.com</a></span>
                 <a href={latestReset.source.url} target="_blank" rel="noreferrer">
                   {t('codex_resets.view_source')}
                 </a>
