@@ -5,7 +5,14 @@ import { SearchableSelect, type SearchableSelectOption } from '@/components/ui/S
 import { IconBot, IconRefreshCw } from '@/components/ui/icons';
 import { modelsApi, playgroundApi, type ModelSourceCandidate } from '@/services/api';
 import { useNotificationStore } from '@/stores';
-import type { PlaygroundChatResponse, PlaygroundMessage } from '@/services/api/playground';
+import {
+  PLAYGROUND_REASONING_EFFORTS,
+  isPlaygroundReasoningEffort,
+  type PlaygroundChatResponse,
+  type PlaygroundMessage,
+  type PlaygroundReasoningEffort,
+} from '@/services/api/playground';
+import { PLAYGROUND_TEST_TEMPLATES } from './playgroundTemplates';
 import {
   buildPlaygroundProviderGroups,
   isPlaygroundCandidateReady,
@@ -30,6 +37,7 @@ export function PlaygroundPage() {
   const [model, setModel] = useState('');
   const [providerGroupID, setProviderGroupID] = useState('');
   const [credentialValue, setCredentialValue] = useState('');
+  const [reasoningEffort, setReasoningEffort] = useState<PlaygroundReasoningEffort | ''>('');
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -126,6 +134,14 @@ export function PlaygroundPage() {
     };
   });
 
+  const reasoningEffortOptions: SearchableSelectOption[] = [
+    { value: '', label: t('playground.reasoning_effort_default') },
+    ...PLAYGROUND_REASONING_EFFORTS.map((value) => ({
+      value,
+      label: t(`playground.reasoning_effort_${value}`),
+    })),
+  ];
+
   const credentialOptions: SearchableSelectOption[] = selectedGroup
     ? selectedGroup.credentials.map((candidate, index) => {
         const ready = isPlaygroundCandidateReady(candidate);
@@ -166,6 +182,7 @@ export function PlaygroundPage() {
         provider: selectedGroup.provider,
         auth_index: selectedCredential.auth_index ?? '',
         auth_id: selectedCredential.auth_id ?? '',
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
         messages: requestMessages,
       });
       setMessages((current) => [...current, { ...response.message, result: response }]);
@@ -255,6 +272,19 @@ export function PlaygroundPage() {
             disabled={loading || sending || !selectedGroup}
           />
         </label>
+        <label>
+          <span>{t('playground.reasoning_effort')}</span>
+          <SearchableSelect
+            value={reasoningEffort}
+            options={reasoningEffortOptions}
+            onChange={(value) =>
+              setReasoningEffort(isPlaygroundReasoningEffort(value) ? value : '')
+            }
+            searchPlaceholder={t('playground.type_to_search')}
+            emptyMessage={t('playground.no_reasoning_efforts')}
+            disabled={loading || sending}
+          />
+        </label>
         <div className={styles.routeSummary}>
           {selectedCredential ? (
             <>
@@ -265,10 +295,39 @@ export function PlaygroundPage() {
               <span>
                 {credentialOptions.find((option) => option.value === credentialValue)?.label}
               </span>
+              {reasoningEffort ? (
+                <>
+                  <b>→</b>
+                  <span>{t(`playground.reasoning_effort_${reasoningEffort}`)}</span>
+                </>
+              ) : null}
             </>
           ) : (
             t('playground.no_route')
           )}
+        </div>
+      </section>
+
+      <section className={styles.templatePanel} aria-label={t('playground.test_templates')}>
+        <div className={styles.templateIntro}>
+          <span>{t('playground.test_templates')}</span>
+          <small>{t('playground.template_answer_note')}</small>
+        </div>
+        <div className={styles.templateChoices}>
+          {PLAYGROUND_TEST_TEMPLATES.map((template) => (
+            <button
+              className={styles.templateChoice}
+              disabled={sending}
+              key={template.id}
+              onClick={() => setDraft(template.prompt)}
+              type="button"
+            >
+              <span>{template.title}</span>
+              <small>
+                {t('playground.template_reference_answer', { answer: template.referenceAnswer })}
+              </small>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -321,7 +380,7 @@ export function PlaygroundPage() {
             onKeyDown={handleComposerKeyDown}
             placeholder={t('playground.message_placeholder')}
             disabled={sending || !selectedCredential}
-            rows={3}
+            rows={Math.min(16, Math.max(3, draft.split('\n').length + 1))}
           />
           <div className={styles.composerFooter}>
             <span>{t('playground.send_hint')}</span>

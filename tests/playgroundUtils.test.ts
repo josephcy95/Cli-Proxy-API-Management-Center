@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { PLAYGROUND_TEST_TEMPLATES } from '../src/pages/playgroundTemplates';
 import {
   buildPlaygroundProviderGroups,
   normalizePlaygroundProviderBaseUrl,
@@ -67,5 +68,24 @@ describe('playground routing options', () => {
     ]);
 
     expect(selected?.auth_id).toBe('ready');
+  });
+});
+
+describe('playground test templates', () => {
+  test('keeps the reference answers separate from the prompts sent through the composer', () => {
+    expect(PLAYGROUND_TEST_TEMPLATES.map((template) => template.id)).toEqual(['candy', 'cups']);
+    expect(PLAYGROUND_TEST_TEMPLATES.map((template) => template.title)).toEqual([
+      '糖果题',
+      '水杯题',
+    ]);
+    expect(PLAYGROUND_TEST_TEMPLATES.map((template) => template.referenceAnswer)).toEqual([
+      '21',
+      '8',
+    ]);
+    expect(PLAYGROUND_TEST_TEMPLATES[0]?.prompt).toContain('苹果味');
+    expect(PLAYGROUND_TEST_TEMPLATES[1]?.prompt).toContain('水杯');
+    for (const template of PLAYGROUND_TEST_TEMPLATES) {
+      expect(template.prompt).not.toContain(template.referenceAnswer);
+    }
   });
 });

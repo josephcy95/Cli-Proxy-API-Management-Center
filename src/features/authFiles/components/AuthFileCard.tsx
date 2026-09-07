@@ -35,6 +35,7 @@ import {
   getThemeSurfaceIconBackground,
   getTypeColor,
   getTypeLabel,
+  isCodexServerOverloadedMessage,
   isRuntimeOnlyAuthFile,
   isThemeSurfaceIconProvider,
   normalizeProviderKey,
@@ -203,17 +204,21 @@ export const AuthFileCard = memo(function AuthFileCard(props: AuthFileCardProps)
     (acc, state, index) => (state !== 'idle' ? index : acc),
     -1
   );
-  const lastUsedLabel = lastActiveIndex >= 0
-    ? formatRelativeTimeLabel(t, statusData.blockDetails[lastActiveIndex].endTime, Date.now())
-    : '';
+  const lastUsedLabel =
+    lastActiveIndex >= 0
+      ? formatRelativeTimeLabel(t, statusData.blockDetails[lastActiveIndex].endTime, Date.now())
+      : '';
   const displayName = resolveAuthFileDisplayName(file);
   const rawStatusMessage = getAuthFileStatusMessage(file);
   const usageLimitResetDuration = isCodexFile
     ? formatCodexUsageLimitResetDuration(rawStatusMessage)
     : null;
+  const serverOverloaded = isCodexFile && isCodexServerOverloadedMessage(rawStatusMessage);
   const displayStatusMessage = usageLimitResetDuration
     ? t('auth_files.codex_usage_limit_reset_in', { duration: usageLimitResetDuration })
-    : rawStatusMessage;
+    : serverOverloaded
+      ? t('auth_files.codex_server_overloaded')
+      : rawStatusMessage;
   const hideModelSupportWarning = isCodexFile && isCodexModelSupportErrorMessage(rawStatusMessage);
   const hasStatusWarning =
     Boolean(rawStatusMessage) &&

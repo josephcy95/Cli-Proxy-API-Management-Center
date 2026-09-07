@@ -5,11 +5,19 @@ export interface PlaygroundMessage {
   content: string;
 }
 
+export const PLAYGROUND_REASONING_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+
+export type PlaygroundReasoningEffort = (typeof PLAYGROUND_REASONING_EFFORTS)[number];
+
+export const isPlaygroundReasoningEffort = (value: string): value is PlaygroundReasoningEffort =>
+  (PLAYGROUND_REASONING_EFFORTS as readonly string[]).includes(value);
+
 export interface PlaygroundChatRequest {
   model: string;
   provider: string;
   auth_index: string;
   auth_id: string;
+  reasoning_effort?: PlaygroundReasoningEffort;
   messages: PlaygroundMessage[];
 }
 

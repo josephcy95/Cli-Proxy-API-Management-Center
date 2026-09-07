@@ -28,13 +28,7 @@ export type AuthFileModelItem = {
 export type AuthFileIconAsset = string | { light: string; dark: string };
 
 export type QuotaProviderType =
-  | 'antigravity'
-  | 'claude'
-  | 'codex'
-  | 'kimi'
-  | 'qodercn'
-  | 'qoder'
-  | 'xai';
+  'antigravity' | 'claude' | 'codex' | 'kimi' | 'qodercn' | 'qoder' | 'xai';
 export type OAuthConfigLoadError = 'loading' | 'unsupported' | 'load' | null;
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
@@ -235,7 +229,6 @@ export const getCodexPlanLabel = (
   return normalized;
 };
 
-
 export const buildOAuthProviderOptions = (values: Iterable<unknown>): string[] => {
   const extraProviders = new Set<string>();
 
@@ -260,10 +253,7 @@ export const getAuthFileStatusMessage = (file: AuthFileItem): string => {
   return String(raw).trim();
 };
 
-export const formatCodexUsageLimitResetDuration = (
-  statusMessage: string,
-  now = Date.now()
-): string | null => {
+const parseCodexStatusError = (statusMessage: string): Record<string, unknown> | null => {
   let payload: unknown;
   try {
     payload = JSON.parse(statusMessage);
@@ -274,19 +264,47 @@ export const formatCodexUsageLimitResetDuration = (
 
   const root = payload as Record<string, unknown>;
   const nested = root.error;
-  const error =
-    nested && typeof nested === 'object' && !Array.isArray(nested)
-      ? (nested as Record<string, unknown>)
-      : root;
-  if (String(error.type ?? '').trim().toLowerCase() !== 'usage_limit_reached') return null;
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    return nested as Record<string, unknown>;
+  }
+  return root;
+};
+
+export const isCodexServerOverloadedMessage = (statusMessage: string): boolean => {
+  const error = parseCodexStatusError(statusMessage);
+  if (!error) return false;
+  return (
+    String(error.type ?? '')
+      .trim()
+      .toLowerCase() === 'service_unavailable_error' &&
+    String(error.code ?? '')
+      .trim()
+      .toLowerCase() === 'server_is_overloaded'
+  );
+};
+
+export const formatCodexUsageLimitResetDuration = (
+  statusMessage: string,
+  now = Date.now()
+): string | null => {
+  const error = parseCodexStatusError(statusMessage);
+  if (
+    !error ||
+    String(error.type ?? '')
+      .trim()
+      .toLowerCase() !== 'usage_limit_reached'
+  ) {
+    return null;
+  }
 
   const resetAt = Number(error.resets_at ?? error.reset_at);
   const resetInSeconds = Number(error.resets_in_seconds ?? error.reset_in_seconds);
-  const seconds = Number.isFinite(resetAt) && resetAt > 0
-    ? Math.max(0, ((resetAt < 1e11 ? resetAt * 1000 : resetAt) - now) / 1000)
-    : Number.isFinite(resetInSeconds) && resetInSeconds >= 0
-      ? resetInSeconds
-      : null;
+  const seconds =
+    Number.isFinite(resetAt) && resetAt > 0
+      ? Math.max(0, ((resetAt < 1e11 ? resetAt * 1000 : resetAt) - now) / 1000)
+      : Number.isFinite(resetInSeconds) && resetInSeconds >= 0
+        ? resetInSeconds
+        : null;
   if (seconds == null) return null;
 
   const totalMinutes = Math.ceil(seconds / 60);

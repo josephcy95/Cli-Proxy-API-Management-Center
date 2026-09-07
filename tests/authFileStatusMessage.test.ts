@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { formatCodexUsageLimitResetDuration } from '@/features/authFiles/constants';
+import {
+  formatCodexUsageLimitResetDuration,
+  isCodexServerOverloadedMessage,
+} from '@/features/authFiles/constants';
 
 describe('Codex usage-limit status message', () => {
   const now = Date.parse('2026-09-01T00:00:00Z');
@@ -29,5 +32,31 @@ describe('Codex usage-limit status message', () => {
       )
     ).toBeNull();
     expect(formatCodexUsageLimitResetDuration('plain error text', now)).toBeNull();
+  });
+});
+
+describe('Codex server-overloaded status message', () => {
+  const knownError = {
+    type: 'service_unavailable_error',
+    code: 'server_is_overloaded',
+    message: 'Our servers are currently overloaded. Please try again later.',
+    param: null,
+  };
+
+  test('recognizes the known nested Codex overloaded payload', () => {
+    expect(isCodexServerOverloadedMessage(JSON.stringify({ error: knownError }))).toBe(true);
+  });
+
+  test('recognizes a root-level overloaded payload', () => {
+    expect(isCodexServerOverloadedMessage(JSON.stringify(knownError))).toBe(true);
+  });
+
+  test('ignores other service-unavailable errors and plain text', () => {
+    expect(
+      isCodexServerOverloadedMessage(
+        JSON.stringify({ error: { type: 'service_unavailable_error', code: 'other' } })
+      )
+    ).toBe(false);
+    expect(isCodexServerOverloadedMessage('Our servers are currently overloaded.')).toBe(false);
   });
 });
