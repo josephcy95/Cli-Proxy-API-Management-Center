@@ -292,6 +292,8 @@
     "sort_az": "A-Z 名称",
     "sort_priority": "优先级",
     "codex_refresh_button": "刷新 Codex 数据",
+    "codex_refresh_button_count": "刷新 Codex 数据 ({{count}})",
+    "codex_refresh_hint": "刷新当前筛选结果中的 Codex 额度与重置额度",
     "codex_refresh_result": "Codex 刷新完成：更新 {{successful}} 个，失败 {{failed}} 个，未保存 {{persistenceFailed}} 个",
     "codex_status_label": "Codex 状态",
     "codex_status_all": "全部状态",

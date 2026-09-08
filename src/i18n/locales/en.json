@@ -515,6 +515,8 @@
     "sort_az": "A-Z Name",
     "sort_priority": "Priority",
     "codex_refresh_button": "Refresh Codex data",
+    "codex_refresh_button_count": "Refresh Codex data ({{count}})",
+    "codex_refresh_hint": "Refresh Codex quota and reset credits for credentials in the current filter",
     "codex_refresh_result": "Codex refresh: {{successful}} updated, {{failed}} failed, {{persistenceFailed}} not saved",
     "codex_status_label": "Codex status",
     "codex_status_all": "All statuses",

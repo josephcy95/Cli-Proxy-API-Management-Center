@@ -60,6 +60,7 @@ import {
   type CodexPlanFilter,
   type CodexStatusFilter,
 } from '@/features/authFiles/codexStatus';
+import { listCodexRefreshableFiles } from '@/features/authFiles/codexRefresh';
 import {
   XAI_STATUS_FILTERS,
   getXaiAccountStatus,
@@ -69,7 +70,7 @@ import {
 import { getAuthFileAuthIndex, listResettableCooldownFiles } from '@/features/authFiles/cooldown';
 import {
   codexQuotaHasAvailableCapacity,
-  fetchCodexUsageSnapshot,
+  fetchCodexQuota,
 } from '@/components/quota/quotaConfigs';
 import {
   persistCodexQuotaSnapshot,
@@ -495,96 +496,6 @@ export function AuthFilesPage() {
     deselectAll();
   }, [deselectAll, normalizedFilter]);
 
-  const refreshCodexData = useCallback(async () => {
-    const codexFiles = files.filter(
-      (file) => normalizeProviderKey(String(file.type ?? file.provider ?? '')) === 'codex'
-    );
-    if (codexFiles.length === 0) return;
-
-    setCodexRefreshing(true);
-    setCodexRefreshByName((current) => {
-      const next = { ...current };
-      codexFiles.forEach((file) => {
-        next[file.name] = { status: 'loading', planType: null, windows: [] };
-      });
-      return next;
-    });
-
-    let cursor = 0;
-    let successful = 0;
-    let failed = 0;
-    let persistenceFailed = 0;
-    const refreshOne = async () => {
-      while (cursor < codexFiles.length) {
-        const file = codexFiles[cursor++];
-        try {
-          let observedAt: string | null = null;
-          try {
-            observedAt = (await authFilesApi.beginCodexQuotaRecovery()).observed_at ?? null;
-          } catch {
-            // Older servers can refresh quota but cannot safely auto-recover cooldowns.
-          }
-          const snapshot = await fetchCodexUsageSnapshot(file, t);
-          const checkedAt = new Date().toISOString();
-          if (observedAt && codexQuotaHasAvailableCapacity(snapshot)) {
-            const authIndex = getAuthFileAuthIndex(file);
-            if (authIndex) {
-              try {
-                await authFilesApi.recoverCodexQuota(authIndex, observedAt);
-              } catch {
-                persistenceFailed += 1;
-              }
-            }
-          }
-          try {
-            await persistCodexQuotaSnapshot(
-              file.name,
-              {
-                ...codexQuotaPersistInputFromData(snapshot),
-                resetCreditsFetched: false,
-              },
-              checkedAt
-            );
-          } catch {
-            persistenceFailed += 1;
-          }
-          successful += 1;
-          setCodexRefreshByName((current) => ({
-            ...current,
-            [file.name]: {
-              status: 'success',
-              planType: snapshot.planType,
-              windows: snapshot.windows,
-            },
-          }));
-        } catch (error: unknown) {
-          failed += 1;
-          setCodexRefreshByName((current) => ({
-            ...current,
-            [file.name]: {
-              status: 'error',
-              planType: null,
-              windows: [],
-              error: error instanceof Error ? error.message : t('common.unknown_error'),
-              errorStatus: requestStatus(error),
-            },
-          }));
-        }
-      }
-    };
-
-    await Promise.all(
-      Array.from({ length: Math.min(CODEX_REFRESH_CONCURRENCY, codexFiles.length) }, refreshOne)
-    );
-    setCodexRefreshing(false);
-    await loadFiles({ silent: true });
-    clearCodexRefreshState(codexFiles.map((file) => file.name));
-    showNotification(
-      t('auth_files.codex_refresh_result', { successful, failed, persistenceFailed }),
-      failed > 0 || persistenceFailed > 0 ? 'warning' : 'success'
-    );
-  }, [clearCodexRefreshState, files, loadFiles, showNotification, t]);
-
   useEffect(() => {
     const previousProvider = previousProviderRef.current;
     if (previousProvider !== normalizedFilter) {
@@ -807,6 +718,101 @@ export function AuthFilesPage() {
       })),
     [codexRefreshByName, sorted]
   );
+  const codexRefreshableFilteredItems = useMemo(
+    () => listCodexRefreshableFiles(sorted),
+    [sorted]
+  );
+
+  const refreshCodexData = useCallback(async () => {
+    const codexFiles = codexRefreshableFilteredItems;
+    if (codexFiles.length === 0) return;
+
+    setCodexRefreshing(true);
+    setCodexRefreshByName((current) => {
+      const next = { ...current };
+      codexFiles.forEach((file) => {
+        next[file.name] = { status: 'loading', planType: null, windows: [] };
+      });
+      return next;
+    });
+
+    let cursor = 0;
+    let successful = 0;
+    let failed = 0;
+    let persistenceFailed = 0;
+    const refreshOne = async () => {
+      while (cursor < codexFiles.length) {
+        const file = codexFiles[cursor++];
+        try {
+          let observedAt: string | null = null;
+          try {
+            observedAt = (await authFilesApi.beginCodexQuotaRecovery()).observed_at ?? null;
+          } catch {
+            // Older servers can refresh quota but cannot safely auto-recover cooldowns.
+          }
+          const snapshot = await fetchCodexQuota(file, t);
+          const checkedAt = new Date().toISOString();
+          if (observedAt && codexQuotaHasAvailableCapacity(snapshot)) {
+            const authIndex = getAuthFileAuthIndex(file);
+            if (authIndex) {
+              try {
+                await authFilesApi.recoverCodexQuota(authIndex, observedAt);
+              } catch {
+                persistenceFailed += 1;
+              }
+            }
+          }
+          try {
+            await persistCodexQuotaSnapshot(
+              file.name,
+              codexQuotaPersistInputFromData(snapshot),
+              checkedAt
+            );
+          } catch {
+            persistenceFailed += 1;
+          }
+          successful += 1;
+          setCodexRefreshByName((current) => ({
+            ...current,
+            [file.name]: {
+              status: 'success',
+              planType: snapshot.planType,
+              windows: snapshot.windows,
+            },
+          }));
+        } catch (error: unknown) {
+          failed += 1;
+          setCodexRefreshByName((current) => ({
+            ...current,
+            [file.name]: {
+              status: 'error',
+              planType: null,
+              windows: [],
+              error: error instanceof Error ? error.message : t('common.unknown_error'),
+              errorStatus: requestStatus(error),
+            },
+          }));
+        }
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(CODEX_REFRESH_CONCURRENCY, codexFiles.length) }, refreshOne)
+    );
+    setCodexRefreshing(false);
+    await loadFiles({ silent: true });
+    clearCodexRefreshState(codexFiles.map((file) => file.name));
+    showNotification(
+      t('auth_files.codex_refresh_result', { successful, failed, persistenceFailed }),
+      failed > 0 || persistenceFailed > 0 ? 'warning' : 'success'
+    );
+  }, [
+    clearCodexRefreshState,
+    codexRefreshableFilteredItems,
+    loadFiles,
+    showNotification,
+    t,
+  ]);
   const cooldownResettableNames = useMemo(
     () => new Set(cooldownResettableFilteredItems.map((file) => file.name)),
     [cooldownResettableFilteredItems]
@@ -1021,10 +1027,18 @@ export function AuthFilesPage() {
                 variant="secondary"
                 size="sm"
                 onClick={() => void refreshCodexData()}
-                disabled={disableControls || codexRefreshing}
+                disabled={
+                  disableControls ||
+                  loading ||
+                  codexRefreshing ||
+                  codexRefreshableFilteredItems.length === 0
+                }
                 loading={codexRefreshing}
+                title={t('auth_files.codex_refresh_hint')}
               >
-                {t('auth_files.codex_refresh_button')}
+                {t('auth_files.codex_refresh_button_count', {
+                  count: codexRefreshableFilteredItems.length,
+                })}
               </Button>
             )}
             <Button
