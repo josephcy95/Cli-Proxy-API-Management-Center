@@ -32,6 +32,18 @@ Tests use Bun's built-in test runner and are colocated under `tests/` as `*.test
 
 This fork exists to keep **custom Management Center design and features**. Upstream is for bug fixes and additive features — not to restyle or replace the fork’s product UI.
 
+### Upstream change categories (mandatory)
+
+Classify every retained upstream UI/API-client change before commit:
+
+| Bucket | Default action |
+|---|---|
+| **1. Protocol / client-contract tracking** | Prefer upstream when it fixes management API contracts, provider ids, auth-file fields, or behaviour required to match the API fork / real clients. Re-skin onto fork UI; do not adopt upstream chrome. |
+| **2. Features** | Merge if it does not discard fork design/features. **Ask** if useless or conflicts with fork custom work. If the fork already has the capability in a superior way, **keep the fork** — learn from upstream if useful, never regress. |
+| **3. Sponsor / promo** | **Never merge** — ads, sponsor badges, donate/paywall chrome, splash/marketing, forced attribution. |
+
+Tie-breaker: **contract/protocol → upstream wins; product UI/QoL → fork wins when equal or better; sponsor → always drop.**
+
 ### How to sync
 - Prefer a real merge of upstream so GitHub is not left N commits behind, but start it with `git merge --no-commit --no-ff upstream/<ref>`. A clean automatic merge is an uncommitted review state, not approval to retain upstream UI or code.
 - `--no-commit` still stages all clean automatic changes; it only pauses before commit. Review those changes exactly like conflicts.
@@ -49,7 +61,7 @@ Mechanical release gate:
 - Explicitly read this file and `../AGENTS.md` before fetching or merging.
 - Record `PRE=$(git rev-parse HEAD)` and inspect `git diff --cached "$PRE"`; do not compare `$PRE` to `HEAD` during an uncommitted merge.
 - After resolving or combining changes, inspect `git status --short`, `git diff`, and `git diff --cached`. Stage the intended final result, then rerun `git diff --cached "$PRE"`; never commit an earlier staged merge state while fork corrections remain unstaged.
-- Maintain a complete changed-path/component ledger with retain/exclude/combine decisions and proof. No changed path, component, stylesheet, route, or API contract may remain unclassified.
+- Maintain a complete changed-path/component ledger with **category bucket (1/2/3)**, retain/exclude/combine decisions, and proof. No changed path, component, stylesheet, route, or API contract may remain unclassified. Bucket-3 rows must be exclude.
 - Identify files changed on both sides from the merge base before merging; review every intersection manually even when Git reports no conflict.
 - More than 20 changed files, more than 500 changed lines, or any protected route/layout/API-client surface requires a second read-only staged-index audit before commit.
 - Presence checks, ancestry, “0 behind,” no deletions, and successful build/type-check are not proof that fork UI or contracts survived.
@@ -59,18 +71,20 @@ Mechanical release gate:
 If a merge would alter the product's appearance, remove a fork UI surface, change a working custom API call, or leave behavior unproven, restore/combine the fork implementation or abort the merge. Stop and ask the user before committing; never merge first and depend on a later revert.
 
 ### Take upstream only when
-1. It **fixes a real bug** in the same behavior the fork already has (or a clear defect), or
-2. It adds a **feature** that does not require discarding fork-owned layout/design, or
-3. It is **security / deploy-blocking** in the same code path.
+1. It is bucket-1 contract/protocol tracking needed for API compatibility, or
+2. It **fixes a real bug** in the same behavior the fork already has (or a clear defect), or
+3. It adds a bucket-2 **feature** that does not require discarding fork-owned layout/design and is not already done better here, or
+4. It is **security / deploy-blocking** in the same code path.
 
-When both sides touch the same feature, **keep fork behavior**; combine only if upstream’s fix is more robust **and** every fork semantic and backend contract survives. Never resolve a conflict by taking an entire upstream page, component, service, stylesheet, or feature directory.
+When both sides touch the same feature, **keep fork behavior** if equal or better; combine only if upstream’s fix is more robust **and** every fork semantic and backend contract survives. Never resolve a conflict by taking an entire upstream page, component, service, stylesheet, or feature directory. Never replace a superior fork UI/feature with an inferior upstream one.
 
-### Never take without asking the user first
-- Dashboard redesigns, motion/animation packs, layout/theme-only polish
-- Rewrites that move or replace fork pages (e.g. `src/pages/DashboardPage*` ↔ `src/features/dashboard/*`) for cosmetics
-- Promo / ads / splash / recommended-provider marketing chrome
-- Any upstream diff that is “UI only” with no bug fix or user-requested feature
-- Anything that would break fork features listed below
+### Never take (hard excludes / ask first)
+- **Sponsor / promo (hard exclude, never merge):** ads, sponsor badges, donate/paywall chrome, splash, recommended-provider marketing, forced attribution
+- Dashboard redesigns, motion/animation packs, layout/theme-only polish — **ask first**
+- Rewrites that move or replace fork pages (e.g. `src/pages/DashboardPage*` ↔ `src/features/dashboard/*`) for cosmetics — **ask first**
+- Bucket-2 features that look useless or conflict with fork custom work — **ask first**
+- Any upstream diff that is “UI only” with no bug fix or user-requested feature — **ask first**
+- Anything that would break fork features listed below — **ask first**
 
 **If the merge would change how the product looks or would drop fork-only UI, stop, summarize, and wait for explicit approval.** Do not “just merge and keep going.”
 
@@ -86,7 +100,7 @@ When both sides touch the same feature, **keep fork behavior**; combine only if 
 - xAI / Codex failure-policy config surfaces
 - Model context overrides management
 - Playground and other fork-only management surfaces
-- Do not reintroduce upstream promo/ads chrome
+- **No sponsor/promo content** — never reintroduce upstream ads, sponsor badges, donate chrome, splash, or marketing surfaces
 
 ## Ship policy
 See parent `../AGENTS.md`. In short:
