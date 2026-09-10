@@ -42,8 +42,9 @@ import { QuotaProgressBar } from '@/features/authFiles/components/QuotaProgressB
 import styles from '@/pages/AuthFilesPage.module.scss';
 import { getAuthFileAuthIndex } from '@/features/authFiles/cooldown';
 import {
+  displayableCodexQuotaWindows,
+  displayablePersistedCodexQuotaWindows,
   mergeCodexQuotaWindows,
-  persistedCodexQuotaWindows,
 } from '@/features/authFiles/codexStatus';
 
 export type AuthFileQuotaRefreshBinding = {
@@ -78,7 +79,7 @@ const earliestResetCreditExpiry = (
 };
 
 const persistedCodexQuotaState = (file: AuthFileItem, t: TFunction): CodexQuotaState | null => {
-  const windows = persistedCodexQuotaWindows(file).map((window) => {
+  const windows = displayablePersistedCodexQuotaWindows(file).map((window) => {
     const labelKey =
       window.id === 'weekly' ? 'codex_quota.secondary_window' : 'codex_quota.primary_window';
     return {
@@ -168,7 +169,9 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
         : codexLiveQuota?.status === 'success'
           ? {
               ...codexLiveQuota,
-              windows: mergeCodexQuotaWindows(persistedQuota?.windows ?? [], codexLiveQuota.windows),
+              windows: displayableCodexQuotaWindows(
+                mergeCodexQuotaWindows(persistedQuota?.windows ?? [], codexLiveQuota.windows)
+              ),
             }
           : persistedQuota ?? codexLiveQuota;
 

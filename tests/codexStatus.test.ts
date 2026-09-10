@@ -1,12 +1,17 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  CODEX_QUOTA_DISPLAY_MAX_AGE_MS,
   compareCodexAvailability,
   compareCodexAdaptive,
+  displayableCodexQuotaWindows,
+  displayablePersistedCodexQuotaWindows,
   getCodexAccountStatus,
   isCodexModelSupportErrorMessage,
+  isPersistedCodexQuotaSnapshotDisplayable,
   isPurposefullyDisabled,
   matchesCodexPlanFilter,
   matchesCodexStatusFilter,
+  persistedCodexQuotaWindows,
   type CodexRefreshState,
 } from '@/features/authFiles/codexStatus';
 import { resolveCodexPlanType } from '@/utils/quota';
@@ -536,4 +541,76 @@ test('adaptive sorting reads reset-credit summaries nested in quota data', () =>
   };
 
   expect(compareCodexAdaptive(nested, file)).toBeLessThanOrEqual(0);
+});
+
+describe('Codex persisted quota display freshness', () => {
+  test('hides the entire snapshot when observed_at is older than 30 minutes', () => {
+    const now = Date.parse('2026-09-10T12:00:00Z');
+    const stale = {
+      ...file,
+      'X-Codex-Primary-Used-Percent': 44,
+      'X-Codex-Primary-Window-Minutes': 300,
+      'X-Codex-Primary-Reset-At': Math.floor((now + 2 * 60 * 60 * 1000) / 1000),
+      'X-Codex-Secondary-Used-Percent': 60,
+      'X-Codex-Secondary-Window-Minutes': 10080,
+      'X-Codex-Secondary-Reset-At': Math.floor((now + 4 * 24 * 60 * 60 * 1000) / 1000),
+      codex_quota_observed_at: new Date(now - 31 * 60 * 1000).toISOString(),
+    };
+
+    expect(persistedCodexQuotaWindows(stale, now)).toHaveLength(2);
+    expect(displayablePersistedCodexQuotaWindows(stale, now)).toEqual([]);
+    expect(isPersistedCodexQuotaSnapshotDisplayable(stale, persistedCodexQuotaWindows(stale, now), now)).toBe(
+      false
+    );
+  });
+
+  test('shows both windows when the snapshot is fresh and resets are still in the future', () => {
+    const now = Date.parse('2026-09-10T12:00:00Z');
+    const fresh = {
+      ...file,
+      'X-Codex-Primary-Used-Percent': 44,
+      'X-Codex-Primary-Window-Minutes': 300,
+      'X-Codex-Primary-Reset-At': Math.floor((now + 2 * 60 * 60 * 1000) / 1000),
+      'X-Codex-Secondary-Used-Percent': 60,
+      'X-Codex-Secondary-Window-Minutes': 10080,
+      'X-Codex-Secondary-Reset-At': Math.floor((now + 4 * 24 * 60 * 60 * 1000) / 1000),
+      codex_quota_observed_at: new Date(now - 5 * 60 * 1000).toISOString(),
+    };
+
+    const windows = displayablePersistedCodexQuotaWindows(fresh, now);
+    expect(windows.map((window) => window.id).sort()).toEqual(['five-hour', 'weekly']);
+  });
+
+  test('hides both windows when any resetAt has already passed', () => {
+    const now = Date.parse('2026-09-10T12:00:00Z');
+    const pastPrimary = {
+      ...file,
+      'X-Codex-Primary-Used-Percent': 66,
+      'X-Codex-Primary-Window-Minutes': 300,
+      'X-Codex-Primary-Reset-At': Math.floor((now - 15 * 60 * 60 * 1000) / 1000),
+      'X-Codex-Secondary-Used-Percent': 27,
+      'X-Codex-Secondary-Window-Minutes': 10080,
+      'X-Codex-Secondary-Reset-At': Math.floor((now + 4 * 24 * 60 * 60 * 1000) / 1000),
+      codex_quota_observed_at: new Date(now - 5 * 60 * 1000).toISOString(),
+    };
+
+    expect(persistedCodexQuotaWindows(pastPrimary, now)).toHaveLength(2);
+    expect(displayablePersistedCodexQuotaWindows(pastPrimary, now)).toEqual([]);
+    expect(
+      displayableCodexQuotaWindows(persistedCodexQuotaWindows(pastPrimary, now), now)
+    ).toEqual([]);
+  });
+
+  test('keeps a snapshot at the exact 30-minute age boundary', () => {
+    const now = Date.parse('2026-09-10T12:00:00Z');
+    const boundary = {
+      ...file,
+      'X-Codex-Primary-Used-Percent': 10,
+      'X-Codex-Primary-Window-Minutes': 300,
+      'X-Codex-Primary-Reset-At': Math.floor((now + 60 * 60 * 1000) / 1000),
+      codex_quota_observed_at: new Date(now - CODEX_QUOTA_DISPLAY_MAX_AGE_MS).toISOString(),
+    };
+
+    expect(displayablePersistedCodexQuotaWindows(boundary, now)).toHaveLength(1);
+  });
 });
