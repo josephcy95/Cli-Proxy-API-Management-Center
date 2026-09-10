@@ -7,6 +7,7 @@ import {
   displayablePersistedCodexQuotaWindows,
   getCodexAccountStatus,
   isCodexModelSupportErrorMessage,
+  isDurableCodexQuotaWait,
   isPersistedCodexQuotaSnapshotDisplayable,
   isPurposefullyDisabled,
   matchesCodexPlanFilter,
@@ -544,7 +545,7 @@ test('adaptive sorting reads reset-credit summaries nested in quota data', () =>
 });
 
 describe('Codex persisted quota display freshness', () => {
-  test('hides the entire snapshot when observed_at is older than 30 minutes', () => {
+  test('hides stale headroom when observed_at is older than 30 minutes', () => {
     const now = Date.parse('2026-09-10T12:00:00Z');
     const stale = {
       ...file,
@@ -561,6 +562,27 @@ describe('Codex persisted quota display freshness', () => {
     expect(displayablePersistedCodexQuotaWindows(stale, now)).toEqual([]);
     expect(isPersistedCodexQuotaSnapshotDisplayable(stale, persistedCodexQuotaWindows(stale, now), now)).toBe(
       false
+    );
+  });
+
+  test('keeps a durable weekly wait even when the observation is days old', () => {
+    const now = Date.parse('2026-09-10T12:00:00Z');
+    const waiting = {
+      ...file,
+      'X-Codex-Primary-Used-Percent': 12,
+      'X-Codex-Primary-Window-Minutes': 300,
+      'X-Codex-Primary-Reset-At': Math.floor((now + 3 * 60 * 60 * 1000) / 1000),
+      'X-Codex-Secondary-Used-Percent': 100,
+      'X-Codex-Secondary-Window-Minutes': 10080,
+      'X-Codex-Secondary-Reset-At': Math.floor((now + 4 * 24 * 60 * 60 * 1000) / 1000),
+      codex_quota_observed_at: new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    const windows = displayablePersistedCodexQuotaWindows(waiting, now);
+    expect(windows.map((window) => window.id)).toEqual(['weekly']);
+    expect(isDurableCodexQuotaWait(windows[0], now)).toBe(true);
+    expect(isPersistedCodexQuotaSnapshotDisplayable(waiting, persistedCodexQuotaWindows(waiting, now), now)).toBe(
+      true
     );
   });
 
@@ -581,27 +603,31 @@ describe('Codex persisted quota display freshness', () => {
     expect(windows.map((window) => window.id).sort()).toEqual(['five-hour', 'weekly']);
   });
 
-  test('hides both windows when any resetAt has already passed', () => {
+  test('drops only the expired window and keeps a future weekly wait', () => {
     const now = Date.parse('2026-09-10T12:00:00Z');
     const pastPrimary = {
       ...file,
-      'X-Codex-Primary-Used-Percent': 66,
+      'X-Codex-Primary-Used-Percent': 100,
       'X-Codex-Primary-Window-Minutes': 300,
       'X-Codex-Primary-Reset-At': Math.floor((now - 15 * 60 * 60 * 1000) / 1000),
-      'X-Codex-Secondary-Used-Percent': 27,
+      'X-Codex-Secondary-Used-Percent': 100,
       'X-Codex-Secondary-Window-Minutes': 10080,
       'X-Codex-Secondary-Reset-At': Math.floor((now + 4 * 24 * 60 * 60 * 1000) / 1000),
-      codex_quota_observed_at: new Date(now - 5 * 60 * 1000).toISOString(),
+      codex_quota_observed_at: new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
     expect(persistedCodexQuotaWindows(pastPrimary, now)).toHaveLength(2);
-    expect(displayablePersistedCodexQuotaWindows(pastPrimary, now)).toEqual([]);
+    expect(displayablePersistedCodexQuotaWindows(pastPrimary, now).map((window) => window.id)).toEqual([
+      'weekly',
+    ]);
     expect(
-      displayableCodexQuotaWindows(persistedCodexQuotaWindows(pastPrimary, now), now)
-    ).toEqual([]);
+      displayableCodexQuotaWindows(persistedCodexQuotaWindows(pastPrimary, now), now).map(
+        (window) => window.id
+      )
+    ).toEqual(['weekly']);
   });
 
-  test('keeps a snapshot at the exact 30-minute age boundary', () => {
+  test('keeps fresh headroom at the exact 30-minute age boundary', () => {
     const now = Date.parse('2026-09-10T12:00:00Z');
     const boundary = {
       ...file,

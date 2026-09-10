@@ -165,14 +165,38 @@ export const persistedCodexQuotaWindows = (
     persistedWindow(file, 'Secondary', 'weekly', now),
   ].filter((window): window is CodexQuotaWindow => window !== null);
 
-/** Max age for showing a persisted Codex quota snapshot in the UI. */
+/** Max age for showing non-wait (headroom) persisted Codex quota windows. */
 export const CODEX_QUOTA_DISPLAY_MAX_AGE_MS = 30 * 60 * 1000;
 
+/** Exhausted window with a future reset — keep visible even when the observation is old. */
+export const isDurableCodexQuotaWait = (
+  window: CodexQuotaWindow,
+  now = Date.now()
+): boolean =>
+  window.usedPercent != null &&
+  window.usedPercent >= 100 &&
+  window.resetAt != null &&
+  window.resetAt > now;
+
 /**
- * Persisted Codex windows share one observation. If that snapshot is older than
- * 30 minutes, or any window's reset time has already passed, hide the entire
- * block (5h + weekly) until the next quota query.
+ * Per-window display rules for persisted Codex quota:
+ * - drop windows whose resetAt is already past
+ * - always keep durable waits (used >= 100 with future resetAt)
+ * - hide stale headroom once the shared observation is older than maxAgeMs
  */
+export const isPersistedCodexQuotaWindowDisplayable = (
+  window: CodexQuotaWindow,
+  observedAt: number | null,
+  now = Date.now(),
+  maxAgeMs = CODEX_QUOTA_DISPLAY_MAX_AGE_MS
+): boolean => {
+  if (window.resetAt != null && window.resetAt <= now) return false;
+  if (isDurableCodexQuotaWait(window, now)) return true;
+  if (observedAt == null || now - observedAt > maxAgeMs) return false;
+  return true;
+};
+
+/** True when at least one persisted window should paint (durable wait or fresh headroom). */
 export const isPersistedCodexQuotaSnapshotDisplayable = (
   file: AuthFileItem,
   windows: CodexQuotaWindow[],
@@ -181,29 +205,28 @@ export const isPersistedCodexQuotaSnapshotDisplayable = (
 ): boolean => {
   if (windows.length === 0) return false;
   const observedAt = readPersistedObservedAt(file);
-  if (observedAt == null || now - observedAt > maxAgeMs) return false;
-  if (windows.some((window) => window.resetAt != null && window.resetAt <= now)) return false;
-  return true;
+  return windows.some((window) =>
+    isPersistedCodexQuotaWindowDisplayable(window, observedAt, now, maxAgeMs)
+  );
 };
 
-/** Persisted windows safe to paint on auth-file cards. Empty when the snapshot is stale/expired. */
+/** Persisted windows safe to paint on auth-file cards (per-window; durable waits survive TTL). */
 export const displayablePersistedCodexQuotaWindows = (
   file: AuthFileItem,
   now = Date.now()
 ): CodexQuotaWindow[] => {
-  const windows = persistedCodexQuotaWindows(file, now);
-  return isPersistedCodexQuotaSnapshotDisplayable(file, windows, now) ? windows : [];
+  const observedAt = readPersistedObservedAt(file);
+  return persistedCodexQuotaWindows(file, now).filter((window) =>
+    isPersistedCodexQuotaWindowDisplayable(window, observedAt, now)
+  );
 };
 
-/** Hide the whole Codex quota block once any window's reset time has passed. */
+/** Drop expired windows only; keep remaining windows (including durable waits). */
 export const displayableCodexQuotaWindows = (
   windows: CodexQuotaWindow[],
   now = Date.now()
-): CodexQuotaWindow[] => {
-  if (windows.length === 0) return [];
-  if (windows.some((window) => window.resetAt != null && window.resetAt <= now)) return [];
-  return windows;
-};
+): CodexQuotaWindow[] =>
+  windows.filter((window) => window.resetAt == null || window.resetAt > now);
 
 export const mergeCodexQuotaWindows = (
   persisted: CodexQuotaWindow[],
