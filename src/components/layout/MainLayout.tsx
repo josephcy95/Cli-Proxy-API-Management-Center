@@ -29,6 +29,7 @@ import {
   IconBot,
   IconSatellite,
   IconChevronDown,
+  IconShield,
 } from '@/components/ui/icons';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import iconCodex from '@/assets/icons/codex.svg';
@@ -71,6 +72,7 @@ const sidebarIcons: Record<string, ReactNode> = {
   config: <IconSidebarConfig size={18} />,
   modelContext: <IconSidebarModelContext size={18} />,
   logs: <IconSidebarLogs size={18} />,
+  desensitization: <IconShield size={18} />,
 };
 
 interface SidebarNavLinkItem {
@@ -506,6 +508,11 @@ export function MainLayout() {
           labelKey: 'nav.model_context',
           icon: sidebarIcons.modelContext,
         },
+        {
+          path: '/desensitization',
+          labelKey: 'nav.desensitization',
+          icon: sidebarIcons.desensitization,
+        },
       ],
     },
     {
@@ -526,11 +533,6 @@ export function MainLayout() {
           path: '/xai-config',
           labelKey: 'nav.xai_config',
           icon: <BrandNavIcon src={resolvedTheme === 'dark' ? iconGrokDark : iconGrok} alt="xAI" />,
-        },
-        {
-          path: '/desensitization',
-          labelKey: 'nav.desensitization',
-          icon: sidebarIcons.config,
         },
       ],
     },

@@ -191,3 +191,107 @@
   background: color-mix(in srgb, var(--text-primary) 8%, transparent);
   color: var(--text-secondary);
 }
+
+.segmented {
+  display: inline-flex;
+  margin-top: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.segment,
+.segmentActive {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.segmentActive {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+.segment:disabled,
+.segmentActive:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.mixtureHint {
+  margin-top: 10px !important;
+}
+.warning {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--warning-border);
+  border-radius: 8px;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 13px;
+}
+.scopeGroup {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+.scopeGroup h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.scopeGroup p {
+  margin: 0 0 8px;
+}
+.emptyHint {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.checkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.checkItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.checkItem input {
+  margin: 0;
+}
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.chip button {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+.chip button:disabled {
+  cursor: not-allowed;
+}

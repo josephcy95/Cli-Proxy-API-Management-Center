@@ -18,6 +18,8 @@ import type {
   XAIConfig,
   DesensitizationConfig,
   DesensitizationPreviewResult,
+  DesensitizationScope,
+  DesensitizationScopeOptions,
 } from '@/types';
 import { normalizeConfigResponse } from './transformers';
 
@@ -309,6 +311,19 @@ export const configApi = {
     return normalizeDesensitizationConfig(payload);
   },
 
+  async getDesensitizationScopeOptions(): Promise<DesensitizationScopeOptions> {
+    const raw = await apiClient.get<Partial<DesensitizationScopeOptions>>('/desensitization/scope-options');
+    return {
+      api_keys: Array.isArray(raw?.api_keys) ? raw.api_keys.map(String).map((s) => s.trim()).filter(Boolean) : [],
+      oauth_providers: Array.isArray(raw?.oauth_providers)
+        ? raw.oauth_providers.map(String).map((s) => s.trim()).filter(Boolean)
+        : [],
+      api_providers: Array.isArray(raw?.api_providers)
+        ? raw.api_providers.map(String).map((s) => s.trim()).filter(Boolean)
+        : [],
+    };
+  },
+
   async previewDesensitization(text: string): Promise<DesensitizationPreviewResult> {
     const raw = await apiClient.post<DesensitizationPreviewResult>('/desensitization/preview', { text });
     return {
@@ -366,8 +381,20 @@ export function normalizeDesensitizationConfig(raw: Partial<DesensitizationConfi
       categories[key] = cats[key] as boolean;
     }
   }
+  const scopeRaw = String((raw as { scope?: string }).scope ?? 'all').trim().toLowerCase();
+  const scope: DesensitizationScope = scopeRaw === 'targeted' ? 'targeted' : 'all';
   return {
     enabled: raw.enabled === true,
+    scope,
+    api_keys: Array.isArray((raw as { api_keys?: unknown }).api_keys)
+      ? (raw as { api_keys: unknown[] }).api_keys.map(String).map((s) => s.trim()).filter(Boolean)
+      : [],
+    oauth_providers: Array.isArray((raw as { oauth_providers?: unknown }).oauth_providers)
+      ? (raw as { oauth_providers: unknown[] }).oauth_providers.map(String).map((s) => s.trim()).filter(Boolean)
+      : [],
+    api_providers: Array.isArray((raw as { api_providers?: unknown }).api_providers)
+      ? (raw as { api_providers: unknown[] }).api_providers.map(String).map((s) => s.trim()).filter(Boolean)
+      : [],
     restore: raw.restore !== false,
     restore_secrets: raw.restore_secrets === true,
     fail_closed: raw.fail_closed === true,

@@ -197,8 +197,14 @@ export interface DesensitizationRegex {
   category: string;
 }
 
+export type DesensitizationScope = 'all' | 'targeted';
+
 export interface DesensitizationConfig {
   enabled: boolean;
+  scope: DesensitizationScope;
+  api_keys: string[];
+  oauth_providers: string[];
+  api_providers: string[];
   restore: boolean;
   restore_secrets: boolean;
   fail_closed: boolean;
@@ -209,6 +215,12 @@ export interface DesensitizationConfig {
   secret_prefixes: string[];
   skip_models: string[];
   skip_formats: string[];
+}
+
+export interface DesensitizationScopeOptions {
+  api_keys: string[];
+  oauth_providers: string[];
+  api_providers: string[];
 }
 
 export interface DesensitizationPreviewHit {
