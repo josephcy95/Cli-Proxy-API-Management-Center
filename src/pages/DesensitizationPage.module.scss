@@ -5,13 +5,13 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: $spacing-lg;
+  gap: 12px;
 }
 .pageHeader {
   display: flex;
   justify-content: space-between;
-  gap: $spacing-lg;
-  align-items: flex-start;
+  gap: 12px;
+  align-items: center;
 }
 .titleRow {
   display: flex;
@@ -21,21 +21,21 @@
 .titleRow h1 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 .pageHeader p {
-  max-width: 720px;
-  margin: 10px 0 0;
+  max-width: 820px;
+  margin: 4px 0 0;
   color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.45;
 }
 .titleIcon {
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   align-items: center;
   justify-content: center;
   border-radius: 10px;
@@ -79,52 +79,53 @@
 .settings {
   display: flex;
   flex-direction: column;
-  gap: $spacing-md;
+  gap: 10px;
 }
 .settingCard {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px 18px;
+  border-radius: 10px;
+  padding: 12px 14px;
   background: var(--bg-secondary);
 }
 .settingHeader {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
+  gap: 10px;
+  align-items: center;
 }
 .settingHeader h2,
 .settingCard h2 {
-  margin: 0 0 6px;
-  font-size: 15px;
+  margin: 0 0 4px;
+  font-size: 14px;
   color: var(--text-primary);
 }
 .settingHeader p,
 .settingCard p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.4;
 }
 .toggleGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+  align-items: center;
 }
 .categoryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
 }
 .categoryItem {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 7px 10px;
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--bg-primary);
 }
 .categoryItem strong {
@@ -156,7 +157,7 @@
 }
 .previewBox textarea {
   width: 100%;
-  min-height: 110px;
+  min-height: 72px;
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px 12px;
@@ -194,7 +195,7 @@
 
 .segmented {
   display: inline-flex;
-  margin-top: 12px;
+  margin-top: 8px;
   border: 1px solid var(--border-color);
   border-radius: 10px;
   overflow: hidden;
@@ -232,8 +233,8 @@
   font-size: 13px;
 }
 .scopeGroup {
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-color);
 }
 .scopeGroup h3 {
@@ -294,4 +295,49 @@
 }
 .chip button:disabled {
   cursor: not-allowed;
+}
+
+.ttlField {
+  min-width: 160px;
+  max-width: 220px;
+}
+.scopeLinkRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+.scopeLinkRow h3 {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.scopeLinkRow p {
+  margin: 0;
+}
+.scopeLinkMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.scopeLinkMeta strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.scopeLinkMeta a {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+.scopeLinkMeta a:hover {
+  text-decoration: underline;
 }

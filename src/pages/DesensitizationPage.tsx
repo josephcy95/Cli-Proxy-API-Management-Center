@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -52,15 +53,6 @@ const DEFAULT_OAUTH_IDS = [
   'vertex',
 ] as const;
 
-const DEFAULT_API_IDS = [
-  'claude',
-  'gemini',
-  'codex',
-  'xai',
-  'gemini-interactions',
-  'vertex',
-] as const;
-
 const DEFAULT_SECRET_PREFIXES = ['sk-', 'ghp_', 'github_pat_', 'xoxb-', 'AKIA'];
 
 const DEFAULT_CONFIG: DesensitizationConfig = {
@@ -100,12 +92,6 @@ const DEFAULT_CONFIG: DesensitizationConfig = {
 
 function sameConfig(a: DesensitizationConfig, b: DesensitizationConfig): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
-}
-
-function maskClientKey(key: string): string {
-  const value = key.trim();
-  if (value.length <= 4) return `…${value}`;
-  return `…${value.slice(-4)}`;
 }
 
 function uniqueStrings(values: string[]): string[] {
@@ -207,7 +193,7 @@ export function DesensitizationPage() {
   const [regexCategory, setRegexCategory] = useState('CUSTOM');
   const [clientKeys, setClientKeys] = useState<string[]>([]);
   const [oauthOptions, setOauthOptions] = useState<string[]>([...DEFAULT_OAUTH_IDS]);
-  const [apiOptions, setApiOptions] = useState<string[]>([...DEFAULT_API_IDS]);
+  const [compatNames, setCompatNames] = useState<string[]>([]);
 
   const disabled = connectionStatus !== 'connected' || loading || saving;
   const dirty = !sameConfig(draft, saved);
@@ -217,6 +203,12 @@ export function DesensitizationPage() {
     draft.api_keys.length === 0 &&
     draft.oauth_providers.length === 0 &&
     draft.api_providers.length === 0;
+  const selectedKeyCount = draft.api_keys.filter((key) =>
+    clientKeys.some((item) => item === key || item.toLowerCase() === key.toLowerCase())
+  ).length;
+  const selectedCompatCount = draft.api_providers.filter((name) =>
+    compatNames.some((item) => item.toLowerCase() === name.toLowerCase())
+  ).length;
   const statusText = error
     ? t('desensitization.status_load_failed')
     : loading
@@ -238,7 +230,7 @@ export function DesensitizationPage() {
         configApi.getDesensitizationScopeOptions().catch(() => ({
           api_keys: [] as string[],
           oauth_providers: [...DEFAULT_OAUTH_IDS],
-          api_providers: [...DEFAULT_API_IDS],
+          api_providers: [] as string[],
         })),
         providersApi.getOpenAIProviders().catch(() => [] as { name?: string }[]),
       ]);
@@ -246,10 +238,8 @@ export function DesensitizationPage() {
       setSaved(next);
       setClientKeys(uniqueStrings([...scope.api_keys, ...keys, ...next.api_keys]));
       setOauthOptions(uniqueStrings([...DEFAULT_OAUTH_IDS, ...scope.oauth_providers, ...next.oauth_providers]));
-      const compatNames = compat.map((item) => String(item.name ?? '').trim()).filter(Boolean);
-      setApiOptions(
-        uniqueStrings([...DEFAULT_API_IDS, ...scope.api_providers, ...compatNames, ...next.api_providers])
-      );
+      const names = compat.map((item) => String(item.name ?? '').trim()).filter(Boolean);
+      setCompatNames(uniqueStrings(names));
     } catch (loadError: unknown) {
       setError(loadError instanceof Error ? loadError.message : t('notification.refresh_failed'));
     } finally {
@@ -431,20 +421,20 @@ export function DesensitizationPage() {
                 ariaLabel={t('desensitization.fail_closed')}
               />
             </div>
-          </div>
-          <div style={{ marginTop: 14, maxWidth: 240 }}>
-            <Input
-              type="number"
-              min="1"
-              step="1"
-              label={t('desensitization.session_ttl')}
-              value={String(draft.session_ttl_minutes)}
-              onChange={(event) => {
-                const parsed = Number.parseInt(event.target.value, 10);
-                update({ session_ttl_minutes: Number.isFinite(parsed) ? Math.max(1, parsed) : 20 });
-              }}
-              disabled={disabled}
-            />
+            <div className={styles.ttlField}>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                label={t('desensitization.session_ttl')}
+                value={String(draft.session_ttl_minutes)}
+                onChange={(event) => {
+                  const parsed = Number.parseInt(event.target.value, 10);
+                  update({ session_ttl_minutes: Number.isFinite(parsed) ? Math.max(1, parsed) : 20 });
+                }}
+                disabled={disabled}
+              />
+            </div>
           </div>
         </div>
 
@@ -476,28 +466,20 @@ export function DesensitizationPage() {
               <p className={styles.mixtureHint}>{t('desensitization.mixture_hint')}</p>
               {targetedEmpty && <div className={styles.warning}>{t('desensitization.targeted_empty_warning')}</div>}
 
-              <div className={styles.scopeGroup}>
-                <h3>{t('desensitization.client_keys_title')}</h3>
-                <p>{t('desensitization.client_keys_hint')}</p>
-                {clientKeys.length === 0 ? (
-                  <p className={styles.emptyHint}>{t('desensitization.client_keys_empty')}</p>
-                ) : (
-                  <div className={styles.checkGrid}>
-                    {clientKeys.map((key) => (
-                      <label className={styles.checkItem} key={key}>
-                        <input
-                          type="checkbox"
-                          checked={draft.api_keys.includes(key)}
-                          onChange={(event) =>
-                            update({ api_keys: toggleList(draft.api_keys, key, event.target.checked) })
-                          }
-                          disabled={disabled}
-                        />
-                        <span title={t('desensitization.client_key_full_hidden')}>{maskClientKey(key)}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
+              <div className={styles.scopeLinkRow}>
+                <div>
+                  <h3>{t('desensitization.client_keys_title')}</h3>
+                  <p>{t('desensitization.client_keys_hint')}</p>
+                </div>
+                <div className={styles.scopeLinkMeta}>
+                  <strong>
+                    {t('desensitization.scope_count', {
+                      enabled: selectedKeyCount,
+                      total: clientKeys.length,
+                    })}
+                  </strong>
+                  <Link to="/config">{t('desensitization.client_keys_manage')}</Link>
+                </div>
               </div>
 
               <div className={styles.scopeGroup}>
@@ -522,25 +504,19 @@ export function DesensitizationPage() {
                 </div>
               </div>
 
-              <div className={styles.scopeGroup}>
-                <h3>{t('desensitization.api_providers_title')}</h3>
-                <p>{t('desensitization.api_providers_hint')}</p>
-                <div className={styles.checkGrid}>
-                  {apiOptions.map((id) => (
-                    <label className={styles.checkItem} key={id}>
-                      <input
-                        type="checkbox"
-                        checked={draft.api_providers.some((item) => item.toLowerCase() === id.toLowerCase())}
-                        onChange={(event) =>
-                          update({
-                            api_providers: toggleList(draft.api_providers, id, event.target.checked),
-                          })
-                        }
-                        disabled={disabled}
-                      />
-                      <span>{providerLabel(id, 'api')}</span>
-                    </label>
-                  ))}
+              <div className={styles.scopeLinkRow}>
+                <div>
+                  <h3>{t('desensitization.api_providers_title')}</h3>
+                  <p>{t('desensitization.api_providers_hint')}</p>
+                </div>
+                <div className={styles.scopeLinkMeta}>
+                  <strong>
+                    {t('desensitization.scope_count', {
+                      enabled: selectedCompatCount,
+                      total: compatNames.length,
+                    })}
+                  </strong>
+                  <Link to="/ai-providers">{t('desensitization.api_providers_manage')}</Link>
                 </div>
               </div>
             </>

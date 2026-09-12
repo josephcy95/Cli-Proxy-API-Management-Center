@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { IconCopy, IconEye, IconEyeOff, IconPencil, IconTrash2 } from '@/components/ui/icons';
+import { DesensitizationShieldButton } from '@/components/desensitization/DesensitizationShieldButton';
+import { configApi } from '@/services/api/config';
 import { useNotificationStore } from '@/stores';
 import styles from './VisualConfigEditor.module.scss';
 import { copyToClipboard } from '@/utils/clipboard';
@@ -201,12 +203,47 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
   const [nameEditId, setNameEditId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const [desensitizedKeys, setDesensitizedKeys] = useState<Set<string>>(() => new Set());
+  const [desensBusyKey, setDesensBusyKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!nameEditId) return;
     nameInputRef.current?.focus();
     nameInputRef.current?.select();
   }, [nameEditId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void configApi
+      .getDesensitizationConfig()
+      .then((config) => {
+        if (cancelled) return;
+        setDesensitizedKeys(new Set(config.api_keys));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const keyIsDesensitized = (key: string) =>
+    desensitizedKeys.has(key) ||
+    Array.from(desensitizedKeys).some((item) => item.toLowerCase() === key.toLowerCase());
+
+  const handleToggleDesensitization = async (key: string, enabled: boolean) => {
+    const value = key.trim();
+    if (!value) return;
+    setDesensBusyKey(value);
+    try {
+      const next = await configApi.toggleDesensitizationApiKey(value, enabled);
+      setDesensitizedKeys(new Set(next.api_keys));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '';
+      showNotification(`${t('notification.save_failed')}: ${message}`, 'error');
+    } finally {
+      setDesensBusyKey(null);
+    }
+  };
 
   function generateSecureApiKey(): string {
     const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -248,6 +285,7 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
   const handleDelete = (apiKeyId: string) => {
     const index = renderApiKeyIds.findIndex((id) => id === apiKeyId);
     if (index < 0) return;
+    const deletedKey = entries[index]?.key ?? '';
     setApiKeyIds(renderApiKeyIds.filter((id) => id !== apiKeyId));
     setRevealedIds((prev) => {
       if (!prev.has(apiKeyId)) return prev;
@@ -256,6 +294,14 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
       return next;
     });
     commitEntries(entries.filter((_, i) => i !== index));
+    if (deletedKey) {
+      void configApi
+        .remapDesensitizationApiKey(deletedKey, '')
+        .then((next) => {
+          if (next) setDesensitizedKeys(new Set(next.api_keys));
+        })
+        .catch(() => undefined);
+    }
   };
 
   const handleSave = () => {
@@ -273,6 +319,7 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
     const editingIndex = editingApiKeyId
       ? renderApiKeyIds.findIndex((id) => id === editingApiKeyId)
       : -1;
+    const previousKey = editingIndex >= 0 ? (entries[editingIndex]?.key ?? '') : '';
     const nextEntry: VisualApiKeyEntry = { key: trimmed, name };
     const nextEntries =
       editingApiKeyId === null
@@ -282,6 +329,14 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
       setApiKeyIds([...renderApiKeyIds, makeClientId()]);
     }
     commitEntries(nextEntries);
+    if (previousKey && previousKey !== trimmed) {
+      void configApi
+        .remapDesensitizationApiKey(previousKey, trimmed)
+        .then((next) => {
+          if (next) setDesensitizedKeys(new Set(next.api_keys));
+        })
+        .catch(() => undefined);
+    }
     closeModal();
   };
 
@@ -360,6 +415,9 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
                 </th>
                 <th className={styles.apiKeyColKey}>
                   {t('config_management.visual.api_keys.input_label')}
+                </th>
+                <th className={styles.apiKeyColShield}>
+                  {t('config_management.visual.api_keys.desensitize_column')}
                 </th>
                 <th className={styles.apiKeyColActions}>
                   {t('config_management.visual.api_keys.actions_column')}
@@ -445,6 +503,16 @@ export const ApiKeysCardEditor = memo(function ApiKeysCardEditor({
                           </button>
                         </div>
                       </div>
+                    </td>
+                    <td className={styles.apiKeyColShield}>
+                      <DesensitizationShieldButton
+                        enabled={keyIsDesensitized(entry.key)}
+                        disabled={disabled}
+                        busy={desensBusyKey === entry.key}
+                        onToggle={(next) => void handleToggleDesensitization(entry.key, next)}
+                        onLabel={t('desensitization.shield_on')}
+                        offLabel={t('desensitization.shield_off')}
+                      />
                     </td>
                     <td className={styles.apiKeyColActions}>
                       <div className={styles.apiKeyInlineActions}>

@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { configApi } from '@/services/api/config';
 import { usePageTransitionLayer } from '@/components/common/PageTransitionLayer';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -131,6 +132,42 @@ export function ProvidersWorkbenchPage({ fixedBrand }: ProvidersWorkbenchPagePro
     workbench.mutating ||
     workbench.isFetching ||
     workbench.isError;
+
+  const [desensitizedProviders, setDesensitizedProviders] = useState<Set<string>>(() => new Set());
+  const [desensBusyName, setDesensBusyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!connected) return;
+    let cancelled = false;
+    void configApi
+      .getDesensitizationConfig()
+      .then((config) => {
+        if (cancelled) return;
+        setDesensitizedProviders(new Set(config.api_providers));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [connected]);
+
+  const handleToggleDesensitization = useCallback(
+    async (name: string, enabled: boolean) => {
+      const value = name.trim();
+      if (!value) return;
+      setDesensBusyName(value);
+      try {
+        const next = await configApi.toggleDesensitizationApiProvider(value, enabled);
+        setDesensitizedProviders(new Set(next.api_providers));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        showNotification(`${t('notification.save_failed')}: ${msg}`, 'error');
+      } finally {
+        setDesensBusyName(null);
+      }
+    },
+    [showNotification, t]
+  );
 
   const persistUiState = useCallback(
     (updater: (prev: ProvidersWorkbenchUiState) => ProvidersWorkbenchUiState) => {
@@ -480,6 +517,9 @@ export function ProvidersWorkbenchPage({ fixedBrand }: ProvidersWorkbenchPagePro
             onDelete={handleDelete}
             onToggleDisabled={handleToggleDisabled}
             onCreate={openCreate}
+            desensitizedProviders={desensitizedProviders}
+            desensBusyName={desensBusyName}
+            onToggleDesensitization={(name, enabled) => void handleToggleDesensitization(name, enabled)}
           />
         )}
       </div>

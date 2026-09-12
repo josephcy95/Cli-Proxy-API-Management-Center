@@ -1220,7 +1220,8 @@
         "name_hint": "以 YAML 行尾注释形式保存在密钥后。仅管理界面使用，API 会忽略。",
         "actions_column": "操作",
         "reveal": "显示密钥",
-        "hide": "隐藏密钥"
+        "hide": "隐藏密钥",
+        "desensitize_column": "脱敏"
       },
       "payload_rules": {
         "rule": "规则",
@@ -1796,7 +1797,8 @@
       "cliProfileTag": "CLI 指纹",
       "empty": "尚未添加配置,点击右上角新建。",
       "filterPlaceholder": "搜索密钥、地址、前缀…",
-      "description": "在 {{route}} 下管理资源"
+      "description": "在 {{route}} 下管理资源",
+      "desensitize": "脱敏"
     },
     "sponsor": {
       "protocolSummary": "Anthropic / OpenAI / Gemini / Codex API (Responses)",
@@ -2342,13 +2344,13 @@
     "mixture_hint": "跨组勾选是并集（或）：入站客户端密钥、OAuth 类型或 API 提供商任一命中即脱敏。",
     "targeted_empty_warning": "脱敏已开启，但未选择任何对象，因此不会匹配任何流量。",
     "client_keys_title": "客户端 API Key",
-    "client_keys_hint": "来自 api-keys 的入站密钥。界面显示掩码，保存的是完整值。",
+    "client_keys_hint": "在「访问与认证」表格里用盾牌逐条开关。这里只显示已启用数量。",
     "client_keys_empty": "尚未配置客户端 API Key。",
     "client_key_full_hidden": "完整密钥已保存但不展示",
     "oauth_title": "OAuth 提供商",
     "oauth_hint": "OAuth / 登录文件凭据。凭据为 OAuth 时按 Auth.Provider 匹配。",
     "api_providers_title": "API 提供商",
-    "api_providers_hint": "内置 API Key 通道，外加每个已配置的 openai-compatibility 名称。",
+    "api_providers_hint": "在自定义 OpenAI 兼容提供商表格里用盾牌逐条开关。这里只显示已启用数量。",
     "custom_rules_title": "自定义规则",
     "custom_rules_hint": "精确词、正则、密钥前缀，以及可选的跳过列表。",
     "custom_regex_title": "自定义正则",
@@ -2380,6 +2382,12 @@
       "vertex": "Vertex",
       "gemini-interactions": "Interactions",
       "interactions": "Interactions"
-    }
+    },
+    "client_keys_manage": "打开 API Key",
+    "api_providers_manage": "打开 AI 提供商",
+    "scope_count": "{{enabled}} / {{total}} 已启用",
+    "shield_on": "此行已启用脱敏",
+    "shield_off": "此行未启用脱敏",
+    "shield_column": "脱敏"
   }
 }

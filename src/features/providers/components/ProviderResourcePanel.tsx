@@ -36,6 +36,9 @@ interface ProviderResourcePanelProps {
   onDelete: (resource: ProviderResource) => void;
   onToggleDisabled?: (resource: ProviderResource, disabled: boolean) => void;
   onCreate: () => void;
+  desensitizedProviders?: ReadonlySet<string>;
+  desensBusyName?: string | null;
+  onToggleDesensitization?: (name: string, enabled: boolean) => void;
 }
 
 export function ProviderResourcePanel({
@@ -52,6 +55,9 @@ export function ProviderResourcePanel({
   onDelete,
   onToggleDisabled,
   onCreate,
+  desensitizedProviders,
+  desensBusyName,
+  onToggleDesensitization,
 }: ProviderResourcePanelProps) {
   const { t, i18n } = useTranslation();
   const logo = PROVIDER_LOGOS[group.id];
@@ -208,6 +214,9 @@ export function ProviderResourcePanel({
           onEdit={onEdit}
           onDelete={onDelete}
           onToggleDisabled={onToggleDisabled}
+          desensitizedProviders={desensitizedProviders}
+          desensBusyName={desensBusyName}
+          onToggleDesensitization={onToggleDesensitization}
         />
       )}
     </section>

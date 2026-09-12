@@ -311,6 +311,57 @@ export const configApi = {
     return normalizeDesensitizationConfig(payload);
   },
 
+  async toggleDesensitizationApiKey(key: string, enabled: boolean): Promise<DesensitizationConfig> {
+    return this.toggleDesensitizationListMember('api_keys', key, enabled);
+  },
+
+  async toggleDesensitizationApiProvider(name: string, enabled: boolean): Promise<DesensitizationConfig> {
+    return this.toggleDesensitizationListMember('api_providers', name, enabled);
+  },
+
+  async remapDesensitizationApiKey(from: string, to: string): Promise<DesensitizationConfig | null> {
+    return this.remapDesensitizationListMember('api_keys', from, to);
+  },
+
+  async remapDesensitizationApiProvider(from: string, to: string): Promise<DesensitizationConfig | null> {
+    return this.remapDesensitizationListMember('api_providers', from, to);
+  },
+
+  async toggleDesensitizationListMember(
+    field: 'api_keys' | 'api_providers',
+    value: string,
+    enabled: boolean
+  ): Promise<DesensitizationConfig> {
+    const current = await this.getDesensitizationConfig();
+    const needle = value.trim();
+    const list = current[field].filter(
+      (item) => item !== needle && item.toLowerCase() !== needle.toLowerCase()
+    );
+    if (enabled && needle) list.push(needle);
+    return this.updateDesensitizationConfig({ ...current, [field]: list });
+  },
+
+  async remapDesensitizationListMember(
+    field: 'api_keys' | 'api_providers',
+    from: string,
+    to: string
+  ): Promise<DesensitizationConfig | null> {
+    const current = await this.getDesensitizationConfig();
+    const fromTrim = from.trim();
+    const toTrim = to.trim();
+    const had = current[field].some(
+      (item) => item === fromTrim || item.toLowerCase() === fromTrim.toLowerCase()
+    );
+    if (!had) return null;
+    const next = current[field].filter(
+      (item) => item !== fromTrim && item.toLowerCase() !== fromTrim.toLowerCase()
+    );
+    if (toTrim && !next.some((item) => item.toLowerCase() === toTrim.toLowerCase())) {
+      next.push(toTrim);
+    }
+    return this.updateDesensitizationConfig({ ...current, [field]: next });
+  },
+
   async getDesensitizationScopeOptions(): Promise<DesensitizationScopeOptions> {
     const raw = await apiClient.get<Partial<DesensitizationScopeOptions>>('/desensitization/scope-options');
     return {

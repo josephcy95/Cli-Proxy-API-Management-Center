@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { providersApi } from '@/services/api';
+import { configApi } from '@/services/api/config';
 import { getErrorMessage } from '@/utils/helpers';
 import { useAuthStore, useConfigStore } from '@/stores';
 import {
@@ -764,11 +765,15 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
             buildProviderKeyConfig('vertex', input, existing) as ProviderKeyConfig
           );
         } else if (brand === 'openaiCompatibility' && selector.brand === 'openaiCompatibility') {
+          const nextName = input.name.trim();
           await providersApi.updateOpenAIProvider(
             selector.name,
             selector.index,
             buildOpenAIConfig(input, resource.raw as OpenAIProviderConfig)
           );
+          if (selector.name && nextName && selector.name !== nextName) {
+            await configApi.remapDesensitizationApiProvider(selector.name, nextName).catch(() => null);
+          }
         } else if (
           brand === 'apikeyFun' ||
           brand === 'code0' ||
@@ -821,6 +826,9 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
           updateConfigValue('vertex-api-key', next);
         } else if (sel.brand === 'openaiCompatibility') {
           await providersApi.deleteOpenAIProvider(sel.index);
+          if (sel.name) {
+            await configApi.remapDesensitizationApiProvider(sel.name, '').catch(() => null);
+          }
           const next = (config?.openaiCompatibility ?? []).filter(
             (item, index) => (item.sourceIndex ?? index) !== sel.index
           );
