@@ -473,6 +473,7 @@ export function normalizeDesensitizationConfig(raw: Partial<DesensitizationConfi
       : ['sk-', 'ghp_', 'github_pat_', 'xoxb-', 'AKIA'],
     skip_models: Array.isArray(raw.skip_models) ? raw.skip_models.map(String).filter(Boolean) : [],
     skip_formats: Array.isArray(raw.skip_formats) ? raw.skip_formats.map(String).filter(Boolean) : [],
+    allowlist: Array.isArray(raw.allowlist) ? raw.allowlist.map(String).map((s) => s.trim()).filter(Boolean) : [],
   };
 }
 

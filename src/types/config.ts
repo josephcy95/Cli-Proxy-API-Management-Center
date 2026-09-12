@@ -215,6 +215,7 @@ export interface DesensitizationConfig {
   secret_prefixes: string[];
   skip_models: string[];
   skip_formats: string[];
+  allowlist: string[];
 }
 
 export interface DesensitizationScopeOptions {

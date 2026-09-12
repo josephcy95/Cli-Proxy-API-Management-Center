@@ -92,19 +92,20 @@ const DEFAULT_CONFIG: DesensitizationConfig = {
   secret_prefixes: [...DEFAULT_SECRET_PREFIXES],
   skip_models: [],
   skip_formats: [],
+  allowlist: [],
 };
 
 function sameConfig(a: DesensitizationConfig, b: DesensitizationConfig): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-function uniqueStrings(values: string[]): string[] {
+function uniqueStrings(values: string[], exact = false): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of values) {
     const value = raw.trim();
     if (!value) continue;
-    const key = value.toLowerCase();
+    const key = exact ? value : value.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(value);
@@ -124,18 +125,20 @@ function ChipEditor({
   placeholder,
   addLabel,
   onChange,
+  exact = false,
 }: {
   values: string[];
   disabled: boolean;
   placeholder: string;
   addLabel: string;
   onChange: (next: string[]) => void;
+  exact?: boolean;
 }) {
   const [draft, setDraft] = useState('');
   const add = () => {
     const value = draft.trim();
     if (!value) return;
-    onChange(uniqueStrings([...values, value]));
+    onChange(uniqueStrings([...values, value], exact));
     setDraft('');
   };
   return (
@@ -690,6 +693,18 @@ export function DesensitizationPage() {
                 placeholder={t('desensitization.skip_formats_placeholder')}
                 addLabel={t('desensitization.add_skip')}
                 onChange={(skip_formats) => update({ skip_formats })}
+              />
+            </div>
+            <div className={`${styles.ruleBlock} ${styles.ruleWide}`}>
+              <div className={styles.sectionLabel}>{t('desensitization.allowlist_title')}</div>
+              <p className={styles.sectionHint}>{t('desensitization.allowlist_hint')}</p>
+              <ChipEditor
+                values={draft.allowlist}
+                disabled={disabled}
+                placeholder={t('desensitization.allowlist_placeholder')}
+                addLabel={t('desensitization.add_allowlist')}
+                exact
+                onChange={(allowlist) => update({ allowlist })}
               />
             </div>
           </div>

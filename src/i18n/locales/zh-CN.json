@@ -2352,7 +2352,7 @@
     "api_providers_title": "API 提供商",
     "api_providers_hint": "品牌盾牌（Claude、Codex 等）加上每个自定义 OpenAI 兼容提供商。",
     "custom_rules_title": "自定义规则",
-    "custom_rules_hint": "词表、正则、前缀与跳过列表。",
+    "custom_rules_hint": "词表、正则、前缀、跳过列表与精确白名单。",
     "custom_regex_title": "自定义正则",
     "custom_regex_hint": "用户提供的模式；无效模式会在保存时被跳过。",
     "custom_regex_placeholder": "EMP-\\\\d{6}",
@@ -2414,6 +2414,10 @@
     },
     "detector_info_aria": "查看此检测器说明",
     "cat_examples_label": "示例",
-    "detector_info_close": "知道了"
+    "detector_info_close": "知道了",
+    "allowlist_title": "白名单",
+    "allowlist_hint": "这些字符串完全匹配时不会被脱敏（例如 localhost、文档示例、测试号码）。不是子串匹配。",
+    "allowlist_placeholder": "127.0.0.1",
+    "add_allowlist": "添加"
   }
 }

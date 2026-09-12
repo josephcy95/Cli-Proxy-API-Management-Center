@@ -2352,7 +2352,7 @@
     "api_providers_title": "API providers",
     "api_providers_hint": "Brand shields (Claude, Codex, …) plus each custom OpenAI-compatible provider.",
     "custom_rules_title": "Custom rules",
-    "custom_rules_hint": "Terms, regex, prefixes, and skip lists.",
+    "custom_rules_hint": "Terms, regex, prefixes, skip lists, and exact allowlist.",
     "custom_regex_title": "Custom regex",
     "custom_regex_hint": "User patterns. Invalid patterns are skipped when the config is saved.",
     "custom_regex_placeholder": "EMP-\\\\d{6}",
@@ -2414,6 +2414,10 @@
     },
     "detector_info_aria": "About this detector",
     "cat_examples_label": "Examples",
-    "detector_info_close": "Got it"
+    "detector_info_close": "Got it",
+    "allowlist_title": "Allowlist",
+    "allowlist_hint": "Exact strings that are never masked (localhost, docs examples, test numbers). Not a substring match.",
+    "allowlist_placeholder": "127.0.0.1",
+    "add_allowlist": "Add"
   }
 }
