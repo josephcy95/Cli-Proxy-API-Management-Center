@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import { IconRefreshCw, IconShield } from '@/components/ui/icons';
+import { IconInfo, IconRefreshCw, IconShield } from '@/components/ui/icons';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { apiKeysApi } from '@/services/api/apiKeys';
 import { configApi } from '@/services/api/config';
@@ -191,6 +192,7 @@ export function DesensitizationPage() {
   const [previewMasked, setPreviewMasked] = useState('');
   const [previewHits, setPreviewHits] = useState<DesensitizationPreviewHit[]>([]);
   const [previewing, setPreviewing] = useState(false);
+  const [infoDetector, setInfoDetector] = useState<keyof DesensitizationCategories | null>(null);
   const [termDraft, setTermDraft] = useState('');
   const [regexPattern, setRegexPattern] = useState('');
   const [regexCategory, setRegexCategory] = useState('CUSTOM');
@@ -354,13 +356,21 @@ export function DesensitizationPage() {
   const extraCategories = CATEGORY_META.filter((item) => item.group === 'extra');
 
   const renderDetector = ({ key, highFp }: (typeof CATEGORY_META)[number]) => (
-    <label
-      className={styles.detector}
-      key={key}
-      title={t(`desensitization.cat_help.${key}`)}
-    >
+    <div className={styles.detector} key={key}>
       <span className={styles.detectorName}>
-        {t(`desensitization.cat.${key}`)}
+        <span className={styles.detectorLabel}>{t(`desensitization.cat.${key}`)}</span>
+        <button
+          type="button"
+          className={styles.infoBtn}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setInfoDetector(key);
+          }}
+          aria-label={t('desensitization.detector_info_aria')}
+        >
+          <IconInfo size={14} />
+        </button>
         {highFp ? <em>{t('desensitization.high_fp')}</em> : null}
       </span>
       <ToggleSwitch
@@ -369,7 +379,7 @@ export function DesensitizationPage() {
         disabled={disabled}
         ariaLabel={t(`desensitization.cat.${key}`)}
       />
-    </label>
+    </div>
   );
 
   return (
@@ -714,6 +724,28 @@ export function DesensitizationPage() {
           )}
         </section>
       </div>
+
+      <Modal
+        open={infoDetector !== null}
+        onClose={() => setInfoDetector(null)}
+        title={infoDetector ? t(`desensitization.cat.${infoDetector}`) : undefined}
+        width={480}
+        footer={
+          <Button variant="secondary" onClick={() => setInfoDetector(null)}>
+            {t('desensitization.detector_info_close')}
+          </Button>
+        }
+      >
+        {infoDetector ? (
+          <div className={styles.infoBody}>
+            <p>{t(`desensitization.cat_help.${infoDetector}`)}</p>
+            <div className={styles.infoExamples}>
+              <strong>{t('desensitization.cat_examples_label')}</strong>
+              <code>{t(`desensitization.cat_examples.${infoDetector}`)}</code>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

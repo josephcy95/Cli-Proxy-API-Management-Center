@@ -6,16 +6,17 @@ This is a fork of the original Management Center, built to work with the forked 
 
 ## What this fork adds
 
-- **A focused account-management view** for OAuth files, provider status, plans, cooldowns, renewal dates, reset credits, priorities, and weighted round-robin settings.
-- **Adaptive Codex tools** including candidate estimates, quota-aware sorting, concurrency-aware routing controls, Free/Paid plan filters, and quick quota refreshes.
-- **Codex instructions management** with templates, private instruction routing, model markers, and provider-specific controls.
-- **Detailed monitoring** with realtime requests, account usage, API-key usage, prices, token breakdowns, request status, and useful filters.
-- **A built-in playground** for quickly testing a selected model, provider, and credential.
-- **Qoder and Qoder CN support** with provider-specific login, quota, region, and model-management views.
-- **xAI and Codex failure-policy controls** so credentials can be handled more sensibly when quotas or authentication fail.
-- **Model context controls** for custom models and provider configuration surfaces that stay practical instead of getting in the way.
-- **A dense, responsive interface** designed for managing a large account pool without endless navigation.
-- **And many more** small UI fixes, quota improvements, monitoring refinements, provider integrations, and quality-of-life changes.
+- 🗂️ **A focused account-management view** for OAuth files, provider status, plans, cooldowns, renewal dates, reset credits, priorities, and weighted round-robin settings.
+- 🧭 **Adaptive Codex tools** including candidate estimates, quota-aware sorting, concurrency-aware routing controls, Free/Paid plan filters, and quick quota refreshes.
+- 📝 **Codex instructions management** with templates, private instruction routing, model markers, and provider-specific controls.
+- 📊 **Detailed monitoring** with realtime requests, account usage, API-key usage, prices, token breakdowns, request status, and useful filters.
+- 🧪 **A built-in playground** for quickly testing a selected model, provider, and credential.
+- 🌏 **Qoder and Qoder CN support** with provider-specific login, quota, region, and model-management views.
+- 🛡️ **xAI and Codex failure-policy controls** so credentials can be handled more sensibly when quotas or authentication fail.
+- 🧩 **Model context controls** for custom models and provider configuration surfaces that stay practical instead of getting in the way.
+- 🔒 **Privacy (desensitization)** — mask secrets and PII in outbound model traffic, restore placeholders on the way back, with CORE/EXTRA detectors, custom rules, and per-key / per-provider shields.
+- 🖥️ **A dense, responsive interface** designed for managing a large account pool without endless navigation.
+- ✨ **And many more** small UI fixes, quota improvements, monitoring refinements, provider integrations, and quality-of-life changes.
 
 ## Screenshots
 
