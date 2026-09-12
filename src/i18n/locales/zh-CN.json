@@ -159,7 +159,7 @@
     "logs": "日志查看",
     "system_info": "中心信息",
     "monitoring": "请求监控",
-    "desensitization": "脱敏"
+    "desensitization": "隐私"
   },
   "nav_groups": {
     "operate": "运行",
@@ -189,7 +189,7 @@
     "model_context": "手动设置上下文窗口",
     "system_info": "运行与诊断信息",
     "monitoring": "实时请求、费用与 Token",
-    "desensitization": "请求/响应中脱敏 PII 与密钥"
+    "desensitization": "出站流量中打码 PII 与密钥"
   },
   "dashboard": {
     "current_config": "当前配置",
@@ -1221,7 +1221,7 @@
         "actions_column": "操作",
         "reveal": "显示密钥",
         "hide": "隐藏密钥",
-        "desensitize_column": "脱敏"
+        "desensitize_column": "隐私"
       },
       "payload_rules": {
         "rule": "规则",
@@ -1798,7 +1798,7 @@
       "empty": "尚未添加配置,点击右上角新建。",
       "filterPlaceholder": "搜索密钥、地址、前缀…",
       "description": "在 {{route}} 下管理资源",
-      "desensitize": "脱敏"
+      "desensitize": "隐私"
     },
     "sponsor": {
       "protocolSummary": "Anthropic / OpenAI / Gemini / Codex API (Responses)",
@@ -2269,9 +2269,9 @@
     "upgrade_required": "请更新 API 以使用监控保留设置。"
   },
   "desensitization": {
-    "title": "脱敏",
+    "title": "隐私",
     "description": "出站 JSON 先打码密钥与 PII，回程再还原。默认关闭。",
-    "enabled": "启用脱敏",
+    "enabled": "启用隐私",
     "enabled_hint": "关闭时请求与响应原样透传。",
     "restore": "在响应中还原占位符",
     "restore_hint": "在非流式与 SSE 响应中把 {{TYPE_id}} 还原为原文。",
@@ -2293,9 +2293,9 @@
     "preview_empty": "脱敏结果将显示在这里。",
     "preview_failed": "预览失败",
     "reload": "重新加载",
-    "reload_confirm_message": "重新加载将丢弃未保存的脱敏更改，是否继续？",
+    "reload_confirm_message": "重新加载将丢弃未保存的隐私更改，是否继续？",
     "save": "保存",
-    "save_success": "脱敏配置已保存",
+    "save_success": "隐私配置已保存",
     "status_loading": "加载中…",
     "status_loaded": "已加载",
     "status_dirty": "有未保存更改",
@@ -2342,7 +2342,7 @@
     "scope_all": "全部流量",
     "scope_targeted": "仅所选",
     "mixture_hint": "跨组勾选是并集（或）：入站客户端密钥、OAuth 类型或 API 提供商任一命中即脱敏。",
-    "targeted_empty_warning": "脱敏已开启，但未选择任何对象，因此不会匹配任何流量。",
+    "targeted_empty_warning": "隐私已开启，但未选择任何对象，因此不会匹配任何流量。",
     "client_keys_title": "客户端 API Key",
     "client_keys_hint": "在访问与认证里用盾牌逐条开关。",
     "client_keys_empty": "尚未配置客户端 API Key。",
@@ -2386,9 +2386,9 @@
     "client_keys_manage": "打开 API Key",
     "api_providers_manage": "打开 AI 提供商",
     "scope_count": "{{enabled}} / {{total}} 已启用",
-    "shield_on": "此行已启用脱敏",
-    "shield_off": "此行未启用脱敏",
-    "shield_column": "脱敏",
+    "shield_on": "此行已启用隐私",
+    "shield_off": "此行未启用隐私",
+    "shield_column": "隐私",
     "policy_title": "策略",
     "policy_hint": "总开关、还原行为，以及出错时是否拒绝。",
     "categories_core": "核心",

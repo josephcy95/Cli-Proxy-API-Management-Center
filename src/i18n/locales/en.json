@@ -159,7 +159,7 @@
     "model_context": "Model Context",
     "logs": "Logs Viewer",
     "system_info": "Management Center Info",
-    "desensitization": "Desensitization"
+    "desensitization": "Privacy"
   },
   "nav_groups": {
     "operate": "Operate",
@@ -1444,7 +1444,7 @@
         "actions_column": "Actions",
         "reveal": "Show key",
         "hide": "Hide key",
-        "desensitize_column": "Shield"
+        "desensitize_column": "Privacy"
       },
       "payload_rules": {
         "rule": "Rule",
@@ -2021,7 +2021,7 @@
       "empty": "No resources yet, click \"New\" to add.",
       "filterPlaceholder": "Search keys, URLs, prefixes…",
       "description": "Manage resources under {{route}}",
-      "desensitize": "Shield"
+      "desensitize": "Privacy"
     },
     "sponsor": {
       "protocolSummary": "Anthropic / OpenAI / Gemini / Codex API (Responses)",
@@ -2269,9 +2269,9 @@
     "upgrade_required": "Update the API to use monitoring retention settings."
   },
   "desensitization": {
-    "title": "Desensitization",
+    "title": "Privacy",
     "description": "Mask secrets and PII in outbound JSON, then restore them on the way back. Off by default.",
-    "enabled": "Enable desensitization",
+    "enabled": "Enable privacy",
     "enabled_hint": "When off, requests and responses pass through unchanged.",
     "restore": "Restore placeholders in responses",
     "restore_hint": "Replace {{TYPE_id}} with originals in non-stream and SSE responses.",
@@ -2293,9 +2293,9 @@
     "preview_empty": "Masked output will appear here.",
     "preview_failed": "Preview failed",
     "reload": "Reload",
-    "reload_confirm_message": "Reloading will discard unsaved desensitization changes. Continue?",
+    "reload_confirm_message": "Reloading will discard unsaved privacy changes. Continue?",
     "save": "Save",
-    "save_success": "Desensitization settings saved",
+    "save_success": "Privacy settings saved",
     "status_loading": "Loading…",
     "status_loaded": "Loaded",
     "status_dirty": "Unsaved changes",
@@ -2342,7 +2342,7 @@
     "scope_all": "All traffic",
     "scope_targeted": "Only selected",
     "mixture_hint": "Selections across groups are a union (OR). A request is masked if the inbound client key, the OAuth type, or the API provider matches.",
-    "targeted_empty_warning": "Desensitization is on, but nothing is selected, so no traffic will be masked.",
+    "targeted_empty_warning": "Privacy is on, but nothing is selected, so no traffic will be masked.",
     "client_keys_title": "Client API keys",
     "client_keys_hint": "Use the shield on each key in Access.",
     "client_keys_empty": "No client API keys configured.",
@@ -2386,9 +2386,9 @@
     "client_keys_manage": "Open API keys",
     "api_providers_manage": "Open AI Providers",
     "scope_count": "{{enabled}} / {{total}} on",
-    "shield_on": "Desensitization on for this row",
-    "shield_off": "Desensitization off for this row",
-    "shield_column": "Shield",
+    "shield_on": "Privacy on for this row",
+    "shield_off": "Privacy off for this row",
+    "shield_column": "Privacy",
     "policy_title": "Policy",
     "policy_hint": "Master switch, restore behavior, and how hard to fail.",
     "categories_core": "Core",

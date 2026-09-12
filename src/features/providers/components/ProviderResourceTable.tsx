@@ -29,6 +29,7 @@ import {
 import type { OpenAIProviderConfig } from '@/types';
 import type { StatusBarData } from '@/utils/recentRequests';
 import type { ProviderResource } from '../types';
+import { privacyScopeId, setHasIgnoreCase } from '../privacyScope';
 import { isMultiProtocolSponsorBrand } from '../sponsorDefinitions';
 import styles from './ProviderResourceTable.module.scss';
 import statusBarStyles from './providerStatusBar.module.scss';
@@ -243,6 +244,7 @@ export function ProviderResourceTable({
       </TableHeader>
       <TableBody>
         {resources.map((resource) => {
+          const scopeId = privacyScopeId(resource);
           return (
             <TableRow key={resource.id} selected={resource.id === selectedId}>
               <TableCell>{renderPrimary(resource)}</TableCell>
@@ -308,20 +310,12 @@ export function ProviderResourceTable({
                       />
                     </span>
                   ) : null}
-                  {resource.brand === 'openaiCompatibility' && onToggleDesensitization ? (
+                  {scopeId && onToggleDesensitization ? (
                     <DesensitizationShieldButton
-                      enabled={Boolean(
-                        resource.name &&
-                          (desensitizedProviders?.has(resource.name) ||
-                            Array.from(desensitizedProviders ?? []).some(
-                              (item) => item.toLowerCase() === resource.name?.toLowerCase()
-                            ))
-                      )}
+                      enabled={setHasIgnoreCase(desensitizedProviders, scopeId)}
                       disabled={disableMutations}
-                      busy={Boolean(resource.name && desensBusyName === resource.name)}
-                      onToggle={(next) => {
-                        if (resource.name) onToggleDesensitization(resource.name, next);
-                      }}
+                      busy={desensBusyName === scopeId}
+                      onToggle={(next) => onToggleDesensitization(scopeId, next)}
                       onLabel={t('desensitization.shield_on')}
                       offLabel={t('desensitization.shield_off')}
                     />
