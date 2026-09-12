@@ -47,7 +47,7 @@ interface ProviderResourceTableProps {
   onToggleDesensitization?: (name: string, enabled: boolean) => void;
 }
 
-const columnWidths = ['180px', '200px', '72px', '76px', '138px', '174px', '44px', '176px'];
+const columnWidths = ['180px', '200px', '72px', '76px', '138px', '174px', '210px'];
 
 const isSponsorResource = (resource: ProviderResource): boolean =>
   isMultiProtocolSponsorBrand(resource.brand);
@@ -236,7 +236,6 @@ export function ProviderResourceTable({
           <TableHead>{t('providersPage.table.priority')}</TableHead>
           <TableHead>{t('providersPage.table.models')}</TableHead>
           <TableHead>{t('providersPage.table.status')}</TableHead>
-          <TableHead>{t('providersPage.table.desensitize')}</TableHead>
           <TableHead alignRight className={styles.actionsHead}>
             {t('providersPage.table.actions')}
           </TableHead>
@@ -285,26 +284,6 @@ export function ProviderResourceTable({
                   ) : null}
                 </div>
               </TableCell>
-              <TableCell>
-                {resource.brand === 'openaiCompatibility' && onToggleDesensitization ? (
-                  <DesensitizationShieldButton
-                    enabled={Boolean(
-                      resource.name &&
-                        (desensitizedProviders?.has(resource.name) ||
-                          Array.from(desensitizedProviders ?? []).some(
-                            (item) => item.toLowerCase() === resource.name?.toLowerCase()
-                          ))
-                    )}
-                    disabled={disableMutations}
-                    busy={Boolean(resource.name && desensBusyName === resource.name)}
-                    onToggle={(next) => {
-                      if (resource.name) onToggleDesensitization(resource.name, next);
-                    }}
-                    onLabel={t('desensitization.shield_on')}
-                    offLabel={t('desensitization.shield_off')}
-                  />
-                ) : null}
-              </TableCell>
               <TableCell
                 alignRight
                 className={[
@@ -328,6 +307,24 @@ export function ProviderResourceTable({
                         }
                       />
                     </span>
+                  ) : null}
+                  {resource.brand === 'openaiCompatibility' && onToggleDesensitization ? (
+                    <DesensitizationShieldButton
+                      enabled={Boolean(
+                        resource.name &&
+                          (desensitizedProviders?.has(resource.name) ||
+                            Array.from(desensitizedProviders ?? []).some(
+                              (item) => item.toLowerCase() === resource.name?.toLowerCase()
+                            ))
+                      )}
+                      disabled={disableMutations}
+                      busy={Boolean(resource.name && desensBusyName === resource.name)}
+                      onToggle={(next) => {
+                        if (resource.name) onToggleDesensitization(resource.name, next);
+                      }}
+                      onLabel={t('desensitization.shield_on')}
+                      offLabel={t('desensitization.shield_off')}
+                    />
                   ) : null}
                   <button
                     type="button"

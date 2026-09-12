@@ -20,24 +20,25 @@ import styles from './DesensitizationPage.module.scss';
 
 const CATEGORY_META: {
   key: keyof DesensitizationCategories;
+  group: 'core' | 'extra';
   highFp?: boolean;
 }[] = [
-  { key: 'api_key' },
-  { key: 'token' },
-  { key: 'private_key' },
-  { key: 'connstr' },
-  { key: 'email' },
-  { key: 'phone' },
-  { key: 'idcard' },
-  { key: 'card', highFp: true },
-  { key: 'jwt', highFp: true },
-  { key: 'ip_private', highFp: true },
-  { key: 'ip_internal', highFp: true },
-  { key: 'mac', highFp: true },
-  { key: 'plate', highFp: true },
-  { key: 'landline', highFp: true },
-  { key: 'access_key', highFp: true },
-  { key: 'secret_assignment', highFp: true },
+  { key: 'api_key', group: 'core' },
+  { key: 'token', group: 'core' },
+  { key: 'private_key', group: 'core' },
+  { key: 'connstr', group: 'core' },
+  { key: 'email', group: 'core' },
+  { key: 'phone', group: 'core' },
+  { key: 'idcard', group: 'core' },
+  { key: 'card', group: 'extra', highFp: true },
+  { key: 'jwt', group: 'extra', highFp: true },
+  { key: 'ip_private', group: 'extra', highFp: true },
+  { key: 'ip_internal', group: 'extra', highFp: true },
+  { key: 'mac', group: 'extra', highFp: true },
+  { key: 'plate', group: 'extra', highFp: true },
+  { key: 'landline', group: 'extra', highFp: true },
+  { key: 'access_key', group: 'extra', highFp: true },
+  { key: 'secret_assignment', group: 'extra', highFp: true },
 ];
 
 const DEFAULT_OAUTH_IDS = [
@@ -135,7 +136,7 @@ function ChipEditor({
     setDraft('');
   };
   return (
-    <div>
+    <div className={styles.chipEditor}>
       <div className={styles.chipRow}>
         {values.map((value) => (
           <span className={styles.chip} key={value}>
@@ -344,20 +345,42 @@ export function DesensitizationPage() {
     return id;
   };
 
+  const coreCategories = CATEGORY_META.filter((item) => item.group === 'core');
+  const extraCategories = CATEGORY_META.filter((item) => item.group === 'extra');
+
+  const renderDetector = ({ key, highFp }: (typeof CATEGORY_META)[number]) => (
+    <label
+      className={styles.detector}
+      key={key}
+      title={t(`desensitization.cat_help.${key}`)}
+    >
+      <span className={styles.detectorName}>
+        {t(`desensitization.cat.${key}`)}
+        {highFp ? <em>{t('desensitization.high_fp')}</em> : null}
+      </span>
+      <ToggleSwitch
+        checked={draft.categories[key]}
+        onChange={(value) => update({ categories: { ...draft.categories, [key]: value } })}
+        disabled={disabled}
+        ariaLabel={t(`desensitization.cat.${key}`)}
+      />
+    </label>
+  );
+
   return (
     <div className={styles.container}>
-      <div className={styles.pageHeader}>
-        <div>
+      <header className={styles.pageHeader}>
+        <div className={styles.titleBlock}>
           <div className={styles.titleRow}>
             <span className={styles.titleIcon} aria-hidden="true">
-              <IconShield size={20} />
+              <IconShield size={18} />
             </span>
             <h1>{t('desensitization.title')}</h1>
+            <span className={`${styles.statusBadge} ${statusClass}`}>{statusText}</span>
           </div>
           <p>{t('desensitization.description')}</p>
         </div>
         <div className={styles.headerActions}>
-          <span className={`${styles.statusBadge} ${statusClass}`}>{statusText}</span>
           <Button variant="secondary" onClick={reload} disabled={loading || saving}>
             <IconRefreshCw size={16} />
             {t('desensitization.reload')}
@@ -366,81 +389,62 @@ export function DesensitizationPage() {
             {t('desensitization.save')}
           </Button>
         </div>
-      </div>
+      </header>
 
       {error && <div className="error-box">{error}</div>}
 
-      <section className={styles.settings}>
-        <div className={styles.settingCard}>
-          <div className={styles.toggleGrid}>
-            <div className={styles.settingHeader}>
-              <div>
-                <h2>{t('desensitization.enabled')}</h2>
-                <p>{t('desensitization.enabled_hint')}</p>
-              </div>
-              <ToggleSwitch
-                checked={draft.enabled}
-                onChange={(enabled) => update({ enabled })}
-                disabled={disabled}
-                ariaLabel={t('desensitization.enabled')}
-              />
-            </div>
-            <div className={styles.settingHeader}>
-              <div>
-                <h2>{t('desensitization.restore')}</h2>
-                <p>{t('desensitization.restore_hint')}</p>
-              </div>
-              <ToggleSwitch
-                checked={draft.restore}
-                onChange={(restore) => update({ restore })}
-                disabled={disabled}
-                ariaLabel={t('desensitization.restore')}
-              />
-            </div>
-            <div className={styles.settingHeader}>
-              <div>
-                <h2>{t('desensitization.restore_secrets')}</h2>
-                <p>{t('desensitization.restore_secrets_hint')}</p>
-              </div>
-              <ToggleSwitch
-                checked={draft.restore_secrets}
-                onChange={(restore_secrets) => update({ restore_secrets })}
-                disabled={disabled}
-                ariaLabel={t('desensitization.restore_secrets')}
-              />
-            </div>
-            <div className={styles.settingHeader}>
-              <div>
-                <h2>{t('desensitization.fail_closed')}</h2>
-                <p>{t('desensitization.fail_closed_hint')}</p>
-              </div>
-              <ToggleSwitch
-                checked={draft.fail_closed}
-                onChange={(fail_closed) => update({ fail_closed })}
-                disabled={disabled}
-                ariaLabel={t('desensitization.fail_closed')}
-              />
-            </div>
-            <div className={styles.ttlField}>
-              <Input
-                type="number"
-                min="1"
-                step="1"
-                label={t('desensitization.session_ttl')}
-                value={String(draft.session_ttl_minutes)}
-                onChange={(event) => {
-                  const parsed = Number.parseInt(event.target.value, 10);
-                  update({ session_ttl_minutes: Number.isFinite(parsed) ? Math.max(1, parsed) : 20 });
-                }}
-                disabled={disabled}
-              />
-            </div>
+      <section className={styles.card}>
+        <div className={styles.cardHead}>
+          <div>
+            <h2>{t('desensitization.policy_title')}</h2>
+            <p>{t('desensitization.policy_hint')}</p>
           </div>
+          <label className={styles.ttl}>
+            <span>{t('desensitization.session_ttl')}</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={draft.session_ttl_minutes}
+              disabled={disabled}
+              onChange={(event) => {
+                const parsed = Number.parseInt(event.target.value, 10);
+                update({ session_ttl_minutes: Number.isFinite(parsed) ? Math.max(1, parsed) : 20 });
+              }}
+            />
+          </label>
         </div>
+        <div className={styles.policyGrid}>
+          {(
+            [
+              ['enabled', draft.enabled, (enabled: boolean) => update({ enabled })],
+              ['restore', draft.restore, (restore: boolean) => update({ restore })],
+              ['restore_secrets', draft.restore_secrets, (restore_secrets: boolean) => update({ restore_secrets })],
+              ['fail_closed', draft.fail_closed, (fail_closed: boolean) => update({ fail_closed })],
+            ] as const
+          ).map(([key, checked, onChange]) => (
+            <div className={styles.policyCell} key={key}>
+              <div>
+                <strong>{t(`desensitization.${key}`)}</strong>
+                <p>{t(`desensitization.${key}_hint`)}</p>
+              </div>
+              <ToggleSwitch
+                checked={checked}
+                onChange={onChange}
+                disabled={disabled}
+                ariaLabel={t(`desensitization.${key}`)}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <div className={styles.settingCard}>
-          <h2>{t('desensitization.apply_to_title')}</h2>
-          <p>{t('desensitization.apply_to_hint')}</p>
+      <section className={styles.card}>
+        <div className={styles.cardHead}>
+          <div>
+            <h2>{t('desensitization.apply_to_title')}</h2>
+            <p>{t('desensitization.apply_to_hint')}</p>
+          </div>
           <div className={styles.segmented} role="radiogroup" aria-label={t('desensitization.apply_to_title')}>
             <button
               type="button"
@@ -461,222 +465,225 @@ export function DesensitizationPage() {
               {t('desensitization.scope_targeted')}
             </button>
           </div>
-          {draft.scope === 'targeted' && (
-            <>
-              <p className={styles.mixtureHint}>{t('desensitization.mixture_hint')}</p>
-              {targetedEmpty && <div className={styles.warning}>{t('desensitization.targeted_empty_warning')}</div>}
-
-              <div className={styles.scopeLinkRow}>
+        </div>
+        {draft.scope === 'targeted' && (
+          <div className={styles.scopeBody}>
+            {targetedEmpty && <div className={styles.warning}>{t('desensitization.targeted_empty_warning')}</div>}
+            <div className={styles.scopeLinks}>
+              <div className={styles.scopeLink}>
                 <div>
-                  <h3>{t('desensitization.client_keys_title')}</h3>
+                  <strong>{t('desensitization.client_keys_title')}</strong>
                   <p>{t('desensitization.client_keys_hint')}</p>
                 </div>
                 <div className={styles.scopeLinkMeta}>
-                  <strong>
+                  <b>
                     {t('desensitization.scope_count', {
                       enabled: selectedKeyCount,
                       total: clientKeys.length,
                     })}
-                  </strong>
+                  </b>
                   <Link to="/config">{t('desensitization.client_keys_manage')}</Link>
                 </div>
               </div>
-
-              <div className={styles.scopeGroup}>
-                <h3>{t('desensitization.oauth_title')}</h3>
-                <p>{t('desensitization.oauth_hint')}</p>
-                <div className={styles.checkGrid}>
-                  {oauthOptions.map((id) => (
-                    <label className={styles.checkItem} key={id}>
-                      <input
-                        type="checkbox"
-                        checked={draft.oauth_providers.some((item) => item.toLowerCase() === id.toLowerCase())}
-                        onChange={(event) =>
-                          update({
-                            oauth_providers: toggleList(draft.oauth_providers, id, event.target.checked),
-                          })
-                        }
-                        disabled={disabled}
-                      />
-                      <span>{providerLabel(id, 'oauth')}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.scopeLinkRow}>
+              <div className={styles.scopeLink}>
                 <div>
-                  <h3>{t('desensitization.api_providers_title')}</h3>
+                  <strong>{t('desensitization.api_providers_title')}</strong>
                   <p>{t('desensitization.api_providers_hint')}</p>
                 </div>
                 <div className={styles.scopeLinkMeta}>
-                  <strong>
+                  <b>
                     {t('desensitization.scope_count', {
                       enabled: selectedCompatCount,
                       total: compatNames.length,
                     })}
-                  </strong>
+                  </b>
                   <Link to="/ai-providers">{t('desensitization.api_providers_manage')}</Link>
                 </div>
               </div>
-            </>
-          )}
-        </div>
+            </div>
+            <div>
+              <div className={styles.sectionLabel}>{t('desensitization.oauth_title')}</div>
+              <p className={styles.sectionHint}>{t('desensitization.mixture_hint')}</p>
+              <div className={styles.oauthChips}>
+                {oauthOptions.map((id) => {
+                  const selected = draft.oauth_providers.some(
+                    (item) => item.toLowerCase() === id.toLowerCase()
+                  );
+                  return (
+                    <button
+                      type="button"
+                      key={id}
+                      className={selected ? styles.oauthOn : styles.oauthOff}
+                      disabled={disabled}
+                      aria-pressed={selected}
+                      onClick={() =>
+                        update({ oauth_providers: toggleList(draft.oauth_providers, id, !selected) })
+                      }
+                    >
+                      {providerLabel(id, 'oauth')}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
-        <div className={styles.settingCard}>
-          <h2>{t('desensitization.categories_title')}</h2>
-          <p>{t('desensitization.categories_hint')}</p>
-          <div className={styles.categoryGrid}>
-            {CATEGORY_META.map(({ key, highFp }) => (
-              <div className={styles.categoryItem} key={key}>
-                <div>
-                  <strong>{t(`desensitization.cat.${key}`)}</strong>
-                  <span className={highFp ? styles.fp : undefined}>
-                    {t(`desensitization.cat_help.${key}`)}
-                    {highFp ? ` · ${t('desensitization.high_fp')}` : ''}
+      <section className={styles.card}>
+        <div className={styles.cardHead}>
+          <div>
+            <h2>{t('desensitization.categories_title')}</h2>
+            <p>{t('desensitization.categories_hint')}</p>
+          </div>
+        </div>
+        <div className={styles.detectorGroups}>
+          <div>
+            <div className={styles.sectionLabel}>{t('desensitization.categories_core')}</div>
+            <div className={styles.detectorList}>{coreCategories.map(renderDetector)}</div>
+          </div>
+          <div>
+            <div className={styles.sectionLabel}>{t('desensitization.categories_extra')}</div>
+            <div className={styles.detectorList}>{extraCategories.map(renderDetector)}</div>
+          </div>
+        </div>
+      </section>
+
+      <div className={styles.split}>
+        <section className={styles.card}>
+          <div className={styles.cardHead}>
+            <div>
+              <h2>{t('desensitization.custom_rules_title')}</h2>
+              <p>{t('desensitization.custom_rules_hint')}</p>
+            </div>
+          </div>
+          <div className={styles.rulesGrid}>
+            <div className={styles.ruleBlock}>
+              <div className={styles.sectionLabel}>{t('desensitization.custom_terms_title')}</div>
+              <div className={styles.chipRow}>
+                {draft.custom_terms.map((term, index) => (
+                  <span className={styles.chip} key={`${term.value}-${index}`}>
+                    <code>{term.value}</code>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      aria-label={term.value}
+                      onClick={() =>
+                        update({ custom_terms: draft.custom_terms.filter((_, i) => i !== index) })
+                      }
+                    >
+                      ×
+                    </button>
                   </span>
-                </div>
-                <ToggleSwitch
-                  checked={draft.categories[key]}
-                  onChange={(value) =>
-                    update({ categories: { ...draft.categories, [key]: value } })
-                  }
+                ))}
+              </div>
+              <div className={styles.addRow}>
+                <Input
+                  value={termDraft}
+                  onChange={(event) => setTermDraft(event.target.value)}
+                  placeholder={t('desensitization.custom_term_placeholder')}
                   disabled={disabled}
-                  ariaLabel={t(`desensitization.cat.${key}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      addTerm();
+                    }
+                  }}
                 />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.settingCard}>
-          <h2>{t('desensitization.custom_rules_title')}</h2>
-          <p>{t('desensitization.custom_rules_hint')}</p>
-
-          <div className={styles.scopeGroup}>
-            <h3>{t('desensitization.custom_terms_title')}</h3>
-            <p>{t('desensitization.custom_terms_hint')}</p>
-            <div className={styles.termRow}>
-              <Input
-                value={termDraft}
-                onChange={(event) => setTermDraft(event.target.value)}
-                placeholder={t('desensitization.custom_term_placeholder')}
-                disabled={disabled}
-              />
-              <Button variant="secondary" onClick={addTerm} disabled={disabled || !termDraft.trim()}>
-                {t('desensitization.add_term')}
-              </Button>
-            </div>
-            {draft.custom_terms.map((term, index) => (
-              <div className={styles.termRow} key={`${term.value}-${index}`}>
-                <code>{term.value}</code>
-                <span>{term.category}</span>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    update({
-                      custom_terms: draft.custom_terms.filter((_, i) => i !== index),
-                    })
-                  }
-                  disabled={disabled}
-                >
-                  {t('common.delete')}
+                <Button variant="secondary" onClick={addTerm} disabled={disabled || !termDraft.trim()}>
+                  {t('desensitization.add_term')}
                 </Button>
               </div>
-            ))}
-          </div>
-
-          <div className={styles.scopeGroup}>
-            <h3>{t('desensitization.custom_regex_title')}</h3>
-            <p>{t('desensitization.custom_regex_hint')}</p>
-            <div className={styles.termRow}>
-              <Input
-                value={regexPattern}
-                onChange={(event) => setRegexPattern(event.target.value)}
-                placeholder={t('desensitization.custom_regex_placeholder')}
-                disabled={disabled}
-              />
-              <Input
-                value={regexCategory}
-                onChange={(event) => setRegexCategory(event.target.value)}
-                placeholder={t('desensitization.custom_regex_category')}
-                disabled={disabled}
-              />
-              <Button variant="secondary" onClick={addRegex} disabled={disabled || !regexPattern.trim()}>
-                {t('desensitization.add_regex')}
-              </Button>
             </div>
-            {draft.custom_regex.map((rule, index) => (
-              <div className={styles.termRow} key={`${rule.pattern}-${index}`}>
-                <code>{rule.pattern}</code>
-                <span>{rule.category}</span>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    update({
-                      custom_regex: draft.custom_regex.filter((_, i) => i !== index),
-                    })
-                  }
+            <div className={styles.ruleBlock}>
+              <div className={styles.sectionLabel}>{t('desensitization.custom_regex_title')}</div>
+              <div className={styles.chipRow}>
+                {draft.custom_regex.map((rule, index) => (
+                  <span className={styles.chip} key={`${rule.pattern}-${index}`}>
+                    <code>{rule.pattern}</code>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      aria-label={rule.pattern}
+                      onClick={() =>
+                        update({ custom_regex: draft.custom_regex.filter((_, i) => i !== index) })
+                      }
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className={styles.addRow}>
+                <Input
+                  value={regexPattern}
+                  onChange={(event) => setRegexPattern(event.target.value)}
+                  placeholder={t('desensitization.custom_regex_placeholder')}
                   disabled={disabled}
-                >
-                  {t('common.delete')}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      addRegex();
+                    }
+                  }}
+                />
+                <Button variant="secondary" onClick={addRegex} disabled={disabled || !regexPattern.trim()}>
+                  {t('desensitization.add_regex')}
                 </Button>
               </div>
-            ))}
+            </div>
+            <div className={styles.ruleBlock}>
+              <div className={styles.sectionLabel}>{t('desensitization.secret_prefixes_title')}</div>
+              <ChipEditor
+                values={draft.secret_prefixes}
+                disabled={disabled}
+                placeholder={t('desensitization.secret_prefix_placeholder')}
+                addLabel={t('desensitization.add_prefix')}
+                onChange={(secret_prefixes) => update({ secret_prefixes })}
+              />
+            </div>
+            <div className={styles.ruleBlock}>
+              <div className={styles.sectionLabel}>{t('desensitization.skip_models_title')}</div>
+              <ChipEditor
+                values={draft.skip_models}
+                disabled={disabled}
+                placeholder={t('desensitization.skip_models_placeholder')}
+                addLabel={t('desensitization.add_skip')}
+                onChange={(skip_models) => update({ skip_models })}
+              />
+            </div>
+            <div className={`${styles.ruleBlock} ${styles.ruleWide}`}>
+              <div className={styles.sectionLabel}>{t('desensitization.skip_formats_title')}</div>
+              <ChipEditor
+                values={draft.skip_formats}
+                disabled={disabled}
+                placeholder={t('desensitization.skip_formats_placeholder')}
+                addLabel={t('desensitization.add_skip')}
+                onChange={(skip_formats) => update({ skip_formats })}
+              />
+            </div>
           </div>
+        </section>
 
-          <div className={styles.scopeGroup}>
-            <h3>{t('desensitization.secret_prefixes_title')}</h3>
-            <p>{t('desensitization.secret_prefixes_hint')}</p>
-            <ChipEditor
-              values={draft.secret_prefixes}
-              disabled={disabled}
-              placeholder={t('desensitization.secret_prefix_placeholder')}
-              addLabel={t('desensitization.add_prefix')}
-              onChange={(secret_prefixes) => update({ secret_prefixes })}
-            />
+        <section className={styles.card}>
+          <div className={styles.cardHead}>
+            <div>
+              <h2>{t('desensitization.preview_title')}</h2>
+              <p>{t('desensitization.preview_hint')}</p>
+            </div>
+            <Button onClick={runPreview} loading={previewing} disabled={connectionStatus !== 'connected'}>
+              {t('desensitization.preview_run')}
+            </Button>
           </div>
-
-          <div className={styles.scopeGroup}>
-            <h3>{t('desensitization.skip_models_title')}</h3>
-            <p>{t('desensitization.skip_models_hint')}</p>
-            <ChipEditor
-              values={draft.skip_models}
-              disabled={disabled}
-              placeholder={t('desensitization.skip_models_placeholder')}
-              addLabel={t('desensitization.add_skip')}
-              onChange={(skip_models) => update({ skip_models })}
-            />
-          </div>
-
-          <div className={styles.scopeGroup}>
-            <h3>{t('desensitization.skip_formats_title')}</h3>
-            <p>{t('desensitization.skip_formats_hint')}</p>
-            <ChipEditor
-              values={draft.skip_formats}
-              disabled={disabled}
-              placeholder={t('desensitization.skip_formats_placeholder')}
-              addLabel={t('desensitization.add_skip')}
-              onChange={(skip_formats) => update({ skip_formats })}
-            />
-          </div>
-        </div>
-
-        <div className={styles.settingCard}>
-          <h2>{t('desensitization.preview_title')}</h2>
-          <p>{t('desensitization.preview_hint')}</p>
-          <div className={styles.previewBox}>
+          <div className={styles.previewGrid}>
             <textarea
               value={previewText}
               onChange={(event) => setPreviewText(event.target.value)}
               disabled={connectionStatus !== 'connected' || previewing}
             />
-            <div>
-              <Button onClick={runPreview} loading={previewing} disabled={connectionStatus !== 'connected'}>
-                {t('desensitization.preview_run')}
-              </Button>
-            </div>
             <div className={styles.previewResult}>{previewMasked || t('desensitization.preview_empty')}</div>
+          </div>
+          {previewHits.length > 0 && (
             <div className={styles.hits}>
               {previewHits.map((hit) => (
                 <span className={styles.hit} key={hit.category}>
@@ -684,9 +691,9 @@ export function DesensitizationPage() {
                 </span>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
