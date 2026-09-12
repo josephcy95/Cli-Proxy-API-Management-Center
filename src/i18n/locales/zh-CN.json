@@ -2350,7 +2350,7 @@
     "oauth_title": "OAuth 提供商",
     "oauth_hint": "OAuth / 登录文件凭据。凭据为 OAuth 时按 Auth.Provider 匹配。",
     "api_providers_title": "API 提供商",
-    "api_providers_hint": "在自定义 OpenAI 兼容提供商里用盾牌逐条开关。",
+    "api_providers_hint": "品牌盾牌（Claude、Codex 等）加上每个自定义 OpenAI 兼容提供商。",
     "custom_rules_title": "自定义规则",
     "custom_rules_hint": "词表、正则、前缀与跳过列表。",
     "custom_regex_title": "自定义正则",
@@ -2392,6 +2392,7 @@
     "policy_title": "策略",
     "policy_hint": "总开关、还原行为，以及出错时是否拒绝。",
     "categories_core": "核心",
-    "categories_extra": "额外"
+    "categories_extra": "额外",
+    "api_providers_count": "{{brands}} 个品牌 · {{enabled}} / {{total}} 自定义"
   }
 }

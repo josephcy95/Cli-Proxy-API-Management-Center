@@ -2350,7 +2350,7 @@
     "oauth_title": "OAuth providers",
     "oauth_hint": "File / OAuth login credentials. Matched on Auth.Provider when the credential is OAuth.",
     "api_providers_title": "API providers",
-    "api_providers_hint": "Use the shield on each custom OpenAI-compatible provider.",
+    "api_providers_hint": "Brand shields (Claude, Codex, …) plus each custom OpenAI-compatible provider.",
     "custom_rules_title": "Custom rules",
     "custom_rules_hint": "Terms, regex, prefixes, and skip lists.",
     "custom_regex_title": "Custom regex",
@@ -2392,6 +2392,7 @@
     "policy_title": "Policy",
     "policy_hint": "Master switch, restore behavior, and how hard to fail.",
     "categories_core": "Core",
-    "categories_extra": "Extra"
+    "categories_extra": "Extra",
+    "api_providers_count": "{{brands}} brands · {{enabled}} / {{total}} custom"
   }
 }

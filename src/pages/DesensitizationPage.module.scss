@@ -529,3 +529,22 @@
     grid-template-columns: 1fr;
   }
 }
+
+.brandChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.brandChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success-color) 12%, transparent);
+  color: var(--success-color);
+  font-size: 11px;
+  font-weight: 680;
+}

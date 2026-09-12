@@ -54,6 +54,8 @@ const DEFAULT_OAUTH_IDS = [
   'vertex',
 ] as const;
 
+const API_BRAND_IDS = ['claude', 'gemini', 'codex', 'xai', 'gemini-interactions', 'vertex'] as const;
+
 const DEFAULT_SECRET_PREFIXES = ['sk-', 'ghp_', 'github_pat_', 'xoxb-', 'AKIA'];
 
 const DEFAULT_CONFIG: DesensitizationConfig = {
@@ -210,6 +212,9 @@ export function DesensitizationPage() {
   const selectedCompatCount = draft.api_providers.filter((name) =>
     compatNames.some((item) => item.toLowerCase() === name.toLowerCase())
   ).length;
+  const enabledApiBrands = API_BRAND_IDS.filter((id) =>
+    draft.api_providers.some((item) => item.toLowerCase() === id)
+  );
   const statusText = error
     ? t('desensitization.status_load_failed')
     : loading
@@ -489,13 +494,28 @@ export function DesensitizationPage() {
                 <div>
                   <strong>{t('desensitization.api_providers_title')}</strong>
                   <p>{t('desensitization.api_providers_hint')}</p>
+                  {enabledApiBrands.length > 0 && (
+                    <div className={styles.brandChips}>
+                      {enabledApiBrands.map((id) => (
+                        <span className={styles.brandChip} key={id}>
+                          {providerLabel(id, 'api')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.scopeLinkMeta}>
                   <b>
-                    {t('desensitization.scope_count', {
-                      enabled: selectedCompatCount,
-                      total: compatNames.length,
-                    })}
+                    {enabledApiBrands.length > 0
+                      ? t('desensitization.api_providers_count', {
+                          brands: enabledApiBrands.length,
+                          enabled: selectedCompatCount,
+                          total: compatNames.length,
+                        })
+                      : t('desensitization.scope_count', {
+                          enabled: selectedCompatCount,
+                          total: compatNames.length,
+                        })}
                   </b>
                   <Link to="/ai-providers">{t('desensitization.api_providers_manage')}</Link>
                 </div>
