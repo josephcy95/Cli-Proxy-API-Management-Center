@@ -164,3 +164,59 @@ export type RawConfigSection =
   | 'vertex-api-key'
   | 'openai-compatibility'
   | 'oauth-excluded-models';
+
+
+/** Built-in desensitization (PII/secret masking) config. */
+export interface DesensitizationCategories {
+  api_key: boolean;
+  token: boolean;
+  private_key: boolean;
+  connstr: boolean;
+  email: boolean;
+  phone: boolean;
+  idcard: boolean;
+  card: boolean;
+  jwt: boolean;
+  ip_private: boolean;
+  ip_internal: boolean;
+  mac: boolean;
+  plate: boolean;
+  landline: boolean;
+  access_key: boolean;
+  secret_assignment: boolean;
+}
+
+export interface DesensitizationTerm {
+  value: string;
+  category: string;
+  whole_word: boolean;
+}
+
+export interface DesensitizationRegex {
+  pattern: string;
+  category: string;
+}
+
+export interface DesensitizationConfig {
+  enabled: boolean;
+  restore: boolean;
+  restore_secrets: boolean;
+  fail_closed: boolean;
+  session_ttl_minutes: number;
+  categories: DesensitizationCategories;
+  custom_terms: DesensitizationTerm[];
+  custom_regex: DesensitizationRegex[];
+  secret_prefixes: string[];
+  skip_models: string[];
+  skip_formats: string[];
+}
+
+export interface DesensitizationPreviewHit {
+  category: string;
+  count: number;
+}
+
+export interface DesensitizationPreviewResult {
+  masked: string;
+  hits: DesensitizationPreviewHit[];
+}

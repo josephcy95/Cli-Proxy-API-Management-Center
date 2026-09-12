@@ -16,6 +16,8 @@ import type {
   RawQoderConfig,
   RawXAIConfig,
   XAIConfig,
+  DesensitizationConfig,
+  DesensitizationPreviewResult,
 } from '@/types';
 import { normalizeConfigResponse } from './transformers';
 
@@ -296,6 +298,25 @@ export const configApi = {
     return config;
   },
 
+  async getDesensitizationConfig(): Promise<DesensitizationConfig> {
+    const raw = await apiClient.get<DesensitizationConfig>('/desensitization-config');
+    return normalizeDesensitizationConfig(raw ?? {});
+  },
+
+  async updateDesensitizationConfig(config: DesensitizationConfig): Promise<DesensitizationConfig> {
+    const payload = serializeDesensitizationConfig(config);
+    await apiClient.put('/desensitization-config', payload);
+    return normalizeDesensitizationConfig(payload);
+  },
+
+  async previewDesensitization(text: string): Promise<DesensitizationPreviewResult> {
+    const raw = await apiClient.post<DesensitizationPreviewResult>('/desensitization/preview', { text });
+    return {
+      masked: typeof raw?.masked === 'string' ? raw.masked : '',
+      hits: Array.isArray(raw?.hits) ? raw.hits : [],
+    };
+  },
+
   async getCodexFailureConfig(): Promise<CodexFailureConfig> {
     const raw = await apiClient.get<RawCodexFailureConfig>('/codex-failure-config');
     return normalizeCodexFailureConfigResponse(raw ?? {});
@@ -316,3 +337,67 @@ export const configApi = {
     return config;
   },
 };
+
+
+const DEFAULT_DESENS_CATEGORIES = {
+  api_key: true,
+  token: true,
+  private_key: true,
+  connstr: true,
+  email: true,
+  phone: true,
+  idcard: true,
+  card: false,
+  jwt: false,
+  ip_private: false,
+  ip_internal: false,
+  mac: false,
+  plate: false,
+  landline: false,
+  access_key: false,
+  secret_assignment: false,
+} as const;
+
+export function normalizeDesensitizationConfig(raw: Partial<DesensitizationConfig> | Record<string, unknown>): DesensitizationConfig {
+  const cats = (raw.categories ?? {}) as Record<string, unknown>;
+  const categories = { ...DEFAULT_DESENS_CATEGORIES } as DesensitizationConfig['categories'];
+  for (const key of Object.keys(DEFAULT_DESENS_CATEGORIES) as (keyof typeof DEFAULT_DESENS_CATEGORIES)[]) {
+    if (typeof cats[key] === 'boolean') {
+      categories[key] = cats[key] as boolean;
+    }
+  }
+  return {
+    enabled: raw.enabled === true,
+    restore: raw.restore !== false,
+    restore_secrets: raw.restore_secrets === true,
+    fail_closed: raw.fail_closed === true,
+    session_ttl_minutes: normalizeNonNegativeInteger(raw.session_ttl_minutes, 20) || 20,
+    categories,
+    custom_terms: Array.isArray(raw.custom_terms)
+      ? raw.custom_terms
+          .map((t) => ({
+            value: String((t as { value?: string }).value ?? ''),
+            category: String((t as { category?: string }).category ?? 'TERM') || 'TERM',
+            whole_word: (t as { whole_word?: boolean }).whole_word !== false,
+          }))
+          .filter((t) => t.value.trim() !== '')
+      : [],
+    custom_regex: Array.isArray(raw.custom_regex)
+      ? raw.custom_regex
+          .map((r) => ({
+            pattern: String((r as { pattern?: string }).pattern ?? ''),
+            category: String((r as { category?: string }).category ?? 'CUSTOM') || 'CUSTOM',
+          }))
+          .filter((r) => r.pattern.trim() !== '')
+      : [],
+    secret_prefixes: Array.isArray(raw.secret_prefixes)
+      ? raw.secret_prefixes.map(String).map((s) => s.trim()).filter(Boolean)
+      : ['sk-', 'ghp_', 'github_pat_', 'xoxb-', 'AKIA'],
+    skip_models: Array.isArray(raw.skip_models) ? raw.skip_models.map(String).filter(Boolean) : [],
+    skip_formats: Array.isArray(raw.skip_formats) ? raw.skip_formats.map(String).filter(Boolean) : [],
+  };
+}
+
+function serializeDesensitizationConfig(config: DesensitizationConfig): DesensitizationConfig {
+  return normalizeDesensitizationConfig(config);
+}

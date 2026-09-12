@@ -527,6 +527,11 @@ export function MainLayout() {
           labelKey: 'nav.xai_config',
           icon: <BrandNavIcon src={resolvedTheme === 'dark' ? iconGrokDark : iconGrok} alt="xAI" />,
         },
+        {
+          path: '/desensitization',
+          labelKey: 'nav.desensitization',
+          icon: sidebarIcons.config,
+        },
       ],
     },
     ...(supportsPlugin
