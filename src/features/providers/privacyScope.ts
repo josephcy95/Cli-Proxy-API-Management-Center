@@ -7,6 +7,7 @@ const BRAND_SCOPE_ID: Partial<Record<ProviderBrand, string>> = {
   gemini: 'gemini',
   interactions: 'gemini-interactions',
   codex: 'codex',
+  commandcode: 'commandcode',
   xai: 'xai',
   vertex: 'vertex',
 };
