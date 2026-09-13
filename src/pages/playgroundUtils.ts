@@ -12,6 +12,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   antigravity: 'Antigravity',
   claude: 'Claude',
   codex: 'Codex',
+  commandcode: 'Command Code',
   gemini: 'Gemini',
   kimi: 'Kimi',
   qoder: 'Qoder',

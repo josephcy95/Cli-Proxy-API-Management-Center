@@ -63,6 +63,7 @@ interface QuickStat {
 const PROVIDER_LABELS: Array<{ key: string; label: string }> = [
   { key: 'gemini', label: 'Gemini' },
   { key: 'codex', label: 'Codex' },
+  { key: 'commandcode', label: 'Command Code' },
   { key: 'xai', label: 'xAI' },
   { key: 'claude', label: 'Claude' },
   { key: 'vertex', label: 'Vertex' },
@@ -224,6 +225,7 @@ export function DashboardPage() {
     ? {
         gemini: config.geminiApiKeys?.length ?? 0,
         codex: config.codexApiKeys?.length ?? 0,
+        commandcode: config.commandcodeApiKeys?.length ?? 0,
         xai: config.xaiApiKeys?.length ?? 0,
         claude: config.claudeApiKeys?.length ?? 0,
         vertex: config.vertexApiKeys?.length ?? 0,
