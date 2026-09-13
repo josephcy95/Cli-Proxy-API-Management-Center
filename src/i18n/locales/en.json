@@ -1990,6 +1990,7 @@
       "gemini": "Gemini",
       "interactions": "Interactions API",
       "codex": "Codex",
+      "commandcode": "Command Code",
       "xai": "xAI",
       "claude": "Claude",
       "claudeApi": "Claudeapi.com",
@@ -2000,6 +2001,13 @@
       "fennoAI": "FennoAI",
       "qiniuCloud": "Qiniu Cloud",
       "kimi": "Kimi"
+    },
+    "providerHints": {
+      "commandcode": {
+        "goPlan": "The \"Go\" plan has no OpenAI-compatible endpoint: the server posts the Command Code CLI envelope to /alpha/generate on the base URL above. Leave the base URL empty to use the default https://api.commandcode.ai.",
+        "higherPlans": "Higher plans (GOAT / Pro / Provider / Max / Ultra) are served by the existing \"OpenAI Compatible\" provider pointed at https://api.commandcode.ai/provider/v1 instead.",
+        "emptyModels": "The model list is optional. When it is empty the server uses the live catalog fetched from /provider/v1/models (69 models)."
+      }
     },
     "table": {
       "key": "Key",

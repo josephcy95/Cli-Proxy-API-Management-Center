@@ -38,6 +38,8 @@ const CODEX_KEY_FIELDS = [
   'websockets',
   'allow_private_instructions',
 ] as const;
+/** Command Code reuses the Codex credential shape but has no websockets / private instructions. */
+const COMMANDCODE_KEY_FIELDS = PROVIDER_COMMON_KEY_FIELDS;
 const XAI_KEY_FIELDS = [...PROVIDER_COMMON_KEY_FIELDS, 'websockets'] as const;
 const CLAUDE_KEY_FIELDS = [
   ...PROVIDER_COMMON_KEY_FIELDS,
@@ -370,6 +372,18 @@ const serializeProviderKey = (config: ProviderKeyConfig) => {
   return payload;
 };
 
+/**
+ * Command Code reuses the Codex credential shape, but websockets and private
+ * instructions are Codex-only fields that mean nothing for this provider and
+ * must never be written back into its config section.
+ */
+const serializeCommandCodeKey = (config: ProviderKeyConfig) => {
+  const payload = serializeProviderKey(config);
+  delete payload.websockets;
+  delete payload.allow_private_instructions;
+  return payload;
+};
+
 const serializeVertexModelAliases = (models?: ModelAlias[]) =>
   Array.isArray(models)
     ? models
@@ -497,6 +511,30 @@ export const providersApi = {
 
   deleteCodexConfig: (apiKey: string, baseUrl?: string) =>
     apiClient.delete(`/codex-api-key${buildProviderDeleteQuery(apiKey, baseUrl)}`),
+
+  createCommandCodeConfig: (config: ProviderKeyConfig) =>
+    mutateLatestProviderList('commandcode-api-key', (latestItems) =>
+      appendLatestProviderRecord(latestItems, serializeCommandCodeKey(config), (raw, payload) =>
+        mergeProviderKeyPayload(raw, payload, COMMANDCODE_KEY_FIELDS)
+      )
+    ),
+
+  updateCommandCodeConfig: (
+    apiKey: string,
+    baseUrl: string | undefined,
+    config: ProviderKeyConfig
+  ) =>
+    mutateLatestProviderList('commandcode-api-key', (latestItems) =>
+      replaceLatestProviderRecord(
+        latestItems,
+        (record) => matchesProviderKey(record, apiKey, baseUrl),
+        serializeCommandCodeKey(config),
+        (raw, payload) => mergeProviderKeyPayload(raw, payload, COMMANDCODE_KEY_FIELDS)
+      )
+    ),
+
+  deleteCommandCodeConfig: (apiKey: string, baseUrl?: string) =>
+    apiClient.delete(`/commandcode-api-key${buildProviderDeleteQuery(apiKey, baseUrl)}`),
 
   createXAIConfig: (config: ProviderKeyConfig) =>
     mutateLatestProviderList('xai-api-key', (latestItems) =>

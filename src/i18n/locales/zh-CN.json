@@ -1767,6 +1767,7 @@
       "gemini": "Gemini",
       "interactions": "Interactions API",
       "codex": "Codex",
+      "commandcode": "Command Code",
       "xai": "xAI",
       "claude": "Claude",
       "claudeApi": "Claudeapi.com",
@@ -1777,6 +1778,13 @@
       "fennoAI": "FennoAI",
       "qiniuCloud": "七牛云",
       "kimi": "Kimi"
+    },
+    "providerHints": {
+      "commandcode": {
+        "goPlan": "「Go」套餐没有 OpenAI 兼容接口：服务端会把 Command Code CLI 请求信封发送到上面服务地址的 /alpha/generate。服务地址留空即使用默认的 https://api.commandcode.ai。",
+        "higherPlans": "更高套餐（GOAT / Pro / Provider / Max / Ultra）请改用现有的「OpenAI 兼容」提供商，指向 https://api.commandcode.ai/provider/v1。",
+        "emptyModels": "模型列表可以留空；留空时服务端使用从 /provider/v1/models 拉取的实时目录（69 个模型）。"
+      }
     },
     "table": {
       "key": "密钥",

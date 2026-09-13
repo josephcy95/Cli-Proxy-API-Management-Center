@@ -26,6 +26,8 @@ export interface Config {
   geminiApiKeys?: GeminiKeyConfig[];
   interactionsApiKeys?: GeminiKeyConfig[];
   codexApiKeys?: ProviderKeyConfig[];
+  /** Command Code reuses the Codex credential shape (no websockets / private instructions). */
+  commandcodeApiKeys?: ProviderKeyConfig[];
   xaiApiKeys?: ProviderKeyConfig[];
   claudeApiKeys?: ProviderKeyConfig[];
   vertexApiKeys?: ProviderKeyConfig[];
@@ -159,6 +161,7 @@ export type RawConfigSection =
   | 'gemini-api-key'
   | 'interactions-api-key'
   | 'codex-api-key'
+  | 'commandcode-api-key'
   | 'xai-api-key'
   | 'claude-api-key'
   | 'vertex-api-key'

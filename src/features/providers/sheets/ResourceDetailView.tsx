@@ -123,6 +123,16 @@ export function ResourceDetailView({ resource, usageByProvider }: ResourceDetail
     <div>
       <div className={styles.detailHeader}>
         <div className={styles.sectionTitle}>{resource.name ?? resource.identifier}</div>
+        {resource.brand === 'commandcode' ? (
+          <>
+            <p className={styles.sectionDesc}>
+              {t('providersPage.providerHints.commandcode.goPlan')}
+            </p>
+            <p className={styles.sectionDesc}>
+              {t('providersPage.providerHints.commandcode.higherPlans')}
+            </p>
+          </>
+        ) : null}
       </div>
 
       <dl className={styles.dl}>

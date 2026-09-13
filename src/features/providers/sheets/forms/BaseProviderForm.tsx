@@ -443,6 +443,7 @@ export function BaseProviderForm({
     brand === 'gemini' ||
     brand === 'interactions' ||
     brand === 'codex' ||
+    brand === 'commandcode' ||
     brand === 'xai' ||
     isClaudeLikeBrand(brand) ||
     brand === 'openaiCompatibility';
@@ -474,6 +475,19 @@ export function BaseProviderForm({
     <form id={formId} className={styles.form} onSubmit={handleSubmit} noValidate>
       {/* 基础字段 */}
       <div className={styles.section}>
+        {brand === 'commandcode' ? (
+          <div className={styles.field} data-testid="commandcode-provider-hint">
+            <p className={styles.sectionDesc}>
+              {t('providersPage.providerHints.commandcode.goPlan')}
+            </p>
+            <p className={styles.sectionDesc}>
+              {t('providersPage.providerHints.commandcode.higherPlans')}
+            </p>
+            <p className={styles.sectionDesc}>
+              {t('providersPage.providerHints.commandcode.emptyModels')}
+            </p>
+          </div>
+        ) : null}
         {descriptor.supportsName ? (
           <div className={styles.field}>
             <label className={styles.label} htmlFor={`${fid}-name`}>
