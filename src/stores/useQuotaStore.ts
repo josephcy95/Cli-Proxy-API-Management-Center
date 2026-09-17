@@ -7,6 +7,7 @@ import type {
   AntigravityQuotaState,
   ClaudeQuotaState,
   CodexQuotaState,
+  DevinQuotaState,
   KimiQuotaState,
   QoderCNQuotaState,
   XaiQuotaState,
@@ -23,12 +24,14 @@ interface QuotaStoreState {
   kimiQuota: Record<string, KimiQuotaState>;
   qodercnQuota: Record<string, QoderCNQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
+  devinQuota: Record<string, DevinQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setQoderCNQuota: (updater: QuotaUpdater<Record<string, QoderCNQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
+  setDevinQuota: (updater: QuotaUpdater<Record<string, DevinQuotaState>>) => void;
   clearQuotaForFile: (name: string) => void;
   clearQuotaCache: () => void;
 }
@@ -49,6 +52,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   kimiQuota: {},
   qodercnQuota: {},
   xaiQuota: {},
+  devinQuota: {},
   setAntigravityQuota: (updater) =>
     set((state) => ({
       antigravityQuota: resolveUpdater(updater, state.antigravityQuota),
@@ -73,6 +77,10 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
     set((state) => ({
       xaiQuota: resolveUpdater(updater, state.xaiQuota),
     })),
+  setDevinQuota: (updater) =>
+    set((state) => ({
+      devinQuota: resolveUpdater(updater, state.devinQuota),
+    })),
   clearQuotaForFile: (name) =>
     set((state) => {
       const remove = <T,>(values: Record<string, T>): Record<string, T> => {
@@ -92,6 +100,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
         kimiQuota: remove(state.kimiQuota),
         qodercnQuota: remove(state.qodercnQuota),
         xaiQuota: remove(state.xaiQuota),
+        devinQuota: remove(state.devinQuota),
       };
     }),
   clearQuotaCache: () =>
@@ -104,6 +113,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
       kimiQuota: {},
       qodercnQuota: {},
       xaiQuota: {},
+      devinQuota: {},
     })),
 }));
 

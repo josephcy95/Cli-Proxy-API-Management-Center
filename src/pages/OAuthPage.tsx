@@ -15,6 +15,7 @@ import { getPluginTitle, resolvePluginAssetURL } from '@/features/plugins/plugin
 import { getKimiAffiliateUrl } from '@/features/providers/kimi';
 import type { PluginListEntry } from '@/types';
 import styles from './OAuthPage.module.scss';
+import { validateDevinCallback } from './devinOAuth';
 import iconCodex from '@/assets/icons/codex.svg';
 import iconClaude from '@/assets/icons/claude.svg';
 import iconAntigravity from '@/assets/icons/antigravity.svg';
@@ -24,6 +25,8 @@ import iconQoderCN from '@/assets/icons/qodercn.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
 import iconGrok from '@/assets/icons/grok.svg';
 import iconGrokDark from '@/assets/icons/grok-dark.svg';
+import iconDevin from '@/assets/icons/devin.svg';
+import iconDevinDark from '@/assets/icons/devin-dark.svg';
 
 interface ProviderState {
   url?: string;
@@ -35,6 +38,8 @@ interface ProviderState {
   callbackSubmitting?: boolean;
   callbackStatus?: 'success' | 'error';
   callbackError?: string;
+  cancelling?: boolean;
+  cancelError?: string;
 }
 
 interface VertexImportResult {
@@ -107,6 +112,12 @@ const PROVIDERS: BuiltInOAuthProviderCard[] = [
   },
   {
     kind: 'builtin',
+    id: 'devin',
+    titleKey: 'auth_login.devin_oauth_title',
+    icon: { light: iconDevin, dark: iconDevinDark },
+  },
+  {
+    kind: 'builtin',
     id: 'qodercn',
     titleKey: 'auth_login.qodercn_oauth_title',
     icon: iconQoderCN,
@@ -120,7 +131,7 @@ const PROVIDERS: BuiltInOAuthProviderCard[] = [
 ];
 
 const BUILTIN_PROVIDER_IDS = new Set<string>(PROVIDERS.map((provider) => provider.id));
-const CALLBACK_SUPPORTED = new Set<string>(['codex', 'anthropic', 'antigravity', 'xai']);
+const CALLBACK_SUPPORTED = new Set<string>(['codex', 'anthropic', 'antigravity', 'xai', 'devin']);
 const XAI_CALLBACK_URL = 'http://127.0.0.1:56121/callback';
 const SUCCESS_RESET_DELAY_MS = 5000;
 const getProviderI18nPrefix = (provider: string) => provider.replace('-', '_');
@@ -418,6 +429,7 @@ export function OAuthPage() {
   };
 
   const startAuth = async (provider: string) => {
+    if (provider === 'devin' && states[provider]?.state) return;
     clearProviderTimers(provider);
     updateProviderState(provider, {
       url: undefined,
@@ -428,6 +440,8 @@ export function OAuthPage() {
       callbackStatus: undefined,
       callbackError: undefined,
       callbackUrl: '',
+      cancelling: false,
+      cancelError: undefined,
     });
     try {
       const res = await oauthApi.startAuth(provider);
@@ -469,6 +483,21 @@ export function OAuthPage() {
     );
   };
 
+  const cancelDevinLogin = async (provider: string) => {
+    if (provider !== 'devin' || !states[provider]?.state || states[provider]?.cancelling) return;
+    const sessionState = states[provider].state;
+    updateProviderState(provider, { cancelling: true, cancelError: undefined });
+    try {
+      await oauthApi.cancelSession(sessionState);
+      resetProviderAttempt(provider);
+      showNotification(t('auth_login.devin_oauth_cancelled'), 'success');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      updateProviderState(provider, { cancelling: false, cancelError: message });
+      showNotification(`${t('auth_login.devin_oauth_cancel_error')} ${message}`, 'error');
+    }
+  };
+
   const submitCallback = async (provider: string) => {
     const callbackInput = (states[provider]?.callbackUrl || '').trim();
     if (!callbackInput) {
@@ -481,6 +510,13 @@ export function OAuthPage() {
         'warning'
       );
       return;
+    }
+    if (provider === 'devin') {
+      const callbackError = validateDevinCallback(callbackInput, states[provider]?.state);
+      if (callbackError) {
+        showNotification(t(`auth_login.devin_callback_${callbackError}`), 'warning');
+        return;
+      }
     }
     const redirectUrl = resolveCallbackUrl(provider, callbackInput, states[provider]?.state);
     if (!redirectUrl) {
@@ -627,7 +663,11 @@ export function OAuthPage() {
               </Button>
             </div>
           ) : (
-            <Button onClick={() => startAuth(provider.id)} loading={state.polling}>
+            <Button
+              onClick={() => startAuth(provider.id)}
+              loading={state.polling}
+              disabled={provider.id === 'devin' && Boolean(state.state)}
+            >
               {loginButtonLabel}
             </Button>
           )
@@ -668,7 +708,9 @@ export function OAuthPage() {
                 hint={t(
                   provider.id === 'xai'
                     ? 'auth_login.xai_callback_hint'
-                    : 'auth_login.oauth_callback_hint'
+                    : provider.id === 'devin'
+                      ? 'auth_login.devin_callback_hint'
+                      : 'auth_login.oauth_callback_hint'
                 )}
                 value={state.callbackUrl || ''}
                 onChange={(e) =>
@@ -681,7 +723,9 @@ export function OAuthPage() {
                 placeholder={t(
                   provider.id === 'xai'
                     ? 'auth_login.xai_callback_placeholder'
-                    : 'auth_login.oauth_callback_placeholder'
+                    : provider.id === 'devin'
+                      ? 'auth_login.devin_callback_placeholder'
+                      : 'auth_login.oauth_callback_placeholder'
                 )}
               />
               <div className={styles.callbackActions}>
@@ -690,10 +734,33 @@ export function OAuthPage() {
                   size="sm"
                   onClick={() => submitCallback(provider.id)}
                   loading={state.callbackSubmitting}
+                  disabled={
+                    provider.id === 'devin' && (state.cancelling || state.status !== 'waiting')
+                  }
                 >
                   {t('auth_login.oauth_callback_button')}
                 </Button>
               </div>
+              {provider.id === 'devin' && state.state && (
+                <div className={styles.callbackActions}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void cancelDevinLogin(provider.id)}
+                    loading={state.cancelling}
+                  >
+                    {t('auth_login.devin_oauth_cancel')}
+                  </Button>
+                </div>
+              )}
+              {provider.id === 'devin' && state.state && state.status === 'error' && (
+                <div className="hint">{t('auth_login.devin_oauth_retry_hint')}</div>
+              )}
+              {provider.id === 'devin' && state.cancelError && (
+                <div className="status-badge error">
+                  {t('auth_login.devin_oauth_cancel_error')} {state.cancelError}
+                </div>
+              )}
               {state.callbackStatus === 'success' && state.status === 'waiting' && (
                 <div className="status-badge success">
                   {t('auth_login.oauth_callback_status_success')}

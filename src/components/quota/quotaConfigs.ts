@@ -23,6 +23,8 @@ import type {
   CodexUsageWindow,
   CodexQuotaWindow,
   CodexUsagePayload,
+  DevinQuotaData,
+  DevinQuotaState,
   KimiQuotaRow,
   KimiQuotaState,
   QoderCNQuotaBucket,
@@ -94,15 +96,29 @@ import {
   isQoderIntlFile,
   isPaidXaiAuthFile,
   isXaiFile,
+  isDevinFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/authIndex';
 import { formatDateTimeValue, formatRelativeTimeLabel, toEpochMs } from '@/utils/format';
+import { useQuotaStore } from '@/stores/useQuotaStore';
+import {
+  createDevinQuotaFetcher,
+  DevinQuotaError,
+} from '@/features/quota/providers/devin/requests';
 import type { QuotaRenderHelpers } from './QuotaCard';
 import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'kimi' | 'qodercn' | 'qoder' | 'xai';
+type QuotaType =
+  | 'antigravity'
+  | 'claude'
+  | 'codex'
+  | 'devin'
+  | 'kimi'
+  | 'qodercn'
+  | 'qoder'
+  | 'xai';
 
 type AntigravityQuotaData = {
   groups: AntigravityQuotaGroup[];
@@ -163,12 +179,14 @@ export interface QuotaStore {
   kimiQuota: Record<string, KimiQuotaState>;
   qodercnQuota: Record<string, QoderCNQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
+  devinQuota: Record<string, DevinQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setQoderCNQuota: (updater: QuotaUpdater<Record<string, QoderCNQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
+  setDevinQuota: (updater: QuotaUpdater<Record<string, DevinQuotaState>>) => void;
   clearQuotaCache: () => void;
 }
 
@@ -2268,4 +2286,131 @@ export const XAI_CONFIG: QuotaConfig<XaiQuotaState, XaiBillingSummary> = {
   cardClassName: styles.xaiCard,
   gridClassName: styles.xaiGrid,
   renderQuotaItems: renderXaiItems,
+};
+
+const emptyDevinData = (): DevinQuotaData => ({
+  windows: [],
+  observedAtMs: null,
+  plan: null,
+  planStartMs: null,
+  planEndMs: null,
+});
+
+const fetchDevinQuotaSnapshot = createDevinQuotaFetcher({
+  request: (payload) => apiCallApi.request(payload),
+  generation: (name) => {
+    const state = useQuotaStore.getState();
+    return { session: state.cacheGeneration, file: state.fileGenerations[name] ?? 0 };
+  },
+});
+
+const fetchDevinQuota = async (file: AuthFileItem, t: TFunction): Promise<DevinQuotaData> => {
+  try {
+    const quota = await fetchDevinQuotaSnapshot(file);
+    return {
+      ...quota,
+      windows: quota.windows.map((window) => ({
+        ...window,
+        label: t(`devin_quota.${window.id}`),
+      })),
+    };
+  } catch (error: unknown) {
+    if (error instanceof DevinQuotaError) {
+      error.message = t(`devin_quota.${error.code}`);
+    }
+    throw error;
+  }
+};
+
+const renderDevinItems = (quota: DevinQuotaState, t: TFunction, helpers: QuotaRenderHelpers) => {
+  const { createElement: h } = React;
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const nodes: ReactNode[] = [];
+  if (quota.plan || quota.planEndMs) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'plan', className: styleMap.codexPlan },
+        quota.plan
+          ? h(
+              'span',
+              { className: styleMap.codexPlanItem },
+              h('span', { className: styleMap.codexPlanLabel }, t('devin_quota.plan_label')),
+              h('span', { className: styleMap.codexPlanValue }, quota.plan)
+            )
+          : null,
+        quota.planEndMs
+          ? h(
+              'span',
+              { className: styleMap.codexPlanItem },
+              h('span', { className: styleMap.codexPlanLabel }, t('devin_quota.plan_end')),
+              h(
+                'span',
+                { className: styleMap.quotaReset },
+                formatDateTimeValue(quota.planEndMs)
+              )
+            )
+          : null
+      )
+    );
+  }
+  quota.windows.forEach((window) => {
+    const remaining = window.remainingPercent;
+    nodes.push(
+      h(
+        'div',
+        { key: window.id, className: styleMap.quotaRow },
+        h(
+          'div',
+          { className: styleMap.quotaRowHeader },
+          h('span', { className: styleMap.quotaModel }, t(`devin_quota.${window.id}`)),
+          h(
+            'div',
+            { className: styleMap.quotaMeta },
+            h(
+              'span',
+              { className: styleMap.quotaPercent },
+              remaining === null ? t('devin_quota.unavailable') : `${remaining}%`
+            ),
+            window.resetAtMs
+              ? h(
+                  'span',
+                  { className: styleMap.quotaReset },
+                  formatDateTimeValue(window.resetAtMs)
+                )
+              : h('span', { className: styleMap.quotaReset }, t('devin_quota.reset_unknown'))
+          )
+        ),
+        h(QuotaProgressBar, {
+          percent: remaining,
+          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+        })
+      )
+    );
+  });
+  if (nodes.length === 0) {
+    return h('div', { className: styleMap.quotaMessage }, t('devin_quota.empty_data'));
+  }
+  return nodes;
+};
+
+export const DEVIN_CONFIG: QuotaConfig<DevinQuotaState, DevinQuotaData> = {
+  type: 'devin',
+  i18nPrefix: 'devin_quota',
+  filterFn: (file) => isDevinFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchDevinQuota,
+  storeSelector: (state) => state.devinQuota,
+  storeSetter: 'setDevinQuota',
+  buildLoadingState: () => ({ status: 'loading', ...emptyDevinData() }),
+  buildSuccessState: (data) => ({ status: 'success', ...data }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    ...emptyDevinData(),
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.xaiCard,
+  gridClassName: styles.xaiGrid,
+  renderQuotaItems: renderDevinItems,
 };

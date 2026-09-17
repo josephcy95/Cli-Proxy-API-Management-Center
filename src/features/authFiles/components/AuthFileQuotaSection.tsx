@@ -9,6 +9,7 @@ import {
   QODERCN_CONFIG,
   QODER_CONFIG,
   XAI_CONFIG,
+  DEVIN_CONFIG,
 } from '@/components/quota';
 import {
   codexQuotaHasAvailableCapacity,
@@ -100,6 +101,7 @@ const getQuotaConfig = (type: QuotaProviderType) => {
   if (type === 'qodercn') return QODERCN_CONFIG;
   if (type === 'qoder') return QODER_CONFIG;
   if (type === 'xai') return XAI_CONFIG;
+  if (type === 'devin') return DEVIN_CONFIG;
   return assertNever(type);
 };
 
@@ -143,6 +145,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'qodercn' || quotaType === 'qoder')
       return state.qodercnQuota[file.name] as QuotaState;
     if (quotaType === 'xai') return state.xaiQuota[file.name] as QuotaState;
+    if (quotaType === 'devin') return state.devinQuota[file.name] as QuotaState;
     return assertNever(quotaType);
   });
 
@@ -156,6 +159,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'qodercn' || quotaType === 'qoder')
       return state.setQoderCNQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'xai') return state.setXaiQuota as unknown as (updater: unknown) => void;
+    if (quotaType === 'devin') return state.setDevinQuota as unknown as (updater: unknown) => void;
     return assertNever(quotaType);
   });
 

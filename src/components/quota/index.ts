@@ -13,5 +13,6 @@ export {
   QODERCN_CONFIG,
   QODER_CONFIG,
   XAI_CONFIG,
+  DEVIN_CONFIG,
 } from './quotaConfigs';
 export type { QuotaConfig } from './quotaConfigs';
