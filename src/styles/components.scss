@@ -245,11 +245,12 @@ textarea {
 
 .notification-container {
   position: fixed;
-  // Below the floating header controls so toasts never cover them
-  top: calc(var(--shell-gutter, 16px) + var(--floating-control-size, 32px) + 18px);
-  right: var(--shell-gutter, 16px);
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
   gap: $spacing-sm;
   z-index: $z-notification;
   max-width: 340px;
@@ -312,7 +313,7 @@ textarea {
 @keyframes notification-in {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;

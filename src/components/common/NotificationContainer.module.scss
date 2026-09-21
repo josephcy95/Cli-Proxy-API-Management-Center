@@ -1,15 +1,18 @@
 .container {
   position: fixed;
   z-index: $z-notification;
-  top: max(1rem, env(safe-area-inset-top));
-  inset-inline: 0;
-  max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)) - 1rem);
-  margin-inline: auto;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  max-width: min(26rem, calc(100vw - 2rem));
+  max-height: calc(
+    100dvh - max(1rem, env(safe-area-inset-top)) - max(1rem, env(safe-area-inset-bottom))
+  );
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
+  justify-content: flex-end;
   gap: 0.5rem;
-  padding: 0.25rem max(1rem, env(safe-area-inset-right)) 1.5rem max(1rem, env(safe-area-inset-left));
+  padding: 0;
   overflow-y: auto;
   scrollbar-width: thin;
   pointer-events: none;
@@ -40,17 +43,17 @@
   opacity: 1;
   transform: translateY(0) scale(1);
   transition:
-    opacity 200ms var(--ease-out-strong),
-    transform 200ms var(--ease-out-strong);
+    opacity 200ms $ease-out,
+    transform 200ms $ease-out;
 
   @starting-style {
     opacity: 0;
-    transform: translateY(-8px) scale(0.98);
+    transform: translateY(8px) scale(0.98);
   }
 
   &[data-exiting] {
     opacity: 0;
-    transform: translateY(-6px) scale(0.98);
+    transform: translateY(6px) scale(0.98);
     transition-duration: 160ms;
     pointer-events: none;
   }
@@ -114,7 +117,7 @@
   transition:
     background-color 120ms ease,
     color 120ms ease,
-    transform 120ms var(--ease-out-strong);
+    transform 120ms $ease-out;
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
