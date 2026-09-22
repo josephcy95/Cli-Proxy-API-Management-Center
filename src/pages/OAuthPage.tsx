@@ -12,10 +12,6 @@ import { copyToClipboard } from '@/utils/clipboard';
 import { getErrorMessage, isRecord } from '@/utils/helpers';
 import { notifyAuthFilesChanged } from '@/features/authFiles/authFilesEvents';
 import { getPluginTitle, resolvePluginAssetURL } from '@/features/plugins/pluginResources';
-import {
-  KIMI_CHINESE_AFFILIATE_URL,
-  KIMI_INTERNATIONAL_AFFILIATE_URL,
-} from '@/features/providers/kimi';
 import type { PluginListEntry } from '@/types';
 import styles from './OAuthPage.module.scss';
 import { validateDevinCallback } from './devinOAuth';
@@ -144,6 +140,39 @@ const PROVIDERS: BuiltInOAuthProviderCard[] = [
     id: 'qoder',
     titleKey: 'auth_login.qoder_oauth_title',
     icon: iconQoderCN,
+  },
+];
+
+interface RegionalLoginOption {
+  id: BuiltInOAuthProvider;
+  labelKey: string;
+}
+
+interface RegionalLoginCard {
+  id: string;
+  titleKey: string;
+  icon: BuiltInOAuthProviderCard['icon'];
+  regions: RegionalLoginOption[];
+}
+
+const REGIONAL_LOGINS: RegionalLoginCard[] = [
+  {
+    id: 'kimi',
+    titleKey: 'auth_login.kimi_region_title',
+    icon: { light: iconKimiDark, dark: iconKimiLight },
+    regions: [
+      { id: 'kimi-ai', labelKey: 'auth_login.login_international' },
+      { id: 'kimi', labelKey: 'auth_login.login_china' },
+    ],
+  },
+  {
+    id: 'qoder',
+    titleKey: 'auth_login.qoder_region_title',
+    icon: iconQoderCN,
+    regions: [
+      { id: 'qoder', labelKey: 'auth_login.login_international' },
+      { id: 'qodercn', labelKey: 'auth_login.login_china' },
+    ],
   },
 ];
 
@@ -637,18 +666,10 @@ export function OAuthPage() {
     }
   };
 
-  const renderOAuthProviderCard = (provider: OAuthProviderCard, featured = false) => {
+  const renderAuthSession = (provider: OAuthProviderCard) => {
     const state = states[provider.id] || {};
-    const showKimiSignUp =
-      featured &&
-      provider.kind === 'builtin' &&
-      (provider.id === 'kimi' || provider.id === 'kimi-ai');
     const canSubmitCallback =
       (provider.kind === 'plugin' || CALLBACK_SUPPORTED.has(provider.id)) && Boolean(state.url);
-    const loginButtonLabel =
-      state.status === 'success'
-        ? t('auth_login.login_another_account')
-        : getProviderText(provider, 'oauth_button');
     const statusBadgeClassName = [
       'status-badge',
       state.status === 'success' ? 'success' : '',
@@ -656,11 +677,156 @@ export function OAuthPage() {
     ]
       .filter(Boolean)
       .join(' ');
+    const hasSession = Boolean(
+      state.url ||
+      state.userCode ||
+      state.callbackUrl ||
+      state.callbackStatus ||
+      state.cancelError ||
+      (state.status && state.status !== 'idle')
+    );
+    if (!hasSession && !canSubmitCallback) return null;
+
+    return (
+      <>
+        {state.url && (
+          <div className={styles.authUrlBox}>
+            <div className={styles.authUrlLabel}>
+              {getProviderText(provider, 'oauth_url_label')}
+            </div>
+            <div className={styles.authUrlValue}>{state.url}</div>
+            <div className={styles.authUrlActions}>
+              <Button variant="secondary" size="sm" onClick={() => copyLink(state.url!)}>
+                {getProviderText(provider, 'copy_link')}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => window.open(state.url, '_blank', 'noopener,noreferrer')}
+              >
+                {getProviderText(provider, 'open_link')}
+              </Button>
+            </div>
+          </div>
+        )}
+        {state.userCode && (
+          <div className={styles.authUrlBox}>
+            <div className={styles.authUrlLabel}>{t('auth_login.device_code_label')}</div>
+            <div className={styles.authUrlValue}>{state.userCode}</div>
+            <div className={styles.authUrlActions}>
+              <Button variant="secondary" size="sm" onClick={() => copyLink(state.userCode)}>
+                {t('auth_login.device_code_copy')}
+              </Button>
+            </div>
+          </div>
+        )}
+        {canSubmitCallback && (
+          <div className={styles.callbackSection}>
+            <Input
+              label={t(
+                provider.id === 'xai'
+                  ? 'auth_login.xai_callback_label'
+                  : 'auth_login.oauth_callback_label'
+              )}
+              hint={t(
+                provider.id === 'xai'
+                  ? 'auth_login.xai_callback_hint'
+                  : provider.id === 'devin'
+                    ? 'auth_login.devin_callback_hint'
+                    : 'auth_login.oauth_callback_hint'
+              )}
+              value={state.callbackUrl || ''}
+              onChange={(e) =>
+                updateProviderState(provider.id, {
+                  callbackUrl: e.target.value,
+                  callbackStatus: undefined,
+                  callbackError: undefined,
+                })
+              }
+              placeholder={t(
+                provider.id === 'xai'
+                  ? 'auth_login.xai_callback_placeholder'
+                  : provider.id === 'devin'
+                    ? 'auth_login.devin_callback_placeholder'
+                    : 'auth_login.oauth_callback_placeholder'
+              )}
+            />
+            <div className={styles.callbackActions}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => submitCallback(provider.id)}
+                loading={state.callbackSubmitting}
+                disabled={
+                  provider.id === 'devin' && (state.cancelling || state.status !== 'waiting')
+                }
+              >
+                {t('auth_login.oauth_callback_button')}
+              </Button>
+            </div>
+            {provider.id === 'devin' && state.state && (
+              <div className={styles.callbackActions}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void cancelDevinLogin(provider.id)}
+                  loading={state.cancelling}
+                >
+                  {t('auth_login.devin_oauth_cancel')}
+                </Button>
+              </div>
+            )}
+            {provider.id === 'devin' && state.state && state.status === 'error' && (
+              <div className="hint">{t('auth_login.devin_oauth_retry_hint')}</div>
+            )}
+            {provider.id === 'devin' && state.cancelError && (
+              <div className="status-badge error">
+                {t('auth_login.devin_oauth_cancel_error')} {state.cancelError}
+              </div>
+            )}
+            {state.callbackStatus === 'success' && state.status === 'waiting' && (
+              <div className="status-badge success">
+                {t('auth_login.oauth_callback_status_success')}
+              </div>
+            )}
+            {state.callbackStatus === 'error' && (
+              <div className="status-badge error">
+                {t('auth_login.oauth_callback_status_error')} {state.callbackError || ''}
+              </div>
+            )}
+          </div>
+        )}
+        {state.status && state.status !== 'idle' && (
+          <div className={statusBadgeClassName}>
+            {state.status === 'success'
+              ? getProviderText(provider, 'oauth_status_success')
+              : state.status === 'error'
+                ? `${getProviderText(provider, 'oauth_status_error')} ${state.error || ''}`
+                : getProviderText(provider, 'oauth_status_waiting')}
+          </div>
+        )}
+        {state.status === 'success' && (
+          <div className={styles.successActions}>
+            <Button variant="secondary" size="sm" onClick={() => navigate('/auth-files')}>
+              {t('auth_login.view_auth_files')}
+            </Button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const renderOAuthProviderCard = (provider: OAuthProviderCard) => {
+    const state = states[provider.id] || {};
+    const loginButtonLabel =
+      state.status === 'success'
+        ? t('auth_login.login_another_account')
+        : getProviderText(provider, 'oauth_button');
+    const session = renderAuthSession(provider);
 
     return (
       <Card
         key={provider.id}
-        className={featured ? styles.featuredCard : undefined}
         title={
           <span className={styles.cardTitle}>
             <OAuthProviderIcon provider={provider} theme={resolvedTheme} />
@@ -668,190 +834,96 @@ export function OAuthPage() {
           </span>
         }
         extra={
-          showKimiSignUp ? (
-            <div className={styles.featuredActions}>
-              <Button
-                onClick={() =>
-                  window.open(
-                    provider.id === 'kimi-ai'
-                      ? KIMI_INTERNATIONAL_AFFILIATE_URL
-                      : KIMI_CHINESE_AFFILIATE_URL,
-                    '_blank',
-                    'noopener,noreferrer'
-                  )
-                }
-              >
-                {t('auth_login.kimi_sign_up_button')}
-              </Button>
-              <Button onClick={() => startAuth(provider.id)} loading={state.polling}>
-                {loginButtonLabel}
-              </Button>
-            </div>
-          ) : (
-            <Button
-              onClick={() => startAuth(provider.id)}
-              loading={state.polling}
-              disabled={provider.id === 'devin' && Boolean(state.state)}
-            >
-              {loginButtonLabel}
-            </Button>
-          )
+          <Button
+            size="sm"
+            onClick={() => startAuth(provider.id)}
+            loading={state.polling}
+            disabled={provider.id === 'devin' && Boolean(state.state)}
+          >
+            {loginButtonLabel}
+          </Button>
         }
       >
-        <div className={styles.cardContent}>
-          <div className={featured ? styles.featuredHint : styles.cardHint}>
-            {getProviderText(provider, 'oauth_hint')}
-          </div>
-          {state.url && (
-            <div className={styles.authUrlBox}>
-              <div className={styles.authUrlLabel}>
-                {getProviderText(provider, 'oauth_url_label')}
-              </div>
-              <div className={styles.authUrlValue}>{state.url}</div>
-              <div className={styles.authUrlActions}>
-                <Button variant="secondary" size="sm" onClick={() => copyLink(state.url!)}>
-                  {getProviderText(provider, 'copy_link')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => window.open(state.url, '_blank', 'noopener,noreferrer')}
-                >
-                  {getProviderText(provider, 'open_link')}
-                </Button>
-              </div>
-            </div>
-          )}
-          {state.userCode && (
-            <div className={styles.authUrlBox}>
-              <div className={styles.authUrlLabel}>{t('auth_login.device_code_label')}</div>
-              <div className={styles.authUrlValue}>{state.userCode}</div>
-              <div className={styles.authUrlActions}>
-                <Button variant="secondary" size="sm" onClick={() => copyLink(state.userCode)}>
-                  {t('auth_login.device_code_copy')}
-                </Button>
-              </div>
-            </div>
-          )}
-          {canSubmitCallback && (
-            <div className={styles.callbackSection}>
-              <Input
-                label={t(
-                  provider.id === 'xai'
-                    ? 'auth_login.xai_callback_label'
-                    : 'auth_login.oauth_callback_label'
-                )}
-                hint={t(
-                  provider.id === 'xai'
-                    ? 'auth_login.xai_callback_hint'
-                    : provider.id === 'devin'
-                      ? 'auth_login.devin_callback_hint'
-                      : 'auth_login.oauth_callback_hint'
-                )}
-                value={state.callbackUrl || ''}
-                onChange={(e) =>
-                  updateProviderState(provider.id, {
-                    callbackUrl: e.target.value,
-                    callbackStatus: undefined,
-                    callbackError: undefined,
-                  })
-                }
-                placeholder={t(
-                  provider.id === 'xai'
-                    ? 'auth_login.xai_callback_placeholder'
-                    : provider.id === 'devin'
-                      ? 'auth_login.devin_callback_placeholder'
-                      : 'auth_login.oauth_callback_placeholder'
-                )}
-              />
-              <div className={styles.callbackActions}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => submitCallback(provider.id)}
-                  loading={state.callbackSubmitting}
-                  disabled={
-                    provider.id === 'devin' && (state.cancelling || state.status !== 'waiting')
-                  }
-                >
-                  {t('auth_login.oauth_callback_button')}
-                </Button>
-              </div>
-              {provider.id === 'devin' && state.state && (
-                <div className={styles.callbackActions}>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void cancelDevinLogin(provider.id)}
-                    loading={state.cancelling}
-                  >
-                    {t('auth_login.devin_oauth_cancel')}
-                  </Button>
-                </div>
-              )}
-              {provider.id === 'devin' && state.state && state.status === 'error' && (
-                <div className="hint">{t('auth_login.devin_oauth_retry_hint')}</div>
-              )}
-              {provider.id === 'devin' && state.cancelError && (
-                <div className="status-badge error">
-                  {t('auth_login.devin_oauth_cancel_error')} {state.cancelError}
-                </div>
-              )}
-              {state.callbackStatus === 'success' && state.status === 'waiting' && (
-                <div className="status-badge success">
-                  {t('auth_login.oauth_callback_status_success')}
-                </div>
-              )}
-              {state.callbackStatus === 'error' && (
-                <div className="status-badge error">
-                  {t('auth_login.oauth_callback_status_error')} {state.callbackError || ''}
-                </div>
-              )}
-            </div>
-          )}
-          {state.status && state.status !== 'idle' && (
-            <div className={statusBadgeClassName}>
-              {state.status === 'success'
-                ? getProviderText(provider, 'oauth_status_success')
-                : state.status === 'error'
-                  ? `${getProviderText(provider, 'oauth_status_error')} ${state.error || ''}`
-                  : getProviderText(provider, 'oauth_status_waiting')}
-            </div>
-          )}
-          {state.status === 'success' && (
-            <div className={styles.successActions}>
-              <Button variant="secondary" size="sm" onClick={() => navigate('/auth-files')}>
-                {t('auth_login.view_auth_files')}
-              </Button>
-            </div>
-          )}
-        </div>
+        {session ? <div className={styles.cardContent}>{session}</div> : null}
       </Card>
     );
   };
 
-  const featuredProviders = providerCards.filter(
-    (provider) => provider.id === 'kimi' || provider.id === 'kimi-ai'
-  );
-  const otherOAuthProviders = providerCards.filter(
-    (provider) => provider.id !== 'kimi' && provider.id !== 'kimi-ai'
-  );
+  const renderRegionalLoginCard = (group: RegionalLoginCard) => {
+    const iconProvider: BuiltInOAuthProviderCard = {
+      kind: 'builtin',
+      id: group.regions[0].id,
+      titleKey: group.titleKey,
+      icon: group.icon,
+    };
+
+    const sessions = group.regions.flatMap((region) => {
+      const provider = providerCards.find((item) => item.id === region.id);
+      if (!provider) return [];
+      const session = renderAuthSession(provider);
+      if (!session) return [];
+      return [
+        <div key={region.id}>
+          <div className={styles.cardHint}>{t(region.labelKey)}</div>
+          {session}
+        </div>,
+      ];
+    });
+
+    return (
+      <Card
+        key={group.id}
+        title={
+          <span className={styles.cardTitle}>
+            <OAuthProviderIcon provider={iconProvider} theme={resolvedTheme} />
+            <span>{t(group.titleKey)}</span>
+          </span>
+        }
+        extra={
+          <div className={styles.loginChoices}>
+            {group.regions.map((region) => {
+              const state = states[region.id] || {};
+              const label =
+                state.status === 'success'
+                  ? t('auth_login.login_another_account')
+                  : t(region.labelKey);
+              return (
+                <Button
+                  key={region.id}
+                  size="sm"
+                  onClick={() => startAuth(region.id)}
+                  loading={state.polling}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+          </div>
+        }
+      >
+        {sessions.length > 0 ? <div className={styles.cardContent}>{sessions}</div> : null}
+      </Card>
+    );
+  };
+
+  const renderLoginCards = () => {
+    const seenGroups = new Set<string>();
+    return providerCards.map((provider) => {
+      const group = REGIONAL_LOGINS.find((item) =>
+        item.regions.some((region) => region.id === provider.id)
+      );
+      if (!group) return renderOAuthProviderCard(provider);
+      if (seenGroups.has(group.id)) return null;
+      seenGroups.add(group.id);
+      return renderRegionalLoginCard(group);
+    });
+  };
 
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {featuredProviders.length > 0 && (
-          <section className={styles.providerSection}>
-            <div className={styles.providerList}>
-              {featuredProviders.map((provider) => renderOAuthProviderCard(provider, true))}
-            </div>
-          </section>
-        )}
-
         <section className={styles.providerSection}>
-          <div className={styles.providerList}>
-            {otherOAuthProviders.map((provider) => renderOAuthProviderCard(provider))}
-          </div>
+          <div className={styles.providerList}>{renderLoginCards()}</div>
         </section>
 
         {/* Vertex JSON 登录 */}

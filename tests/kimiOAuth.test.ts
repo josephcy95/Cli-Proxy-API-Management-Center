@@ -1,12 +1,13 @@
 import { describe, expect, spyOn, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
+import i18n from '@/i18n';
+import { OAuthPage } from '@/pages/OAuthPage';
 import { apiClient } from '@/services/api/client';
 import { oauthApi } from '@/services/api/oauth';
 import { createOAuthAttempts } from '@/pages/oauthAttempts';
-import {
-  KIMI_CHINESE_AFFILIATE_URL,
-  KIMI_INTERNATIONAL_AFFILIATE_URL,
-} from '@/features/providers/kimi';
 
 describe('Kimi regional login', () => {
   test('uses separate management endpoints and preserves cancellation', async () => {
@@ -41,15 +42,35 @@ describe('Kimi regional login', () => {
     }
   });
 
-  test('offers both cards with site-specific registration links', () => {
+  test('keeps both Kimi regions on one card', () => {
     const source = readFileSync('src/pages/OAuthPage.tsx', 'utf8');
     expect(source).toContain("id: 'kimi-ai'");
     expect(source).toContain("id: 'kimi'");
-    expect(source).toMatch(
-      /provider.id === 'kimi-ai'\s*\? KIMI_INTERNATIONAL_AFFILIATE_URL\s*: KIMI_CHINESE_AFFILIATE_URL/
-    );
-    expect(new URL(KIMI_CHINESE_AFFILIATE_URL).hostname).toBe('platform.kimi.com');
-    expect(new URL(KIMI_INTERNATIONAL_AFFILIATE_URL).hostname).toBe('platform.kimi.ai');
+    expect(source).toContain("id: 'qoder'");
+    expect(source).toContain("id: 'qodercn'");
+    expect(source).toContain('auth_login.login_international');
+    expect(source).toContain('auth_login.login_china');
+    expect(source).not.toContain('featuredCard');
+  });
+
+  test('paints one Kimi card and one Qoder card with two region buttons', async () => {
+    await i18n.changeLanguage('en');
+    const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(OAuthPage)));
+    const kimi = html.indexOf('>Kimi<');
+    const codex = html.indexOf('Codex OAuth');
+    const qoder = html.indexOf('>Qoder<');
+    const international = html.indexOf('Intl version');
+    const china = html.indexOf('China version');
+    expect(kimi).toBeGreaterThan(-1);
+    expect(international).toBeGreaterThan(kimi);
+    expect(china).toBeGreaterThan(international);
+    expect(codex).toBeGreaterThan(china);
+    expect(qoder).toBeGreaterThan(codex);
+    expect(html.indexOf('Intl version', international + 1)).toBeGreaterThan(qoder);
+    expect(html.indexOf('China version', china + 1)).toBeGreaterThan(qoder);
+    expect(html).not.toContain('Kimi China (kimi.com)');
+    expect(html).not.toContain('Qoder CN OAuth');
+    expect(html).not.toContain('Sign Up Now');
   });
 
   for (const locale of ['en', 'zh-CN']) {
@@ -58,7 +79,13 @@ describe('Kimi regional login', () => {
         readFileSync(`src/i18n/locales/${locale}.json`, 'utf8')
       ) as { auth_login: Record<string, string> };
       for (const key of Object.keys(messages).filter((key) => key.startsWith('kimi_'))) {
-        if (key.startsWith('kimi_ai_') || key === 'kimi_sign_up_button') continue;
+        if (
+          key.startsWith('kimi_ai_') ||
+          key.startsWith('kimi_region_') ||
+          key === 'kimi_sign_up_button'
+        ) {
+          continue;
+        }
         expect(messages[key.replace('kimi_', 'kimi_ai_')]).toBeTruthy();
       }
       expect(messages.kimi_oauth_title).toContain('kimi.com');

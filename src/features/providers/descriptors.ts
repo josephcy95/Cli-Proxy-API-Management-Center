@@ -310,16 +310,16 @@ export const PROVIDER_DESCRIPTORS: Record<ProviderBrand, ProviderDescriptor> = {
 };
 
 export const PROVIDER_BRAND_ORDER: ProviderBrand[] = [
+  'openaiCompatibility',
+  'codex',
+  'claude',
   'kimi',
   'gemini',
   'interactions',
-  'codex',
   'meta',
   'commandcode',
   'xai',
-  'claude',
   'vertex',
-  'openaiCompatibility',
   'apikeyFun',
   'claudeApi',
   'code0',

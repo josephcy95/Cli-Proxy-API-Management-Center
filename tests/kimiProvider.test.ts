@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import i18n from '../src/i18n';
 import {
   buildCodexResponsesEndpoint,
   buildOpenAIChatCompletionsEndpoint,
@@ -22,6 +25,7 @@ import {
 } from '../src/features/providers/kimi';
 import { PROVIDER_LOGOS } from '../src/features/providers/brandLogos';
 import { PROVIDER_BRAND_ORDER } from '../src/features/providers/descriptors';
+import { ProviderCategoryList } from '../src/features/providers/components/ProviderCategoryList';
 import { getSponsorProviderDefinition } from '../src/features/providers/sponsorDefinitions';
 import { apiCallApi } from '../src/services/api/apiCall';
 import { modelsApi } from '../src/services/api/models';
@@ -106,8 +110,29 @@ describe('Kimi provider', () => {
     expect(PROVIDER_LOGOS.kimi.themeSurface).toBeTrue();
   });
 
-  test('is the first provider in the catalog', () => {
-    expect(PROVIDER_BRAND_ORDER[0]).toBe('kimi');
+  test('follows the pinned providers in the catalog', async () => {
+    expect(PROVIDER_BRAND_ORDER.slice(0, 4)).toEqual([
+      'openaiCompatibility',
+      'codex',
+      'claude',
+      'kimi',
+    ]);
+
+    await i18n.changeLanguage('en');
+    const html = renderToStaticMarkup(
+      createElement(ProviderCategoryList, {
+        groups: PROVIDER_BRAND_ORDER.map((id) => ({ id, resources: [] })),
+        activeBrand: 'openaiCompatibility',
+        onSelect: () => {},
+      })
+    );
+    const visibleOrder = ['OpenAI Compatible', 'Codex', 'Claude', 'Kimi', 'Gemini'];
+    let previous = -1;
+    for (const label of visibleOrder) {
+      const index = html.indexOf(`>${label}<`);
+      expect(index).toBeGreaterThan(previous);
+      previous = index;
+    }
   });
 
   test('recognizes Kimi configs only by supported protocol endpoint', () => {

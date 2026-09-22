@@ -261,8 +261,10 @@ export function MainLayout() {
   const isPluginResourcePage = location.pathname.startsWith('/plugin-pages');
   const showSidebarLabels = !sidebarCollapsed || sidebarOpen;
   const shortcutText =
-    typeof navigator !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.test(
-      (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ||
+    typeof navigator !== 'undefined' &&
+    /(Mac|iPhone|iPod|iPad)/i.test(
+      (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData
+        ?.platform ||
         navigator.platform ||
         navigator.userAgent ||
         ''
@@ -462,14 +464,14 @@ export function MainLayout() {
           icon: sidebarIcons.aiProviders,
         },
         {
-          path: '/auth-files',
-          labelKey: 'nav.auth_files',
-          icon: sidebarIcons.authFiles,
-        },
-        {
           path: '/oauth',
           labelKey: 'nav.oauth',
           icon: sidebarIcons.oauth,
+        },
+        {
+          path: '/auth-files',
+          labelKey: 'nav.auth_files',
+          icon: sidebarIcons.authFiles,
         },
       ],
     },
