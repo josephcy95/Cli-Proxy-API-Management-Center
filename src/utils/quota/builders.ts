@@ -150,7 +150,10 @@ function kimiResetHint(data: Record<string, unknown>): string | undefined {
 function kimiDurationToken(duration: number, rawTimeUnit: unknown): string {
   const unit =
     typeof rawTimeUnit === 'string'
-      ? rawTimeUnit.trim().toUpperCase().replace(/^TIME_UNIT_/, '')
+      ? rawTimeUnit
+          .trim()
+          .toUpperCase()
+          .replace(/^TIME_UNIT_/, '')
       : '';
   if (unit === 'SECONDS' || unit === 'SECOND') return `${duration}s`;
   if (!unit || unit === 'MINUTES' || unit === 'MINUTE') {
@@ -231,8 +234,7 @@ export function buildKimiQuotaRows(payload: KimiUsagePayload): KimiQuotaRow[] {
   if (Array.isArray(limits)) {
     limits.forEach((item, idx) => {
       const detail = (item.detail && typeof item.detail === 'object' ? item.detail : item) as
-        | KimiUsageDetail
-        | KimiLimitItem;
+        KimiUsageDetail | KimiLimitItem;
       const window = (
         item.window && typeof item.window === 'object' ? item.window : {}
       ) as KimiLimitWindow;
@@ -396,13 +398,16 @@ export function mergeXaiBillingSummaries(
   if (!primary) return fallback;
   if (!fallback) return primary;
 
+  // Keep usage on the same clock as the chosen period. Monthly spending must
+  // not fill in an unavailable weekly percentage or its reset dates.
+  const periodSummary = primary.periodType !== 'unknown' ? primary : fallback;
   return {
     mode: 'billing',
     source: 'cli-chat-proxy',
-    periodType: primary.periodType !== 'unknown' ? primary.periodType : fallback.periodType,
-    usagePercent: primary.usagePercent ?? fallback.usagePercent,
-    periodStart: primary.periodStart ?? fallback.periodStart,
-    periodEnd: primary.periodEnd ?? fallback.periodEnd,
+    periodType: periodSummary.periodType,
+    usagePercent: periodSummary.usagePercent,
+    periodStart: periodSummary.periodStart,
+    periodEnd: periodSummary.periodEnd,
     productUsage: primary.productUsage.length > 0 ? primary.productUsage : fallback.productUsage,
     monthlyLimitCents: primary.monthlyLimitCents ?? fallback.monthlyLimitCents,
     usedCents: primary.usedCents ?? fallback.usedCents,

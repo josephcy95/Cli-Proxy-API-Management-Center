@@ -12,7 +12,10 @@ import { copyToClipboard } from '@/utils/clipboard';
 import { getErrorMessage, isRecord } from '@/utils/helpers';
 import { notifyAuthFilesChanged } from '@/features/authFiles/authFilesEvents';
 import { getPluginTitle, resolvePluginAssetURL } from '@/features/plugins/pluginResources';
-import { getKimiAffiliateUrl } from '@/features/providers/kimi';
+import {
+  KIMI_CHINESE_AFFILIATE_URL,
+  KIMI_INTERNATIONAL_AFFILIATE_URL,
+} from '@/features/providers/kimi';
 import type { PluginListEntry } from '@/types';
 import styles from './OAuthPage.module.scss';
 import { validateDevinCallback } from './devinOAuth';
@@ -21,6 +24,7 @@ import iconClaude from '@/assets/icons/claude.svg';
 import iconAntigravity from '@/assets/icons/antigravity.svg';
 import iconKimiLight from '@/assets/icons/kimi-light.svg';
 import iconKimiDark from '@/assets/icons/kimi-dark.svg';
+import iconMeta from '@/assets/icons/meta.svg';
 import iconQoderCN from '@/assets/icons/qodercn.svg';
 import iconVertex from '@/assets/icons/vertex.svg';
 import iconGrok from '@/assets/icons/grok.svg';
@@ -30,6 +34,7 @@ import iconDevinDark from '@/assets/icons/devin-dark.svg';
 
 interface ProviderState {
   url?: string;
+  userCode?: string;
   state?: string;
   status?: 'idle' | 'waiting' | 'success' | 'error';
   error?: string;
@@ -88,6 +93,12 @@ const PROVIDERS: BuiltInOAuthProviderCard[] = [
   },
   {
     kind: 'builtin',
+    id: 'kimi-ai',
+    titleKey: 'auth_login.kimi_ai_oauth_title',
+    icon: { light: iconKimiDark, dark: iconKimiLight },
+  },
+  {
+    kind: 'builtin',
     id: 'codex',
     titleKey: 'auth_login.codex_oauth_title',
     icon: iconCodex,
@@ -115,6 +126,12 @@ const PROVIDERS: BuiltInOAuthProviderCard[] = [
     id: 'devin',
     titleKey: 'auth_login.devin_oauth_title',
     icon: { light: iconDevin, dark: iconDevinDark },
+  },
+  {
+    kind: 'builtin',
+    id: 'meta',
+    titleKey: 'auth_login.meta_oauth_title',
+    icon: iconMeta,
   },
   {
     kind: 'builtin',
@@ -264,7 +281,7 @@ const resolveCallbackUrl = (provider: string, input: string, state?: string): st
 };
 
 export function OAuthPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const apiBase = useAuthStore((state) => state.apiBase);
   const { showNotification } = useNotificationStore();
@@ -384,6 +401,7 @@ export function OAuthPage() {
     notifyAuthFilesChanged();
     updateProviderState(provider, {
       url: undefined,
+      userCode: undefined,
       state: undefined,
       status: 'success',
       error: undefined,
@@ -433,6 +451,7 @@ export function OAuthPage() {
     clearProviderTimers(provider);
     updateProviderState(provider, {
       url: undefined,
+      userCode: undefined,
       state: undefined,
       status: 'waiting',
       polling: true,
@@ -459,6 +478,7 @@ export function OAuthPage() {
       }
       updateProviderState(provider, {
         url: res.url,
+        userCode: res.user_code,
         state: res.state,
         status: 'waiting',
         polling: true,
@@ -619,7 +639,10 @@ export function OAuthPage() {
 
   const renderOAuthProviderCard = (provider: OAuthProviderCard, featured = false) => {
     const state = states[provider.id] || {};
-    const showKimiSignUp = featured && provider.kind === 'builtin' && provider.id === 'kimi';
+    const showKimiSignUp =
+      featured &&
+      provider.kind === 'builtin' &&
+      (provider.id === 'kimi' || provider.id === 'kimi-ai');
     const canSubmitCallback =
       (provider.kind === 'plugin' || CALLBACK_SUPPORTED.has(provider.id)) && Boolean(state.url);
     const loginButtonLabel =
@@ -650,7 +673,9 @@ export function OAuthPage() {
               <Button
                 onClick={() =>
                   window.open(
-                    getKimiAffiliateUrl(i18n.resolvedLanguage ?? i18n.language),
+                    provider.id === 'kimi-ai'
+                      ? KIMI_INTERNATIONAL_AFFILIATE_URL
+                      : KIMI_CHINESE_AFFILIATE_URL,
                     '_blank',
                     'noopener,noreferrer'
                   )
@@ -693,6 +718,17 @@ export function OAuthPage() {
                   onClick={() => window.open(state.url, '_blank', 'noopener,noreferrer')}
                 >
                   {getProviderText(provider, 'open_link')}
+                </Button>
+              </div>
+            </div>
+          )}
+          {state.userCode && (
+            <div className={styles.authUrlBox}>
+              <div className={styles.authUrlLabel}>{t('auth_login.device_code_label')}</div>
+              <div className={styles.authUrlValue}>{state.userCode}</div>
+              <div className={styles.authUrlActions}>
+                <Button variant="secondary" size="sm" onClick={() => copyLink(state.userCode)}>
+                  {t('auth_login.device_code_copy')}
                 </Button>
               </div>
             </div>
@@ -794,15 +830,21 @@ export function OAuthPage() {
     );
   };
 
-  const featuredProvider = providerCards.find((provider) => provider.id === 'kimi');
-  const otherOAuthProviders = providerCards.filter((provider) => provider.id !== 'kimi');
+  const featuredProviders = providerCards.filter(
+    (provider) => provider.id === 'kimi' || provider.id === 'kimi-ai'
+  );
+  const otherOAuthProviders = providerCards.filter(
+    (provider) => provider.id !== 'kimi' && provider.id !== 'kimi-ai'
+  );
 
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {featuredProvider && (
+        {featuredProviders.length > 0 && (
           <section className={styles.providerSection}>
-            {renderOAuthProviderCard(featuredProvider, true)}
+            <div className={styles.providerList}>
+              {featuredProviders.map((provider) => renderOAuthProviderCard(provider, true))}
+            </div>
           </section>
         )}
 

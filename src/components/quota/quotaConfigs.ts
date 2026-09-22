@@ -25,6 +25,8 @@ import type {
   CodexUsagePayload,
   DevinQuotaData,
   DevinQuotaState,
+  MetaQuotaData,
+  MetaQuotaState,
   KimiQuotaRow,
   KimiQuotaState,
   QoderCNQuotaBucket,
@@ -49,6 +51,7 @@ import {
   CLAUDE_USAGE_WINDOW_KEYS,
   CODEX_RATE_LIMIT_RESET_CREDITS_URL,
   CODEX_RATE_LIMIT_RESET_CREDITS_CONSUME_URL,
+  CODEX_SUBSCRIPTION_URL,
   CODEX_USAGE_URL,
   CODEX_REQUEST_HEADERS,
   KIMI_USAGE_URL,
@@ -92,6 +95,7 @@ import {
   isCodexFile,
   isDisabledAuthFile,
   isKimiFile,
+  isMetaFile,
   isQoderCNFile,
   isQoderIntlFile,
   isPaidXaiAuthFile,
@@ -100,7 +104,12 @@ import {
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/authIndex';
 import { formatDateTimeValue, formatRelativeTimeLabel, toEpochMs } from '@/utils/format';
-import { useQuotaStore } from '@/stores/useQuotaStore';
+import {
+  captureQuotaCacheGeneration,
+  commitIfQuotaCacheCurrent,
+  useQuotaStore,
+} from '@/stores/useQuotaStore';
+import { createMetaQuotaFetcher, MetaQuotaError } from '@/features/quota/providers/meta/requests';
 import {
   createDevinQuotaFetcher,
   DevinQuotaError,
@@ -111,14 +120,7 @@ import styles from '@/pages/QuotaPage.module.scss';
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
 type QuotaType =
-  | 'antigravity'
-  | 'claude'
-  | 'codex'
-  | 'devin'
-  | 'kimi'
-  | 'qodercn'
-  | 'qoder'
-  | 'xai';
+  'antigravity' | 'claude' | 'codex' | 'devin' | 'kimi' | 'meta' | 'qodercn' | 'qoder' | 'xai';
 
 type AntigravityQuotaData = {
   groups: AntigravityQuotaGroup[];
@@ -177,6 +179,7 @@ export interface QuotaStore {
   claudeQuota: Record<string, ClaudeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
+  metaQuota: Record<string, MetaQuotaState>;
   qodercnQuota: Record<string, QoderCNQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   devinQuota: Record<string, DevinQuotaState>;
@@ -184,6 +187,7 @@ export interface QuotaStore {
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
+  setMetaQuota: (updater: QuotaUpdater<Record<string, MetaQuotaState>>) => void;
   setQoderCNQuota: (updater: QuotaUpdater<Record<string, QoderCNQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
   setDevinQuota: (updater: QuotaUpdater<Record<string, DevinQuotaState>>) => void;
@@ -607,6 +611,48 @@ const buildCodexRequestHeader = (file: AuthFileItem): Record<string, string> => 
   return requestHeader;
 };
 
+const parseCodexSubscriptionActiveUntil = (payload: unknown): string | number | null => {
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (!trimmed) return null;
+    try {
+      return parseCodexSubscriptionActiveUntil(JSON.parse(trimmed));
+    } catch {
+      return null;
+    }
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const subscription = payload as Record<string, unknown>;
+  const value = subscription.active_until ?? subscription.activeUntil;
+  const numberValue = normalizeNumberValue(value);
+  if (numberValue !== null && numberValue !== 0) return numberValue;
+  const stringValue = normalizeStringValue(value);
+  return stringValue && stringValue !== '0' ? stringValue : null;
+};
+
+const fetchCodexSubscriptionActiveUntil = async (
+  authIndex: string,
+  accountId: string | null,
+  requestHeader: Record<string, string>
+): Promise<string | number | null> => {
+  if (!accountId) return null;
+  try {
+    const result = await apiCallApi.request(
+      {
+        authIndex,
+        method: 'GET',
+        url: `${CODEX_SUBSCRIPTION_URL}?account_id=${encodeURIComponent(accountId)}`,
+        header: requestHeader,
+      },
+      { timeout: CODEX_RESET_CREDITS_REQUEST_TIMEOUT_MS }
+    );
+    if (result.statusCode < 200 || result.statusCode >= 300) return null;
+    return parseCodexSubscriptionActiveUntil(result.body ?? result.bodyText);
+  } catch {
+    return null;
+  }
+};
+
 const fetchCodexResetCredits = async (
   authIndex: string,
   requestHeader: Record<string, string>,
@@ -674,15 +720,19 @@ export const fetchCodexUsageSnapshot = async (
   }
 
   const planTypeFromFile = resolveCodexPlanType(file);
-  const subscriptionActiveUntil = resolveCodexSubscriptionActiveUntil(file);
+  const subscriptionActiveUntilFromFile = resolveCodexSubscriptionActiveUntil(file);
+  const accountId = resolveCodexChatgptAccountId(file);
   const requestHeader = buildCodexRequestHeader(file);
 
-  const result = await apiCallApi.request({
-    authIndex,
-    method: 'GET',
-    url: CODEX_USAGE_URL,
-    header: requestHeader,
-  });
+  const [result, liveSubscriptionActiveUntil] = await Promise.all([
+    apiCallApi.request({
+      authIndex,
+      method: 'GET',
+      url: CODEX_USAGE_URL,
+      header: requestHeader,
+    }),
+    fetchCodexSubscriptionActiveUntil(authIndex, accountId, requestHeader),
+  ]);
 
   if (result.statusCode < 200 || result.statusCode >= 300) {
     throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
@@ -697,7 +747,7 @@ export const fetchCodexUsageSnapshot = async (
   const resetCredits = payload.rate_limit_reset_credits ?? payload.rateLimitResetCredits ?? null;
   return {
     planType: planTypeFromUsage ?? planTypeFromFile,
-    subscriptionActiveUntil,
+    subscriptionActiveUntil: liveSubscriptionActiveUntil ?? subscriptionActiveUntilFromFile,
     rateLimitResetCreditsAvailableCount: normalizeNumberValue(
       resetCredits?.available_count ?? resetCredits?.availableCount
     ),
@@ -708,7 +758,10 @@ export const fetchCodexUsageSnapshot = async (
   };
 };
 
-export const fetchCodexQuota = async (file: AuthFileItem, t: TFunction): Promise<CodexQuotaData> => {
+export const fetchCodexQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<CodexQuotaData> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
   if (!authIndex) {
@@ -995,7 +1048,13 @@ const renderAntigravityItems = (
   return h(Fragment, null, ...nodes);
 };
 
-const PREMIUM_CODEX_PLAN_TYPES = new Set(['pro', 'prolite', 'pro-lite', 'pro_lite']);
+const PREMIUM_CODEX_PLAN_TYPES = new Set([
+  'pro',
+  'prolite',
+  'pro-lite',
+  'pro_lite',
+  'self_serve_business_prolite',
+]);
 
 const renderCodexItems = (
   quota: CodexQuotaState,
@@ -1015,6 +1074,9 @@ const renderCodexItems = (
     const normalized = normalizePlanType(pt);
     if (!normalized) return null;
     if (normalized === 'pro') return t('codex_quota.plan_pro');
+    if (normalized === 'self_serve_business_prolite') {
+      return t('codex_quota.plan_business_premium');
+    }
     if (PREMIUM_CODEX_PLAN_TYPES.has(normalized) && normalized !== 'pro') {
       return t('codex_quota.plan_prolite');
     }
@@ -1290,14 +1352,8 @@ const parseClaudeProfilePayload = (payload: unknown): ClaudeProfileResponse | nu
   return null;
 };
 
-const resolveClaudePlanType = (profile: ClaudeProfileResponse | null): string | null => {
+export const resolveClaudePlanType = (profile: ClaudeProfileResponse | null): string | null => {
   if (!profile) return null;
-
-  const hasClaudeMax = normalizeFlagValue(profile.account?.has_claude_max);
-  if (hasClaudeMax) return 'plan_max';
-
-  const hasClaudePro = normalizeFlagValue(profile.account?.has_claude_pro);
-  if (hasClaudePro) return 'plan_pro';
 
   const organizationType = normalizeStringValue(
     profile.organization?.organization_type
@@ -1309,6 +1365,13 @@ const resolveClaudePlanType = (profile: ClaudeProfileResponse | null): string | 
   if (organizationType === 'claude_team' && subscriptionStatus === 'active') {
     return 'plan_team';
   }
+
+  // Account flags include personal subscriptions even for a Team-scoped token.
+  const hasClaudeMax = normalizeFlagValue(profile.account?.has_claude_max);
+  if (hasClaudeMax) return 'plan_max';
+
+  const hasClaudePro = normalizeFlagValue(profile.account?.has_claude_pro);
+  if (hasClaudePro) return 'plan_pro';
 
   if (hasClaudeMax === false && hasClaudePro === false) return 'plan_free';
 
@@ -1885,9 +1948,10 @@ const renderXaiItems = (
     billing.periodType === 'weekly' &&
     (weeklyUsed !== null || Boolean(billing.periodEnd) || billing.productUsage.length > 0);
   const hasMonthlyData =
-    billing.monthlyLimitCents !== null ||
-    billing.usedCents !== null ||
-    Boolean(billing.billingPeriodEnd);
+    (billing.monthlyLimitCents !== null ||
+      billing.usedCents !== null ||
+      Boolean(billing.billingPeriodEnd)) &&
+    !(hasWeeklyData && billing.monthlyLimitCents === 0 && billing.usedCents === 0);
 
   return h(
     Fragment,
@@ -1918,9 +1982,11 @@ const renderXaiItems = (
               h(
                 'span',
                 { className: styleMap.quotaPercent },
-                t('xai_quota.used_percent', {
-                  percent: formatXaiPercent(weeklyUsed),
-                })
+                weeklyUsed === null
+                  ? t('xai_quota.usage_unavailable')
+                  : t('xai_quota.used_percent', {
+                      percent: formatXaiPercent(weeklyUsed),
+                    })
               ),
               weeklyResetLabel !== '-'
                 ? h(
@@ -1933,11 +1999,13 @@ const renderXaiItems = (
                 : null
             )
           ),
-          h(QuotaProgressBar, {
-            percent: weeklyRemaining,
-            highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-            mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
-          })
+          weeklyRemaining === null
+            ? null
+            : h(QuotaProgressBar, {
+                percent: weeklyRemaining,
+                highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+                mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+              })
         )
       : null,
     ...billing.productUsage.map((item) => {
@@ -2344,11 +2412,7 @@ const renderDevinItems = (quota: DevinQuotaState, t: TFunction, helpers: QuotaRe
               'span',
               { className: styleMap.codexPlanItem },
               h('span', { className: styleMap.codexPlanLabel }, t('devin_quota.plan_end')),
-              h(
-                'span',
-                { className: styleMap.quotaReset },
-                formatDateTimeValue(quota.planEndMs)
-              )
+              h('span', { className: styleMap.quotaReset }, formatDateTimeValue(quota.planEndMs))
             )
           : null
       )
@@ -2373,11 +2437,7 @@ const renderDevinItems = (quota: DevinQuotaState, t: TFunction, helpers: QuotaRe
               remaining === null ? t('devin_quota.unavailable') : `${remaining}%`
             ),
             window.resetAtMs
-              ? h(
-                  'span',
-                  { className: styleMap.quotaReset },
-                  formatDateTimeValue(window.resetAtMs)
-                )
+              ? h('span', { className: styleMap.quotaReset }, formatDateTimeValue(window.resetAtMs))
               : h('span', { className: styleMap.quotaReset }, t('devin_quota.reset_unknown'))
           )
         ),
@@ -2393,6 +2453,128 @@ const renderDevinItems = (quota: DevinQuotaState, t: TFunction, helpers: QuotaRe
     return h('div', { className: styleMap.quotaMessage }, t('devin_quota.empty_data'));
   }
   return nodes;
+};
+
+const fetchMetaQuota = async (file: AuthFileItem, t: TFunction): Promise<MetaQuotaData> => {
+  const fetcher = createMetaQuotaFetcher({
+    request: (payload) => apiCallApi.request(payload),
+    downloadText: (name) => authFilesApi.downloadText(name),
+    captureCurrent: (name) => {
+      const token = captureQuotaCacheGeneration(name);
+      return () => commitIfQuotaCacheCurrent(token, () => {});
+    },
+  });
+  try {
+    return await fetcher(file);
+  } catch (error: unknown) {
+    if (error instanceof MetaQuotaError) {
+      error.message = t(`meta_quota.${error.code}`, { status: error.status ?? '' });
+    }
+    throw error;
+  }
+};
+
+const renderMetaItems = (quota: MetaQuotaState, t: TFunction, helpers: QuotaRenderHelpers) => {
+  const { createElement: h } = React;
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const data = quota.data;
+  if (!data) {
+    return h('div', { className: styleMap.quotaMessage }, t('meta_quota.empty_data'));
+  }
+  const nodes: ReactNode[] = [];
+  if (data.planName || data.isSubscriptionActive !== undefined) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'plan', className: styleMap.codexPlan },
+        data.planName
+          ? h(
+              'span',
+              { className: styleMap.codexPlanItem },
+              h('span', { className: styleMap.codexPlanLabel }, t('meta_quota.plan')),
+              h('span', { className: styleMap.codexPlanValue }, data.planName)
+            )
+          : null,
+        data.isSubscriptionActive !== undefined
+          ? h(
+              'span',
+              { className: styleMap.codexPlanValue },
+              t(data.isSubscriptionActive ? 'meta_quota.active' : 'meta_quota.inactive')
+            )
+          : null
+      )
+    );
+  }
+  if (data.windows.every((window) => window.usedPercent === null)) {
+    nodes.push(
+      h('div', { key: 'empty', className: styleMap.quotaMessage }, t('meta_quota.empty_data'))
+    );
+  }
+  data.windows.forEach((window) => {
+    const remaining = window.usedPercent === null ? null : 100 - window.usedPercent;
+    const label =
+      window.id === 'window' && window.durationMinutes
+        ? t('meta_quota.window_duration', { minutes: window.durationMinutes })
+        : t(`meta_quota.${window.id}`);
+    nodes.push(
+      h(
+        'div',
+        { key: window.id, className: styleMap.quotaRow },
+        h(
+          'div',
+          { className: styleMap.quotaRowHeader },
+          h('span', { className: styleMap.quotaModel }, label),
+          h(
+            'div',
+            { className: styleMap.quotaMeta },
+            h(
+              'span',
+              { className: styleMap.quotaPercent },
+              remaining === null
+                ? t('meta_quota.unknown')
+                : t('meta_quota.remaining', { percent: Number(remaining.toFixed(1)) })
+            ),
+            window.resetAt
+              ? h(
+                  'span',
+                  { className: styleMap.quotaReset },
+                  formatDateTimeValue(window.resetAt * 1000)
+                )
+              : null
+          )
+        ),
+        remaining === null
+          ? null
+          : h(QuotaProgressBar, {
+              percent: remaining,
+              highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+              mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+            })
+      )
+    );
+  });
+  return nodes.length > 0
+    ? nodes
+    : h('div', { className: styleMap.quotaMessage }, t('meta_quota.empty_data'));
+};
+
+export const META_CONFIG: QuotaConfig<MetaQuotaState, MetaQuotaData> = {
+  type: 'meta',
+  i18nPrefix: 'meta_quota',
+  filterFn: (file) => isMetaFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchMetaQuota,
+  storeSelector: (state) => state.metaQuota,
+  storeSetter: 'setMetaQuota',
+  buildLoadingState: () => ({ status: 'loading' }),
+  buildSuccessState: (data) => ({ status: 'success', data }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.xaiCard,
+  gridClassName: styles.xaiGrid,
+  renderQuotaItems: renderMetaItems,
 };
 
 export const DEVIN_CONFIG: QuotaConfig<DevinQuotaState, DevinQuotaData> = {

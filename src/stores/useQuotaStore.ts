@@ -9,6 +9,7 @@ import type {
   CodexQuotaState,
   DevinQuotaState,
   KimiQuotaState,
+  MetaQuotaState,
   QoderCNQuotaState,
   XaiQuotaState,
 } from '@/types';
@@ -22,6 +23,7 @@ interface QuotaStoreState {
   claudeQuota: Record<string, ClaudeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
+  metaQuota: Record<string, MetaQuotaState>;
   qodercnQuota: Record<string, QoderCNQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   devinQuota: Record<string, DevinQuotaState>;
@@ -29,11 +31,12 @@ interface QuotaStoreState {
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
+  setMetaQuota: (updater: QuotaUpdater<Record<string, MetaQuotaState>>) => void;
   setQoderCNQuota: (updater: QuotaUpdater<Record<string, QoderCNQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
   setDevinQuota: (updater: QuotaUpdater<Record<string, DevinQuotaState>>) => void;
   clearQuotaForFile: (name: string) => void;
-  clearQuotaCache: () => void;
+  clearQuotaCache: (names?: string[]) => void;
 }
 
 const resolveUpdater = <T>(updater: QuotaUpdater<T>, prev: T): T => {
@@ -50,6 +53,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   claudeQuota: {},
   codexQuota: {},
   kimiQuota: {},
+  metaQuota: {},
   qodercnQuota: {},
   xaiQuota: {},
   devinQuota: {},
@@ -69,6 +73,10 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
     set((state) => ({
       kimiQuota: resolveUpdater(updater, state.kimiQuota),
     })),
+  setMetaQuota: (updater) =>
+    set((state) => ({
+      metaQuota: resolveUpdater(updater, state.metaQuota),
+    })),
   setQoderCNQuota: (updater) =>
     set((state) => ({
       qodercnQuota: resolveUpdater(updater, state.qodercnQuota),
@@ -83,7 +91,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
     })),
   clearQuotaForFile: (name) =>
     set((state) => {
-      const remove = <T,>(values: Record<string, T>): Record<string, T> => {
+      const remove = <T>(values: Record<string, T>): Record<string, T> => {
         if (!(name in values)) return values;
         const next = { ...values };
         delete next[name];
@@ -98,23 +106,53 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
         claudeQuota: remove(state.claudeQuota),
         codexQuota: remove(state.codexQuota),
         kimiQuota: remove(state.kimiQuota),
+        metaQuota: remove(state.metaQuota),
         qodercnQuota: remove(state.qodercnQuota),
         xaiQuota: remove(state.xaiQuota),
         devinQuota: remove(state.devinQuota),
       };
     }),
-  clearQuotaCache: () =>
-    set((state) => ({
-      cacheGeneration: state.cacheGeneration + 1,
-      fileGenerations: {},
-      antigravityQuota: {},
-      claudeQuota: {},
-      codexQuota: {},
-      kimiQuota: {},
-      qodercnQuota: {},
-      xaiQuota: {},
-      devinQuota: {},
-    })),
+  clearQuotaCache: (names) =>
+    set((state) => {
+      if (names && names.length > 0) {
+        const fileGenerations = { ...state.fileGenerations };
+        for (const name of names) {
+          fileGenerations[name] = (fileGenerations[name] ?? 0) + 1;
+        }
+        const drop = <T>(values: Record<string, T>): Record<string, T> => {
+          let next = values;
+          for (const name of names) {
+            if (!(name in next)) continue;
+            if (next === values) next = { ...values };
+            delete next[name];
+          }
+          return next;
+        };
+        return {
+          fileGenerations,
+          antigravityQuota: drop(state.antigravityQuota),
+          claudeQuota: drop(state.claudeQuota),
+          codexQuota: drop(state.codexQuota),
+          kimiQuota: drop(state.kimiQuota),
+          metaQuota: drop(state.metaQuota),
+          qodercnQuota: drop(state.qodercnQuota),
+          xaiQuota: drop(state.xaiQuota),
+          devinQuota: drop(state.devinQuota),
+        };
+      }
+      return {
+        cacheGeneration: state.cacheGeneration + 1,
+        fileGenerations: {},
+        antigravityQuota: {},
+        claudeQuota: {},
+        codexQuota: {},
+        kimiQuota: {},
+        metaQuota: {},
+        qodercnQuota: {},
+        xaiQuota: {},
+        devinQuota: {},
+      };
+    }),
 }));
 
 export type QuotaCacheToken = {
@@ -139,10 +177,7 @@ export const isQuotaCacheCurrent = (token: QuotaCacheToken): boolean => {
   return (state.fileGenerations[token.fileName] ?? 0) === token.fileGeneration;
 };
 
-export const commitIfQuotaCacheCurrent = (
-  token: QuotaCacheToken,
-  commit: () => void
-): boolean => {
+export const commitIfQuotaCacheCurrent = (token: QuotaCacheToken, commit: () => void): boolean => {
   if (!isQuotaCacheCurrent(token)) return false;
   commit();
   return true;

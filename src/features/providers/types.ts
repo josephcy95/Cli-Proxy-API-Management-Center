@@ -8,6 +8,7 @@ export type ProviderBrand =
   | 'gemini'
   | 'interactions'
   | 'codex'
+  | 'meta'
   | 'commandcode'
   | 'xai'
   | 'claude'
@@ -32,6 +33,7 @@ export type ProviderResourceSelector =
   | { brand: 'gemini'; apiKey: string; baseUrl?: string; index: number }
   | { brand: 'interactions'; apiKey: string; baseUrl?: string; index: number }
   | { brand: 'codex'; apiKey: string; baseUrl?: string; index: number }
+  | { brand: 'meta'; apiKey: string; baseUrl?: string; index: number }
   | { brand: 'commandcode'; apiKey: string; baseUrl?: string; index: number }
   | { brand: 'xai'; apiKey: string; baseUrl?: string; index: number }
   | { brand: 'claude'; apiKey: string; baseUrl?: string; index: number }

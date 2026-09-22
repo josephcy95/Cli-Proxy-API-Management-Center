@@ -26,6 +26,7 @@ export interface Config {
   geminiApiKeys?: GeminiKeyConfig[];
   interactionsApiKeys?: GeminiKeyConfig[];
   codexApiKeys?: ProviderKeyConfig[];
+  metaApiKeys?: ProviderKeyConfig[];
   /** Command Code reuses the Codex credential shape (no websockets / private instructions). */
   commandcodeApiKeys?: ProviderKeyConfig[];
   xaiApiKeys?: ProviderKeyConfig[];
@@ -161,13 +162,13 @@ export type RawConfigSection =
   | 'gemini-api-key'
   | 'interactions-api-key'
   | 'codex-api-key'
+  | 'meta-api-key'
   | 'commandcode-api-key'
   | 'xai-api-key'
   | 'claude-api-key'
   | 'vertex-api-key'
   | 'openai-compatibility'
   | 'oauth-excluded-models';
-
 
 /** Built-in desensitization (PII/secret masking) config. */
 export interface DesensitizationCategories {

@@ -40,6 +40,7 @@ const CODEX_KEY_FIELDS = [
 ] as const;
 /** Command Code reuses the Codex credential shape but has no websockets / private instructions. */
 const COMMANDCODE_KEY_FIELDS = PROVIDER_COMMON_KEY_FIELDS;
+const META_KEY_FIELDS = PROVIDER_COMMON_KEY_FIELDS;
 const XAI_KEY_FIELDS = [...PROVIDER_COMMON_KEY_FIELDS, 'websockets'] as const;
 const CLAUDE_KEY_FIELDS = [
   ...PROVIDER_COMMON_KEY_FIELDS,
@@ -511,6 +512,34 @@ export const providersApi = {
 
   deleteCodexConfig: (apiKey: string, baseUrl?: string) =>
     apiClient.delete(`/codex-api-key${buildProviderDeleteQuery(apiKey, baseUrl)}`),
+
+  async getMetaConfigs(): Promise<ProviderKeyConfig[]> {
+    const data = await apiClient.get('/meta-api-key');
+    const list = extractArrayPayload(data, 'meta-api-key');
+    return list
+      .map((item) => normalizeProviderKeyConfig(item))
+      .filter(Boolean) as ProviderKeyConfig[];
+  },
+
+  createMetaConfig: (config: ProviderKeyConfig) =>
+    mutateLatestProviderList('meta-api-key', (latestItems) =>
+      appendLatestProviderRecord(latestItems, serializeProviderKey(config), (raw, payload) =>
+        mergeProviderKeyPayload(raw, payload, META_KEY_FIELDS)
+      )
+    ),
+
+  updateMetaConfig: (apiKey: string, baseUrl: string | undefined, config: ProviderKeyConfig) =>
+    mutateLatestProviderList('meta-api-key', (latestItems) =>
+      replaceLatestProviderRecord(
+        latestItems,
+        (record) => matchesProviderKey(record, apiKey, baseUrl),
+        serializeProviderKey(config),
+        (raw, payload) => mergeProviderKeyPayload(raw, payload, META_KEY_FIELDS)
+      )
+    ),
+
+  deleteMetaConfig: (apiKey: string, baseUrl?: string) =>
+    apiClient.delete(`/meta-api-key${buildProviderDeleteQuery(apiKey, baseUrl)}`),
 
   createCommandCodeConfig: (config: ProviderKeyConfig) =>
     mutateLatestProviderList('commandcode-api-key', (latestItems) =>

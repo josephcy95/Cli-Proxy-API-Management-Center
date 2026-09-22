@@ -13,6 +13,7 @@ import {
   CLAUDE_CONFIG,
   CODEX_CONFIG,
   KIMI_CONFIG,
+  META_CONFIG,
   QODERCN_CONFIG,
   QODER_CONFIG,
   XAI_CONFIG,
@@ -98,6 +99,14 @@ export function QuotaPage() {
       {files.some(KIMI_CONFIG.filterFn) && (
         <QuotaSection
           config={KIMI_CONFIG}
+          files={files}
+          loading={loading}
+          disabled={disableControls}
+        />
+      )}
+      {files.some(META_CONFIG.filterFn) && (
+        <QuotaSection
+          config={META_CONFIG}
           files={files}
           loading={loading}
           disabled={disableControls}

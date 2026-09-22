@@ -16,6 +16,7 @@ import {
   code0ToResource,
   codexToResource,
   commandCodeToResource,
+  metaToResource,
   fennoAIToResource,
   geminiToResource,
   interactionsToResource,
@@ -148,7 +149,7 @@ const buildModelAliases = (
     .filter((m) => m.name);
 
 const buildProviderKeyConfig = (
-  brand: 'gemini' | 'interactions' | 'codex' | 'commandcode' | 'xai' | 'claude' | 'vertex',
+  brand: 'gemini' | 'interactions' | 'codex' | 'meta' | 'commandcode' | 'xai' | 'claude' | 'vertex',
   input: ProviderEntryFormInput,
   existing?: ProviderKeyConfig | GeminiKeyConfig | null
 ): ProviderKeyConfig | GeminiKeyConfig => {
@@ -463,6 +464,9 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
             return out;
           }, []);
           break;
+        case 'meta':
+          resources = (config.metaApiKeys ?? []).map((item, index) => metaToResource(item, index));
+          break;
         case 'commandcode':
           resources = (config.commandcodeApiKeys ?? []).map((item, index) =>
             commandCodeToResource(item, index)
@@ -683,6 +687,10 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
           await providersApi.createCodexConfig(
             buildProviderKeyConfig('codex', input) as ProviderKeyConfig
           );
+        } else if (brand === 'meta') {
+          await providersApi.createMetaConfig(
+            buildProviderKeyConfig('meta', input) as ProviderKeyConfig
+          );
         } else if (brand === 'xai') {
           await providersApi.createXAIConfig(
             buildProviderKeyConfig('xai', input) as ProviderKeyConfig
@@ -747,6 +755,13 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
             selector.baseUrl,
             buildProviderKeyConfig('codex', input, existing) as ProviderKeyConfig
           );
+        } else if (brand === 'meta' && selector.brand === 'meta') {
+          const existing = resource.raw as ProviderKeyConfig;
+          await providersApi.updateMetaConfig(
+            selector.apiKey,
+            selector.baseUrl,
+            buildProviderKeyConfig('meta', input, existing) as ProviderKeyConfig
+          );
         } else if (brand === 'xai' && selector.brand === 'xai') {
           const existing = resource.raw as ProviderKeyConfig;
           await providersApi.updateXAIConfig(
@@ -789,7 +804,9 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
             buildOpenAIConfig(input, resource.raw as OpenAIProviderConfig)
           );
           if (selector.name && nextName && selector.name !== nextName) {
-            await configApi.remapDesensitizationApiProvider(selector.name, nextName).catch(() => null);
+            await configApi
+              .remapDesensitizationApiProvider(selector.name, nextName)
+              .catch(() => null);
           }
         } else if (
           brand === 'apikeyFun' ||
@@ -825,6 +842,10 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
           await providersApi.deleteCodexConfig(sel.apiKey, sel.baseUrl);
           const next = (config?.codexApiKeys ?? []).filter((_, i) => i !== sel.index);
           updateConfigValue('codex-api-key', next);
+        } else if (sel.brand === 'meta') {
+          await providersApi.deleteMetaConfig(sel.apiKey, sel.baseUrl);
+          const next = (config?.metaApiKeys ?? []).filter((_, i) => i !== sel.index);
+          updateConfigValue('meta-api-key', next);
         } else if (sel.brand === 'commandcode') {
           await providersApi.deleteCommandCodeConfig(sel.apiKey, sel.baseUrl);
           const next = (config?.commandcodeApiKeys ?? []).filter((_, i) => i !== sel.index);
@@ -914,6 +935,7 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
           });
         } else if (
           (brand === 'codex' && selector.brand === 'codex') ||
+          (brand === 'meta' && selector.brand === 'meta') ||
           (brand === 'commandcode' && selector.brand === 'commandcode') ||
           (brand === 'xai' && selector.brand === 'xai') ||
           (brand === 'claude' && selector.brand === 'claude') ||
@@ -927,6 +949,8 @@ export function useProviderWorkbench(): UseProviderWorkbenchResult {
           const next = { ...current, excludedModels: excluded };
           if (selector.brand === 'codex') {
             await providersApi.updateCodexConfig(selector.apiKey, selector.baseUrl, next);
+          } else if (selector.brand === 'meta') {
+            await providersApi.updateMetaConfig(selector.apiKey, selector.baseUrl, next);
           } else if (selector.brand === 'commandcode') {
             await providersApi.updateCommandCodeConfig(selector.apiKey, selector.baseUrl, next);
           } else if (selector.brand === 'xai') {

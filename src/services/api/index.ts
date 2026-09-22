@@ -12,6 +12,7 @@ export * from './logs';
 export * from './usageEvents';
 export * from './version';
 export * from './models';
+export * from './metaQuota';
 export * from './playground';
 export * from './modelContext';
 export * from './plugins';

@@ -1,5 +1,6 @@
 import claudeLogo from '@/assets/icons/claude.svg';
 import codexLogo from '@/assets/icons/codex.svg';
+import metaLogo from '@/assets/icons/meta.svg';
 import commandCodeLogo from '@/assets/icons/commandcode.svg';
 import devinLightLogo from '@/assets/icons/devin.svg';
 import devinDarkLogo from '@/assets/icons/devin-dark.svg';
@@ -34,6 +35,7 @@ export const PROVIDER_LOGOS: Record<ProviderBrandLogoKey, ProviderBrandLogo> = {
   claude: { src: claudeLogo },
   claudeApi: { src: claudeApiLogo },
   codex: { src: codexLogo },
+  meta: { src: metaLogo, transparent: true },
   commandcode: { src: commandCodeLogo, transparent: true },
   devin: { src: devinLightLogo, darkSrc: devinDarkLogo, transparent: true },
   xai: { src: xaiLightLogo, darkSrc: xaiDarkLogo, transparent: true },

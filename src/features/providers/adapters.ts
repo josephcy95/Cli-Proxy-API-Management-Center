@@ -69,6 +69,7 @@ function providerKeyToResource(
     | 'gemini'
     | 'interactions'
     | 'codex'
+    | 'meta'
     | 'commandcode'
     | 'xai'
     | 'claude'
@@ -129,15 +130,16 @@ export function geminiToResource(config: GeminiKeyConfig, index: number): Provid
   return providerKeyToResource('gemini', config, index);
 }
 
-export function interactionsToResource(
-  config: GeminiKeyConfig,
-  index: number
-): ProviderResource {
+export function interactionsToResource(config: GeminiKeyConfig, index: number): ProviderResource {
   return providerKeyToResource('interactions', config, index);
 }
 
 export function codexToResource(config: ProviderKeyConfig, index: number): ProviderResource {
   return providerKeyToResource('codex', config, index);
+}
+
+export function metaToResource(config: ProviderKeyConfig, index: number): ProviderResource {
+  return providerKeyToResource('meta', config, index);
 }
 
 export function xaiToResource(config: ProviderKeyConfig, index: number): ProviderResource {

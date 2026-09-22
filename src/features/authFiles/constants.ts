@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import iconAntigravity from '@/assets/icons/antigravity.svg';
 import iconClaude from '@/assets/icons/claude.svg';
 import iconCodex from '@/assets/icons/codex.svg';
+import iconMeta from '@/assets/icons/meta.svg';
 import iconDevin from '@/assets/icons/devin.svg';
 import iconDevinDark from '@/assets/icons/devin-dark.svg';
 import iconGemini from '@/assets/icons/gemini.svg';
@@ -30,14 +31,7 @@ export type AuthFileModelItem = {
 export type AuthFileIconAsset = string | { light: string; dark: string };
 
 export type QuotaProviderType =
-  | 'antigravity'
-  | 'claude'
-  | 'codex'
-  | 'devin'
-  | 'kimi'
-  | 'qodercn'
-  | 'qoder'
-  | 'xai';
+  'antigravity' | 'claude' | 'codex' | 'devin' | 'kimi' | 'meta' | 'qodercn' | 'qoder' | 'xai';
 export type OAuthConfigLoadError = 'loading' | 'unsupported' | 'load' | null;
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
@@ -46,6 +40,7 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'codex',
   'devin',
   'kimi',
+  'meta',
   'qodercn',
   'qoder',
   'xai',
@@ -60,6 +55,8 @@ export const OAUTH_PROVIDER_PRESETS = [
   'codex',
   'devin',
   'kimi',
+  'kimi-ai',
+  'meta',
   'qodercn',
   'qoder',
 ];
@@ -79,6 +76,7 @@ export const AUTH_FILE_MANUAL_REFRESH_PROVIDERS = new Set([
   'claude',
   'codex',
   'kimi',
+  'meta',
   'xai',
 ]);
 
@@ -163,6 +161,7 @@ export const AUTH_FILE_ICONS: Record<string, AuthFileIconAsset> = {
   aistudio: iconGemini,
   claude: iconClaude,
   codex: iconCodex,
+  meta: iconMeta,
   devin: { light: iconDevin, dark: iconDevinDark },
   gemini: iconGemini,
   xai: { light: iconGrok, dark: iconGrokDark },
@@ -215,7 +214,12 @@ export const qoderRegionOf = (type: string): QoderRegion | null => {
 export const supportsAuthFileManualRefresh = (provider: unknown): boolean =>
   AUTH_FILE_MANUAL_REFRESH_PROVIDERS.has(normalizeProviderKey(String(provider ?? '')));
 
-const PREMIUM_CODEX_PLAN_TYPES = new Set(['prolite', 'pro-lite', 'pro_lite']);
+const PREMIUM_CODEX_PLAN_TYPES = new Set([
+  'prolite',
+  'pro-lite',
+  'pro_lite',
+  'self_serve_business_prolite',
+]);
 
 export type CodexPlanBadgeKey = 'free' | 'plus' | 'team' | 'premium' | '';
 
@@ -237,6 +241,7 @@ export const getCodexPlanLabel = (
   const normalized = normalizePlanType(planType);
   if (!normalized) return null;
   if (normalized === 'pro') return t('codex_quota.plan_pro');
+  if (normalized === 'self_serve_business_prolite') return t('codex_quota.plan_business_premium');
   if (PREMIUM_CODEX_PLAN_TYPES.has(normalized)) return t('codex_quota.plan_prolite');
   if (normalized === 'plus') return t('codex_quota.plan_plus');
   if (normalized === 'team') return t('codex_quota.plan_team');
