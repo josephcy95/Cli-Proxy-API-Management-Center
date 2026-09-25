@@ -533,13 +533,18 @@ export function parseRoutingStrategy(raw: unknown): RoutingStrategy {
 }
 
 /**
- * hasExcelKey reports whether the Excel provider section enables the Excel
- * models. An absent section, an empty sequence, or every entry marked disabled
- * all mean "off", which is what the switch reflects.
+ * hasExcelKey reports whether the Excel section enables the Excel models. An
+ * absent or empty section, or every entry switched off, all mean "off", which is
+ * what the switch reflects.
  */
 function hasExcelKey(value: unknown): boolean {
   if (!Array.isArray(value) || value.length === 0) return false;
-  return value.some((entry) => !asRecord(entry)?.disabled);
+  return value.some((entry) => {
+    const record = asRecord(entry);
+    if (!record) return false;
+    if (record.disabled === true) return false;
+    return record.enabled !== false;
+  });
 }
 
 export function parseDisableImageGenerationMode(raw: unknown): DisableImageGenerationMode {
@@ -1449,12 +1454,12 @@ export function useVisualConfig() {
           );
         }
         if (dirtyFields.has('excelModelsEnabled')) {
-          // The switch only manages the presence of the section. Reuse-only
-          // mode is the only shape that needs no extra input from the operator.
+          // The switch only manages the presence of the section: an empty entry
+          // enables the models using the Codex credentials already loaded.
           if (values.excelModelsEnabled) {
             const existing = doc.getIn(['excel-api-key']);
             if (!isSeq(existing) || existing.items.length === 0) {
-              doc.setIn(['excel-api-key'], doc.createNode([{ 'use-codex-auths': true }]));
+              doc.setIn(['excel-api-key'], doc.createNode([{}]));
             }
           } else {
             doc.deleteIn(['excel-api-key']);

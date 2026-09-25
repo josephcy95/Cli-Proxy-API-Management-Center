@@ -35,17 +35,16 @@ function applyChange(
 }
 
 describe('visual config excel models switch', () => {
-  test('enabling writes a borrow-mode provider entry', () => {
+  test('enabling writes a provider entry', () => {
     const result = applyChange('debug: false\n', { excelModelsEnabled: true });
 
-    // The section must exist and request token reuse, which is the only input
-    // the operator needs to supply.
-    expect(result['excel-api-key']).toEqual([{ 'use-codex-auths': true }]);
+    // An empty entry is enough: the Codex credentials already loaded are used.
+    expect(result['excel-api-key']).toEqual([{}]);
   });
 
   test('disabling removes the section entirely', () => {
     const result = applyChange(
-      'debug: false\nexcel-api-key:\n  - use-codex-auths: true\n',
+      'debug: false\nexcel-api-key:\n  - {}\n',
       { excelModelsEnabled: false }
     );
 
@@ -58,11 +57,9 @@ describe('visual config excel models switch', () => {
   test('enabling preserves an operator-authored section', () => {
     // A hand-written entry (e.g. an explicit token) must not be replaced by the
     // switch, or the operator would silently lose their configuration.
-    const existing = [
-      { 'access-token': 'token-abc', 'account-id': 'acct-1', 'base-url': 'https://example.invalid' },
-    ];
+    const existing = [{ 'base-url': 'https://example.invalid', headers: { 'X-Custom': 'value' } }];
     const result = applyChange(
-      `debug: false\nexcel-api-key:\n  - access-token: token-abc\n    account-id: acct-1\n    base-url: https://example.invalid\n`,
+      `debug: false\nexcel-api-key:\n  - base-url: https://example.invalid\n    headers:\n      X-Custom: value\n`,
       { excelModelsEnabled: true }
     );
 
@@ -72,11 +69,8 @@ describe('visual config excel models switch', () => {
   test('an entry marked disabled reads as off', () => {
     // A disabled entry registers nothing, so the switch must show off rather
     // than claiming the models are available.
-    const result = applyChange(
-      'debug: false\nexcel-api-key:\n  - use-codex-auths: true\n    disabled: true\n',
-      {}
-    );
+    const result = applyChange('debug: false\nexcel-api-key:\n  - disabled: true\n', {});
 
-    expect(result['excel-api-key']).toEqual([{ 'use-codex-auths': true, disabled: true }]);
+    expect(result['excel-api-key']).toEqual([{ disabled: true }]);
   });
 });
