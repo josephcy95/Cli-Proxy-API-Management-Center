@@ -10,6 +10,7 @@ export type VisualSectionId =
   | 'network'
   | 'logging'
   | 'quota'
+  | 'excel'
   | 'streaming'
   | 'advanced'
   | 'payload';
@@ -285,6 +286,14 @@ export const CONFIG_FIELD_SEARCH_INDEX: ConfigFieldSearchEntry[] = [
     sectionId: 'quota',
     labelKey: L('sections.quota.antigravity_credits'),
     yamlKeys: ['quota-exceeded', 'antigravity-credits'],
+  },
+  // ── excel ─────────────────────────────────────────────────────────────────
+  {
+    fieldId: 'excelModelsEnabled',
+    sectionId: 'excel',
+    labelKey: L('sections.excel.enabled'),
+    hintKey: L('sections.excel.enabled_desc'),
+    yamlKeys: ['excel-api-key'],
   },
   // ── streaming ─────────────────────────────────────────────────────────────
   {

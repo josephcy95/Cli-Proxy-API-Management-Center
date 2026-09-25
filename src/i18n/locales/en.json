@@ -1509,6 +1509,13 @@
           "switch_preview_model_desc": "Switch to preview model version when quota is exceeded",
           "antigravity_credits": "Use Antigravity Credits"
         },
+        "excel": {
+          "title": "Excel Models",
+          "nav_title": "Excel",
+          "description": "Serve Codex clients from the ChatGPT Excel add-in backend. Off by default.",
+          "enabled": "Enable Excel models",
+          "enabled_desc": "Registers the Excel-backed model aliases (gpt-6-astra-excel, gpt-5.6-luna-excel, gpt-5.6-terra-excel, gpt-5.6-sol-excel) for all loaded Codex accounts and routes them to the ChatGPT Excel add-in backend, which does not silently substitute the requested model. Uses the ChatGPT credentials already loaded as Codex accounts, so no extra sign-in is needed. This route cannot use max reasoning effort, and the backend injects an Excel-specific system prompt that your own instructions override."
+        },
         "streaming": {
           "title": "Streaming Configuration",
           "nav_title": "Streaming",

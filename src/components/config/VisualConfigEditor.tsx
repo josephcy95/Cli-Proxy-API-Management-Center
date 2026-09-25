@@ -21,6 +21,7 @@ import {
   IconSatellite,
   IconScrollText,
   IconSearch,
+  IconModelCluster,
   IconShield,
   IconTimer,
   type IconProps,
@@ -443,6 +444,13 @@ export function VisualConfigEditor({
         title: t('config_management.visual.sections.quota.title'),
         navTitle: t('config_management.visual.sections.quota.nav_title'),
         icon: IconTimer,
+        errorCount: 0,
+      },
+      {
+        id: 'excel',
+        title: t('config_management.visual.sections.excel.title'),
+        navTitle: t('config_management.visual.sections.excel.nav_title'),
+        icon: IconModelCluster,
         errorCount: 0,
       },
       {
@@ -1291,6 +1299,29 @@ export function VisualConfigEditor({
                     checked={values.quotaAntigravityCredits}
                     disabled={disabled}
                     onChange={(quotaAntigravityCredits) => onChange({ quotaAntigravityCredits })}
+                  />
+                </FieldAnchor>
+              </SectionGrid>
+            </ConfigSection>
+
+            <ConfigSection
+              id="excel"
+              ref={(node) => {
+                sectionRefs.current.excel = node;
+              }}
+
+              icon={<IconModelCluster size={16} />}
+              title={t('config_management.visual.sections.excel.title')}
+              description={t('config_management.visual.sections.excel.description')}
+            >
+              <SectionGrid>
+                <FieldAnchor fieldId="excelModelsEnabled">
+                  <ToggleRow
+                    title={t('config_management.visual.sections.excel.enabled')}
+                    description={t('config_management.visual.sections.excel.enabled_desc')}
+                    checked={values.excelModelsEnabled}
+                    disabled={disabled}
+                    onChange={(excelModelsEnabled) => onChange({ excelModelsEnabled })}
                   />
                 </FieldAnchor>
               </SectionGrid>

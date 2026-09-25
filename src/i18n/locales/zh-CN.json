@@ -1286,6 +1286,13 @@
           "antigravity_credits": "使用Antigravity Credits",
           "nav_title": "配额"
         },
+        "excel": {
+          "title": "Excel 模型",
+          "nav_title": "Excel",
+          "description": "通过 ChatGPT Excel 加载项后端为 Codex 客户端提供服务。默认关闭。",
+          "enabled": "启用 Excel 模型",
+          "enabled_desc": "为所有已加载的 Codex 账号注册 Excel 模型别名（gpt-6-astra-excel、gpt-5.6-luna-excel、gpt-5.6-terra-excel、gpt-5.6-sol-excel），并路由到 ChatGPT Excel 加载项后端，该后端不会偷偷替换你请求的模型。直接复用已加载的 Codex 账号凭证，无需额外登录。该通道不支持 max 推理档位，且后端会注入 Excel 专用系统提示词，你的指令会覆盖它。"
+        },
         "streaming": {
           "title": "流式传输配置",
           "description": "Keepalive 与 bootstrap 重试设置",

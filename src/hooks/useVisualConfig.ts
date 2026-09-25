@@ -532,6 +532,16 @@ export function parseRoutingStrategy(raw: unknown): RoutingStrategy {
   return 'round-robin';
 }
 
+/**
+ * hasExcelKey reports whether the Excel provider section enables the Excel
+ * models. An absent section, an empty sequence, or every entry marked disabled
+ * all mean "off", which is what the switch reflects.
+ */
+function hasExcelKey(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length === 0) return false;
+  return value.some((entry) => !asRecord(entry)?.disabled);
+}
+
 export function parseDisableImageGenerationMode(raw: unknown): DisableImageGenerationMode {
   if (raw === true) return 'true';
   if (typeof raw === 'string') {
@@ -966,6 +976,7 @@ function getNextDirtyFields(
       'passthroughHeaders',
       'disableCooling',
       'disableImageGeneration',
+      'excelModelsEnabled',
       'gptImage2BaseModel',
       'authAutoRefreshWorkers',
       'antigravitySignatureCacheEnabled',
@@ -1211,6 +1222,7 @@ export function useVisualConfig() {
         maxRetryInterval: String(parsed['max-retry-interval'] ?? ''),
         disableCooling: Boolean(parsed['disable-cooling']),
         disableImageGeneration: parseDisableImageGenerationMode(parsed['disable-image-generation']),
+        excelModelsEnabled: hasExcelKey(parsed['excel-api-key']),
         gptImage2BaseModel:
           typeof parsed['gpt-image-2-base-model'] === 'string'
             ? parsed['gpt-image-2-base-model']
@@ -1435,6 +1447,18 @@ export function useVisualConfig() {
             ['disable-image-generation'],
             values.disableImageGeneration
           );
+        }
+        if (dirtyFields.has('excelModelsEnabled')) {
+          // The switch only manages the presence of the section. Reuse-only
+          // mode is the only shape that needs no extra input from the operator.
+          if (values.excelModelsEnabled) {
+            const existing = doc.getIn(['excel-api-key']);
+            if (!isSeq(existing) || existing.items.length === 0) {
+              doc.setIn(['excel-api-key'], doc.createNode([{ 'use-codex-auths': true }]));
+            }
+          } else {
+            doc.deleteIn(['excel-api-key']);
+          }
         }
         if (dirtyFields.has('gptImage2BaseModel')) {
           setStringInDoc(doc, ['gpt-image-2-base-model'], values.gptImage2BaseModel);
