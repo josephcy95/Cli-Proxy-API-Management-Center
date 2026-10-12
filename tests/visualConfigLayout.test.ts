@@ -18,9 +18,9 @@ api-keys:
   codex:
     - name: paid
       keys: [{api-key: upstream-key}]
-  excel:
-    - name: custom
-      keys: [{}]
+  future-provider:
+    - name: retained
+      keys: [{api-key: future-key}]
 requests:
   payload:
     default: [] # preserve payload
@@ -39,7 +39,6 @@ describe('fork visual editor canonical YAML compatibility', () => {
     expect(config.visualValues.port).toBe('8317');
     expect(config.visualValues.debug).toBe(false);
     expect(config.visualValues.apiKeysText).toBe('client-key\tJoseph');
-    expect(config.visualValues.excelModelsEnabled).toBe(true);
     expect(parseDocument(config.applyVisualChangesToYaml(yaml)).toJS()).toEqual(
       parseDocument(yaml).toJS()
     );
@@ -60,20 +59,16 @@ describe('fork visual editor canonical YAML compatibility', () => {
     expect(output).toContain('future-policy: retained');
     expect(output).toContain('content: private');
   });
-  test('empty client keys delete access keys only; Excel toggle preserves other groups', () => {
+  test('empty client keys delete access keys only and preserve provider groups', () => {
     const output = runVisualConfig(yaml, [
-      { apiKeysText: '', excelModelsEnabled: false },
+      { apiKeysText: '' },
     ]).applyVisualChangesToYaml(yaml);
     const doc = parseDocument(output);
     expect(doc.hasIn(['access', 'api-keys'])).toBe(false);
-    expect(doc.hasIn(['api-keys', 'excel'])).toBe(false);
     expect(doc.hasIn(['api-keys', 'codex'])).toBe(true);
-    const enabled = runVisualConfig(output, [
-      { excelModelsEnabled: true },
-    ]).applyVisualChangesToYaml(output);
-    expect(parseDocument(enabled).toJS()['api-keys'].excel).toEqual([
-      { name: 'excel-1', keys: [{}] },
-    ]);
+    expect(doc.toJS()['api-keys']['future-provider']).toEqual(
+      parseDocument(yaml).toJS()['api-keys']['future-provider']
+    );
   });
   test('canonical false/null/empty wins while missing leaves fall back to legacy', () => {
     const doc = parseDocument(
@@ -87,14 +82,33 @@ describe('fork visual editor canonical YAML compatibility', () => {
     adapter.deleteIn(['remote-management', 'secret-key']);
     expect(doc.hasIn(['remote-management', 'secret-key'])).toBe(false);
   });
-  test('enabling preserves existing disabled Excel groups and their keys/policies', () => {
-    const source =
-      'api-keys:\n  excel:\n    - name: operator-group\n      disabled: true\n      future: retained\n      keys: [{api-key: configured-key, disabled: true}]\n';
-    const config = runVisualConfig(source, [{ excelModelsEnabled: true }]);
-    const output = config.applyVisualChangesToYaml(source);
-    expect(parseDocument(output).toJS()['api-keys'].excel).toEqual(
-      parseDocument(source).toJS()['api-keys'].excel
-    );
+  test('retired sections are pruned on save without changing unrelated configuration', () => {
+    for (const retired of [
+      'excel-api-key: [{base-url: https://retired.invalid, disabled: false}]\n',
+      'api-keys:\n  excel: [{name: old, keys: [{}]}]\n',
+      'excel-api-key: [{}]\napi-keys:\n  excel: [{name: old, keys: [{}]}]\n',
+    ]) {
+      const source = retired +
+        'access: {api-keys: [client-key]}\n' +
+        'oauth: {providers: {codex: {private-instructions: {content: private}}}}\n' +
+        'future: {retained: true}\n';
+      const config = runVisualConfig(source);
+      expect(config.visualParseError).toBeNull();
+      const saved = parseDocument(config.applyVisualChangesToYaml(source));
+      expect(saved.hasIn(['excel-api-key'])).toBe(false);
+      expect(saved.hasIn(['api-keys', 'excel'])).toBe(false);
+      expect(saved.toJS().access).toEqual(parseDocument(source).toJS().access);
+      expect(saved.toJS().oauth).toEqual(parseDocument(source).toJS().oauth);
+      expect(saved.toJS().future).toEqual({ retained: true });
+    }
+    const source = yaml.replace('api-keys:\n  codex:', 'api-keys:\n  excel: [{keys: [{}]}]\n  codex:') + 'excel-api-key: [{}]\n';
+    const saved = parseDocument(runVisualConfig(source).applyVisualChangesToYaml(source));
+    expect(saved.hasIn(['excel-api-key'])).toBe(false);
+    expect(saved.toJS()['api-keys']).toEqual(parseDocument(yaml).toJS()['api-keys']);
+    const legacy = 'excel-api-key: [{}]\napi-keys:\n  - client-key # Named\ndebug: false\n';
+    const legacyOutput = runVisualConfig(legacy).applyVisualChangesToYaml(legacy);
+    expect(parseDocument(legacyOutput).toJS()).toEqual({ 'api-keys': ['client-key'], debug: false });
+    expect(legacyOutput).toContain('# Named');
   });
   test('routing-only canonical YAML writes the canonical retry leaf', () => {
     const source = 'request-retry: 9\nrouting: {retry: {request-retry: 3}}\n';

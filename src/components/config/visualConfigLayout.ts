@@ -178,24 +178,16 @@ export function readVisualConfigRecord(doc: YamlDocument): RecordValue {
         : effective.getIn(path);
     assignPath(view, oldPath, mergePresent(oldValue, value));
   }
-  if (doc.hasIn(['api-keys', 'excel'])) {
-    const rawGroups = (doc.toJS() as RecordValue)['api-keys'];
-    const groups = record(rawGroups) ? rawGroups.excel : undefined;
-    view['excel-api-key'] = Array.isArray(groups)
-      ? groups.flatMap((group) => {
-          if (!record(group) || !Array.isArray(group.keys)) return [];
-          return group.keys.map((key) => ({
-            ...(record(key) ? key : {}),
-            ...(group.disabled === true ? { disabled: true } : {}),
-          }));
-        })
-      : [];
-  }
   return view;
 }
 
 /** Route dirty writes into an existing v8 document without migrating legacy-only YAML. */
 export function visualConfigDocument(doc: YamlDocument): YamlDocument {
+  // Retired model routes must not survive a visual save of an older configuration.
+  doc.deleteIn(['excel-api-key']);
+  if (isMap(doc.getIn(['api-keys'], true))) {
+    doc.deleteIn(['api-keys', 'excel']);
+  }
   const v8 =
     [
       'server',
@@ -214,7 +206,6 @@ export function visualConfigDocument(doc: YamlDocument): YamlDocument {
   const translate = (path: Iterable<unknown>): string[] => {
     const parts = Array.from(path, String);
     if (!v8) return parts;
-    if (parts[0] === 'excel-api-key') return ['api-keys', 'excel', ...parts.slice(1)];
     const text = parts.join('.');
     const mapping = mappings.find(([old]) => text === old || text.startsWith(old + '.'));
     return mapping
@@ -272,9 +263,7 @@ export function visualConfigDocument(doc: YamlDocument): YamlDocument {
           const original = Array.from(path, String);
           const canonical = translate(original);
           parents(canonical);
-          if (v8 && original[0] === 'excel-api-key') {
-            target.setIn(canonical, target.createNode([{ name: 'excel-1', keys: [{}] }]));
-          } else target.setIn(canonical, value);
+          target.setIn(canonical, value);
           if (canonical.join('.') !== original.join('.')) safeLegacyDelete(original);
           if (v8) clearHistorical(canonical);
         };

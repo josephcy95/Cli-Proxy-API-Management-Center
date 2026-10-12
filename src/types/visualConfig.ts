@@ -118,7 +118,6 @@ export type VisualConfigValues = {
   maxRetryInterval: string;
   disableCooling: boolean;
   disableImageGeneration: DisableImageGenerationMode;
-  excelModelsEnabled: boolean;
   gptImage2BaseModel: string;
   authAutoRefreshWorkers: string;
   quotaSwitchProject: boolean;
@@ -184,7 +183,6 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   maxRetryInterval: '',
   disableCooling: false,
   disableImageGeneration: 'false',
-  excelModelsEnabled: false,
   gptImage2BaseModel: '',
   authAutoRefreshWorkers: '',
   quotaSwitchProject: true,
