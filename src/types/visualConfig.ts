@@ -87,6 +87,7 @@ export type PluginStoreAuthRule = {
 };
 
 export type VisualConfigValues = {
+  githubToken: string;
   host: string;
   port: string;
   tlsEnable: boolean;
@@ -152,6 +153,7 @@ export const makeClientId = () => {
 };
 
 export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
+  githubToken: '',
   host: '',
   port: '',
   tlsEnable: false,

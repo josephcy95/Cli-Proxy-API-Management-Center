@@ -198,24 +198,24 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     setQuota((prev) => {
       const nextState: Record<string, TState> = {};
       filteredFiles.forEach((file) => {
-        const cached = prev[file.name];
+        const cached = prev[config.cacheKey?.(file) ?? file.name];
         if (cached) {
-          nextState[file.name] = cached;
+          nextState[config.cacheKey?.(file) ?? file.name] = cached;
         }
       });
       return nextState;
     });
-  }, [filteredFiles, loading, setQuota]);
+  }, [filteredFiles, loading, setQuota, config]);
 
   const refreshQuotaForFile = useCallback(
     async (file: AuthFileItem) => {
       if (disabled || file.disabled) return;
-      if (quota[file.name]?.status === 'loading') return;
+      if (quota[config.cacheKey?.(file) ?? file.name]?.status === 'loading') return;
       const cacheGeneration = captureQuotaCacheGeneration(file.name);
 
       setQuota((prev) => ({
         ...prev,
-        [file.name]: config.buildLoadingState(),
+        [config.cacheKey?.(file) ?? file.name]: config.buildLoadingState(),
       }));
 
       try {
@@ -230,7 +230,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
         commitIfQuotaCacheCurrent(cacheGeneration, () => {
           setQuota((prev) => ({
             ...prev,
-            [file.name]: config.buildSuccessState(data),
+            [config.cacheKey?.(file) ?? file.name]: config.buildSuccessState(data),
           }));
           showNotification(t('auth_files.quota_refresh_success', { name: file.name }), 'success');
         });
@@ -240,7 +240,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
         commitIfQuotaCacheCurrent(cacheGeneration, () => {
           setQuota((prev) => ({
             ...prev,
-            [file.name]: config.buildErrorState(message, status),
+            [config.cacheKey?.(file) ?? file.name]: config.buildErrorState(message, status),
           }));
           showNotification(
             t('auth_files.quota_refresh_failed', { name: file.name, message }),
@@ -257,7 +257,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
       const resetQuota = config.resetQuota;
       if (!resetQuota) return;
       if (disabled || file.disabled) return;
-      if (quota[file.name]?.status === 'loading') return;
+      if (quota[config.cacheKey?.(file) ?? file.name]?.status === 'loading') return;
       if (resettingQuotaName === file.name) return;
 
       showConfirmation({
@@ -278,7 +278,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
             commitIfQuotaCacheCurrent(cacheGeneration, () => {
               setQuota((prev) => ({
                 ...prev,
-                [file.name]: config.buildSuccessState(data),
+                [config.cacheKey?.(file) ?? file.name]: config.buildSuccessState(data),
               }));
               showNotification(t('codex_quota.reset_success', { name: file.name }), 'success');
             });
@@ -368,7 +368,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
         <>
           <div ref={gridRef} className={config.gridClassName}>
             {pageItems.map((item) => {
-              const itemQuota = quota[item.name];
+              const itemQuota = quota[config.cacheKey?.(item) ?? item.name];
               const isResettingQuota = resettingQuotaName === item.name;
               const canUseQuotaAction =
                 !disabled && !item.disabled && itemQuota?.status !== 'loading';
@@ -394,7 +394,7 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
 
               return (
                 <QuotaCard
-                  key={item.name}
+                  key={config.cacheKey?.(item) ?? item.name}
                   item={item}
                   quota={itemQuota}
                   resolvedTheme={resolvedTheme}

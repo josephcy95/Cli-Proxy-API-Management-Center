@@ -43,7 +43,10 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
       const requestId = ++requestIdRef.current;
       const cacheGeneration = captureQuotaCacheGeneration();
       const fileGenerations = new Map(
-        targets.map((file) => [file.name, captureQuotaCacheGeneration(file.name)])
+        targets.map((file) => [
+          config.cacheKey?.(file) ?? file.name,
+          captureQuotaCacheGeneration(file.name),
+        ])
       );
       setLoading(true);
 
@@ -53,7 +56,7 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
         setQuota((prev) => {
           const nextState = { ...prev };
           targets.forEach((file) => {
-            nextState[file.name] = config.buildLoadingState();
+            nextState[config.cacheKey?.(file) ?? file.name] = config.buildLoadingState();
           });
           return nextState;
         });
@@ -62,11 +65,16 @@ export function useQuotaLoader<TState, TData>(config: QuotaConfig<TState, TData>
           targets.map(async (file): Promise<LoadQuotaResult<TData>> => {
             try {
               const data = await config.fetchQuota(file, t);
-              return { name: file.name, status: 'success', data };
+              return { name: config.cacheKey?.(file) ?? file.name, status: 'success', data };
             } catch (err: unknown) {
               const message = err instanceof Error ? err.message : t('common.unknown_error');
               const errorStatus = getStatusFromError(err);
-              return { name: file.name, status: 'error', error: message, errorStatus };
+              return {
+                name: config.cacheKey?.(file) ?? file.name,
+                status: 'error',
+                error: message,
+                errorStatus,
+              };
             }
           })
         );

@@ -6,6 +6,8 @@ import { apiClient } from './client';
 import type { AuthFilesResponse } from '@/types/authFile';
 import type { OAuthModelAliasEntry } from '@/types';
 import { normalizeOAuthProviderKey } from '@/utils/providerKeys';
+import { isPluginQuotaFile } from '@/utils/quota/validators';
+import { normalizeAuthIndex } from '@/utils/authIndex';
 import { parseTimestampMs } from '@/utils/timestamp';
 
 type StatusError = { status?: number };
@@ -236,7 +238,11 @@ const dedupeAuthFilesResponse = (payload: AuthFilesResponse): AuthFilesResponse 
 
   files.forEach((entry) => {
     const name = readTextField(entry, 'name');
-    const key = name || JSON.stringify(entry);
+    const authIndex = normalizeAuthIndex(entry.authIndex ?? entry['auth_index']);
+    const key =
+      name && isPluginQuotaFile(entry) && authIndex
+        ? `${name}\0${authIndex}`
+        : name || JSON.stringify(entry);
     const bucket = grouped.get(key);
     if (bucket) {
       bucket.push(entry);

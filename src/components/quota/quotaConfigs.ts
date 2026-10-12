@@ -4,6 +4,9 @@ import { resolveKimiQuotaUrl } from '@/services/api/kimiQuota';
  */
 
 import React from 'react';
+import { fetchPluginQuota, type PluginQuotaData } from '@/services/api/pluginQuota';
+import { guardConfigConnection } from '@/services/api/connectionGuard';
+import { isRecord } from '@/utils/helpers';
 import type { ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import type {
@@ -17,6 +20,7 @@ import type {
   ClaudeQuotaState,
   ClaudeQuotaWindow,
   ClaudeUsageLimit,
+  ClaudeUsageWindow,
   ClaudeUsagePayload,
   CodexRateLimitInfo,
   CodexRateLimitResetCredit,
@@ -26,6 +30,7 @@ import type {
   CodexUsagePayload,
   DevinQuotaData,
   DevinQuotaState,
+  PluginQuotaState,
   MetaQuotaData,
   MetaQuotaState,
   KimiQuotaRow,
@@ -101,6 +106,8 @@ import {
   isPaidXaiAuthFile,
   isXaiFile,
   isDevinFile,
+  isPluginQuotaFile,
+  getQuotaCacheKey,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/authIndex';
 import { formatDateTimeValue, formatRelativeTimeLabel, toEpochMs } from '@/utils/format';
@@ -120,7 +127,16 @@ import styles from '@/pages/QuotaPage.module.scss';
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
 type QuotaType =
-  'antigravity' | 'claude' | 'codex' | 'devin' | 'kimi' | 'meta' | 'qodercn' | 'qoder' | 'xai';
+  | 'antigravity'
+  | 'claude'
+  | 'codex'
+  | 'devin'
+  | 'kimi'
+  | 'meta'
+  | 'qodercn'
+  | 'qoder'
+  | 'xai'
+  | 'plugin';
 
 type AntigravityQuotaData = {
   groups: AntigravityQuotaGroup[];
@@ -183,6 +199,8 @@ export interface QuotaStore {
   qodercnQuota: Record<string, QoderCNQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   devinQuota: Record<string, DevinQuotaState>;
+  pluginQuota: Record<string, PluginQuotaState>;
+  setPluginQuota: (updater: QuotaUpdater<Record<string, PluginQuotaState>>) => void;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
@@ -196,6 +214,7 @@ export interface QuotaStore {
 
 export interface QuotaConfig<TState, TData> {
   type: QuotaType;
+  cacheKey?: (file: AuthFileItem) => string;
   i18nPrefix: string;
   filterFn: (file: AuthFileItem) => boolean;
   fetchQuota: (file: AuthFileItem, t: TFunction) => Promise<TData>;
@@ -829,15 +848,29 @@ const consumeCodexRateLimitResetCredit = async (
   if (result.statusCode < 200 || result.statusCode >= 300) {
     throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
   }
+  const code = isRecord(result.body) ? result.body.code : undefined;
+  if (code !== 'reset' && code !== 'already_redeemed') {
+    throw new Error(t('codex_quota.reset_not_confirmed'));
+  }
 };
 
 const resetCodexQuota = async (file: AuthFileItem, t: TFunction): Promise<CodexQuotaData> => {
+  const assertConnection = guardConfigConnection();
   await consumeCodexRateLimitResetCredit(file, t);
   const authIndex = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
   if (!authIndex) {
     throw new Error(t('codex_quota.missing_auth_index'));
   }
-  await authFilesApi.resetQuota(authIndex);
+  try {
+    assertConnection();
+    const result = await authFilesApi.resetQuota(authIndex);
+    assertConnection();
+    if (result.status !== 'ok' || result.auth_index !== authIndex) {
+      throw new Error('Invalid quota reset response');
+    }
+  } catch {
+    throw new Error(t('codex_quota.reset_cooldown_failed'));
+  }
   return fetchCodexQuota(file, t);
 };
 
@@ -941,7 +974,8 @@ const getAntigravityPlanLabel = (
 const renderAntigravityItems = (
   quota: AntigravityQuotaState,
   t: TFunction,
-  helpers: QuotaRenderHelpers
+  helpers: QuotaRenderHelpers,
+  showEmptyMessage = true
 ): ReactNode => {
   const { styles: styleMap, QuotaProgressBar } = helpers;
   const { createElement: h, Fragment } = React;
@@ -971,7 +1005,7 @@ const renderAntigravityItems = (
   }
 
   if (groups.length === 0) {
-    nodes.push(
+    if (showEmptyMessage) nodes.push(
       h(
         'div',
         { key: 'empty', className: styleMap.quotaMessage },
@@ -1299,15 +1333,33 @@ export const buildClaudeQuotaWindows = (
     });
   }
 
+  const hasGenericWindows = windows.length > 0;
+  const creditWindow = payload.iguana_necktie;
+  const hasCloudCredits =
+    creditWindow &&
+    [creditWindow.limit_dollars, creditWindow.used_dollars, creditWindow.remaining_dollars].some(
+      (value) => normalizeNumberValue(value) !== null
+    );
+  if (hasCloudCredits) {
+    windows.push({
+      id: 'cloud-session-credits',
+      label: t('claude_quota.cloud_session_credits'),
+      labelKey: 'claude_quota.cloud_session_credits',
+      usedPercent: normalizeNumberValue(creditWindow.utilization),
+      resetLabel: formatQuotaResetTime(creditWindow.resets_at ?? undefined),
+      resetAt: toEpochMs(creditWindow.resets_at),
+    });
+  }
+
   // Fall back to the legacy named windows only when limits[] gave us nothing,
   // so older backends keep working.
-  if (windows.length > 0) return windows;
+  if (hasGenericWindows) return windows;
 
   for (const { key, id, labelKey } of CLAUDE_USAGE_WINDOW_KEYS) {
-    if (seen.has(id)) continue;
+    if (seen.has(id) || (key === 'iguana_necktie' && hasCloudCredits)) continue;
     const window = payload[key as keyof ClaudeUsagePayload];
     if (!window || typeof window !== 'object' || !('utilization' in window)) continue;
-    const typedWindow = window as { utilization: number; resets_at: string };
+    const typedWindow = window as ClaudeUsageWindow;
     const usedPercent = normalizeNumberValue(typedWindow.utilization);
     const resetLabel = formatQuotaResetTime(typedWindow.resets_at);
     windows.push({
@@ -2025,7 +2077,6 @@ const renderXaiItems = (
     ...billing.productUsage.map((item) => {
       const used =
         item.usagePercent === null ? null : Math.max(0, Math.min(100, item.usagePercent));
-      const remainingPercent = used === null ? null : Math.max(0, Math.min(100, 100 - used));
       return h(
         'div',
         { key: `product-${item.product}`, className: styleMap.quotaRow },
@@ -2048,12 +2099,7 @@ const renderXaiItems = (
               })
             )
           )
-        ),
-        h(QuotaProgressBar, {
-          percent: remainingPercent,
-          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
-          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
-        })
+        )
       );
     }),
     onDemandCap > 0
@@ -2609,4 +2655,52 @@ export const DEVIN_CONFIG: QuotaConfig<DevinQuotaState, DevinQuotaData> = {
   cardClassName: styles.xaiCard,
   gridClassName: styles.xaiGrid,
   renderQuotaItems: renderDevinItems,
+};
+
+export const PLUGIN_CONFIG: QuotaConfig<PluginQuotaState, PluginQuotaData> = {
+  type: 'plugin',
+  cacheKey: getQuotaCacheKey,
+  i18nPrefix: 'plugin_quota',
+  filterFn: (file) => isPluginQuotaFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchPluginQuota,
+  storeSelector: (state) => state.pluginQuota,
+  storeSetter: 'setPluginQuota',
+  buildLoadingState: () => ({ status: 'loading', groups: [], summary: [] }),
+  buildSuccessState: (data) => ({ status: 'success', ...data }),
+  buildErrorState: (error, errorStatus) => ({
+    status: 'error',
+    groups: [],
+    summary: [],
+    error,
+    errorStatus,
+  }),
+  cardClassName: styles.antigravityCard,
+  gridClassName: styles.antigravityGrid,
+  renderQuotaItems: (quota, t, helpers) => {
+    const { createElement: h, Fragment } = React;
+    return h(
+      Fragment,
+      null,
+      ...quota.summary.map((metric) => {
+        const value =
+          metric.format === 'currency' && metric.currency
+            ? new Intl.NumberFormat(undefined, {
+                style: 'currency',
+                currency: metric.currency,
+              }).format(metric.value)
+            : new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(metric.value);
+        return h(
+          'div',
+          { key: metric.key, className: helpers.styles.quotaRow },
+          h('span', { className: helpers.styles.quotaModel }, metric.label),
+          h(
+            'span',
+            { className: helpers.styles.quotaPercent },
+            metric.unit ? `${value} ${metric.unit}` : value
+          )
+        );
+      }),
+      renderAntigravityItems(quota, t, helpers, quota.summary.length === 0)
+    );
+  },
 };

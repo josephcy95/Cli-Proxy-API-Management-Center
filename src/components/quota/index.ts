@@ -15,5 +15,6 @@ export {
   QODER_CONFIG,
   XAI_CONFIG,
   DEVIN_CONFIG,
+  PLUGIN_CONFIG,
 } from './quotaConfigs';
 export type { QuotaConfig } from './quotaConfigs';

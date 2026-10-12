@@ -29,7 +29,9 @@ describe('Codex banked quota reset', () => {
     const calls: string[] = [];
     apiCallApi.request = async (request) => {
       calls.push(request.url);
-      return ok();
+      return ok(
+        request.url === CODEX_RATE_LIMIT_RESET_CREDITS_CONSUME_URL ? { code: 'reset' } : {}
+      );
     };
     authFilesApi.resetQuota = async (authIndex) => {
       calls.push(`reset:${authIndex}`);

@@ -18,6 +18,7 @@ import {
   QODER_CONFIG,
   XAI_CONFIG,
   DEVIN_CONFIG,
+  PLUGIN_CONFIG,
 } from '@/components/quota';
 import type { AuthFileItem } from '@/types';
 import styles from './QuotaPage.module.scss';
@@ -123,6 +124,14 @@ export function QuotaPage() {
       {files.some(QODER_CONFIG.filterFn) && (
         <QuotaSection
           config={QODER_CONFIG}
+          files={files}
+          loading={loading}
+          disabled={disableControls}
+        />
+      )}
+      {files.some(PLUGIN_CONFIG.filterFn) && (
+        <QuotaSection
+          config={PLUGIN_CONFIG}
           files={files}
           loading={loading}
           disabled={disableControls}

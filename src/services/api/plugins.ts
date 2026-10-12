@@ -116,6 +116,8 @@ const normalizePluginEntry = (value: unknown): PluginListEntry | null => {
     enabled: value.enabled !== false,
     effectiveEnabled: asBoolean(value.effective_enabled),
     supportsOAuth,
+    supportsQuota: asBoolean(value.supports_quota),
+    quotaProvider: asString(value.quota_provider).trim().toLowerCase() || undefined,
     oauthProvider: oauthProvider ?? legacyOAuthProvider,
     logo: asString(value.logo || metadata?.logo).trim(),
     configFields: configFields.length > 0 ? configFields : (metadata?.configFields ?? []),

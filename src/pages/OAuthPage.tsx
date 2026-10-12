@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { IconPlug } from '@/components/ui/icons';
 import { useAuthStore, useNotificationStore, useThemeStore } from '@/stores';
 import { oauthApi, pluginsApi, type BuiltInOAuthProvider } from '@/services/api';
+import { apiClient } from '@/services/api/client';
 import { vertexApi, type VertexImportResponse } from '@/services/api/vertex';
 import { copyToClipboard } from '@/utils/clipboard';
 import { getErrorMessage, isRecord } from '@/utils/helpers';
@@ -323,6 +324,8 @@ export function OAuthPage() {
     loading: false,
   });
   const pollingTimers = useRef<Partial<Record<string, number>>>({});
+  const mounted = useRef(true);
+  const activeSessions = useRef<Partial<Record<string, string>>>({});
   const successResetTimers = useRef<Partial<Record<string, number>>>({});
   const vertexFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -338,7 +341,9 @@ export function OAuthPage() {
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     return () => {
+      mounted.current = false;
       clearTimers();
     };
   }, [clearTimers]);
@@ -387,6 +392,7 @@ export function OAuthPage() {
   };
 
   const updateProviderState = (provider: string, next: Partial<ProviderState>) => {
+    if ('state' in next) activeSessions.current[provider] = next.state;
     setStates((prev) => ({
       ...prev,
       [provider]: { ...(prev[provider] ?? {}), ...next },
@@ -416,6 +422,7 @@ export function OAuthPage() {
 
   const resetProviderAttempt = (provider: string) => {
     clearProviderTimers(provider);
+    delete activeSessions.current[provider];
     setStates((prev) => {
       return {
         ...prev,
@@ -548,6 +555,12 @@ export function OAuthPage() {
   };
 
   const submitCallback = async (provider: string) => {
+    const sessionState = activeSessions.current[provider];
+    const connectionRevision = apiClient.getConnectionRevision();
+    const isCurrent = () =>
+      mounted.current &&
+      connectionRevision === apiClient.getConnectionRevision() &&
+      sessionState === activeSessions.current[provider];
     const callbackInput = (states[provider]?.callbackUrl || '').trim();
     if (!callbackInput) {
       showNotification(
@@ -584,9 +597,15 @@ export function OAuthPage() {
     });
     try {
       await oauthApi.submitCallback(provider, redirectUrl);
+      if (!isCurrent()) return;
       updateProviderState(provider, { callbackSubmitting: false, callbackStatus: 'success' });
+      if (sessionState && pollingTimers.current[provider] === undefined) {
+        updateProviderState(provider, { status: 'waiting', error: undefined, polling: true });
+        startPolling(provider, sessionState);
+      }
       showNotification(t('auth_login.oauth_callback_success'), 'success');
     } catch (err: unknown) {
+      if (!isCurrent()) return;
       const status = getErrorStatus(err);
       const message = getErrorMessage(err);
       const errorMessage =

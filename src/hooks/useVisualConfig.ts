@@ -1003,6 +1003,7 @@ function getNextDirtyFields(
       'claudeHeaderStabilizeDeviceProfile',
       'codexHeaderUserAgent',
       'codexHeaderBetaFeatures',
+      'githubToken',
       'host',
       'port',
       'tlsEnable',
@@ -1190,6 +1191,7 @@ export function useVisualConfig() {
       const codexHeaderDefaults = asRecord(parsed['codex-header-defaults']);
 
       const newValues: VisualConfigValues = {
+        githubToken: typeof parsed['github-token'] === 'string' ? parsed['github-token'] : '',
         host: typeof parsed.host === 'string' ? parsed.host : '',
         port: String(parsed.port ?? ''),
 
@@ -1338,6 +1340,8 @@ export function useVisualConfig() {
         const values = visualValues;
         const shouldWritePluginStoreAuth = dirtyFields.has('pluginStoreAuth');
 
+        if (dirtyFields.has('githubToken'))
+          setStringInDoc(doc, ['github-token'], values.githubToken);
         if (dirtyFields.has('host')) setStringInDoc(doc, ['host'], values.host);
         if (dirtyFields.has('port')) setIntFromStringInDoc(doc, ['port'], values.port);
 

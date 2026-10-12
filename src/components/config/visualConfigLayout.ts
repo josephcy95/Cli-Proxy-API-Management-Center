@@ -8,6 +8,7 @@ const PATHS: Array<[string, string]> = [
   ['model-context-overrides', 'routing.model-context-overrides'],
   ['desensitization', 'requests.desensitization'],
   ['qoder', 'oauth.providers.qoder'],
+  ['github-token', 'server.github-token'],
   ['host', 'server.host'],
   ['port', 'server.port'],
   ['trusted-proxies', 'server.trusted-proxies'],

@@ -851,6 +851,16 @@ export function VisualConfigEditor({
                 <SectionGrid>
                   {hostField}
                   {portField}
+                  <FieldAnchor fieldId="githubToken">
+                    <Input
+                      label={t('config_management.visual.sections.server.github_token')}
+                      hint={t('config_management.visual.sections.server.github_token_hint')}
+                      type="password"
+                      value={values.githubToken}
+                      onChange={(event) => onChange({ githubToken: event.target.value })}
+                      disabled={disabled}
+                    />
+                  </FieldAnchor>
                 </SectionGrid>
 
                 <FieldAnchor fieldId="authDir">

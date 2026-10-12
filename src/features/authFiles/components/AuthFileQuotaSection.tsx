@@ -11,6 +11,7 @@ import {
   QODER_CONFIG,
   XAI_CONFIG,
   DEVIN_CONFIG,
+  PLUGIN_CONFIG,
 } from '@/components/quota';
 import {
   codexQuotaHasAvailableCapacity,
@@ -26,6 +27,7 @@ import { authFilesApi } from '@/services/api';
 import type { AuthFileItem, CodexQuotaState } from '@/types';
 import {
   getStatusFromError,
+  getQuotaCacheKey,
   persistCodexQuotaSnapshot,
   codexQuotaPersistInputFromData,
   resolveCodexResetCredits,
@@ -104,6 +106,7 @@ const getQuotaConfig = (type: QuotaProviderType) => {
   if (type === 'qoder') return QODER_CONFIG;
   if (type === 'xai') return XAI_CONFIG;
   if (type === 'devin') return DEVIN_CONFIG;
+  if (type === 'plugin') return PLUGIN_CONFIG;
   return assertNever(type);
 };
 
@@ -149,6 +152,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       return state.qodercnQuota[file.name] as QuotaState;
     if (quotaType === 'xai') return state.xaiQuota[file.name] as QuotaState;
     if (quotaType === 'devin') return state.devinQuota[file.name] as QuotaState;
+    if (quotaType === 'plugin') return state.pluginQuota[getQuotaCacheKey(file)] as QuotaState;
     return assertNever(quotaType);
   });
 
@@ -164,6 +168,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       return state.setQoderCNQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'xai') return state.setXaiQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'devin') return state.setDevinQuota as unknown as (updater: unknown) => void;
+    if (quotaType === 'plugin')
+      return state.setPluginQuota as unknown as (updater: unknown) => void;
     return assertNever(quotaType);
   });
 
@@ -201,7 +207,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
 
     updateQuotaState((prev: Record<string, unknown>) => ({
       ...prev,
-      [file.name]: config.buildLoadingState(),
+      [quotaType === 'plugin' ? getQuotaCacheKey(file) : file.name]: config.buildLoadingState(),
     }));
 
     try {
@@ -218,7 +224,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       const applied = commitIfQuotaCacheCurrent(cacheGeneration, () => {
         updateQuotaState((prev: Record<string, unknown>) => ({
           ...prev,
-          [file.name]: config.buildSuccessState(data),
+          [quotaType === 'plugin' ? getQuotaCacheKey(file) : file.name]:
+            config.buildSuccessState(data),
         }));
         showNotification(t('auth_files.quota_refresh_success', { name: file.name }), 'success');
       });
@@ -253,7 +260,10 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       commitIfQuotaCacheCurrent(cacheGeneration, () => {
         updateQuotaState((prev: Record<string, unknown>) => ({
           ...prev,
-          [file.name]: config.buildErrorState(message, status),
+          [quotaType === 'plugin' ? getQuotaCacheKey(file) : file.name]: config.buildErrorState(
+            message,
+            status
+          ),
         }));
         showNotification(
           t('auth_files.quota_refresh_failed', { name: file.name, message }),
@@ -300,7 +310,8 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
           const applied = commitIfQuotaCacheCurrent(cacheGeneration, () => {
             updateQuotaState((prev: Record<string, unknown>) => ({
               ...prev,
-              [file.name]: config.buildSuccessState(data),
+              [quotaType === 'plugin' ? getQuotaCacheKey(file) : file.name]:
+                config.buildSuccessState(data),
             }));
             showNotification(t('codex_quota.reset_success', { name: file.name }), 'success');
           });

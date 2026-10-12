@@ -75,6 +75,8 @@ import {
 import {
   persistCodexQuotaSnapshot,
   codexQuotaPersistInputFromData,
+  getQuotaCacheKey,
+  isPluginQuotaFile,
 } from '@/utils/quota';
 import {
   isAuthFilesStatusFilterMode,
@@ -368,7 +370,14 @@ export function AuthFilesPage() {
       ? 'qoder'
       : QUOTA_PROVIDER_TYPES.has(normalizedFilter as QuotaProviderType)
         ? (normalizedFilter as QuotaProviderType)
-        : null;
+        : normalizedFilter !== 'all' &&
+            files.some(
+              (file) =>
+                canonicalAuthFileType(String(file.type ?? file.provider ?? '')) === normalizedFilter &&
+                isPluginQuotaFile(file)
+            )
+          ? 'plugin'
+          : null;
   // The toggle knob reads the live value; the (expensive) card grid re-renders
   // behind it via useDeferredValue so flipping density never blocks the click.
   const gridCompactMode = useDeferredValue(compactMode);
@@ -1336,7 +1345,7 @@ export function AuthFilesPage() {
               >
                 {pageItems.map((file) => (
                   <AuthFileCard
-                    key={file.name}
+                    key={getQuotaCacheKey(file)}
                     file={file}
                     compact={gridCompactMode}
                     selected={selectedFiles.has(file.name)}

@@ -759,7 +759,8 @@
     "plan_max": "Max",
     "plan_max5": "Max 5x",
     "plan_max20": "Max 20x",
-    "plan_team": "Team"
+    "plan_team": "Team",
+    "cloud_session_credits": "Cloud session credits"
   },
   "codex_quota": {
     "title": "Codex Quota",
@@ -804,7 +805,9 @@
     "plan_k12": "K12",
     "plan_pro": "Pro 20x",
     "plan_prolite": "Pro 5x",
-    "plan_business_premium": "Business Premium"
+    "plan_business_premium": "Business Premium",
+    "reset_not_confirmed": "Quota reset was not confirmed. Refresh the quota before trying again.",
+    "reset_cooldown_failed": "Quota was reset, but the gateway cooldown could not be cleared. On the original connection, use Clear cooldown on the credential page; do not redeem another reset."
   },
   "qodercn_quota": {
     "title": "Qoder CN Quota",
@@ -910,7 +913,8 @@
     "paid_health": "Paid API chat is available. xAI does not expose quota totals for this OAuth credential.",
     "pay_as_you_go_label": "Pay as you go",
     "pay_as_you_go_enabled": "Enabled, cap {{cap}}",
-    "pay_as_you_go_disabled": "Disabled"
+    "pay_as_you_go_disabled": "Disabled",
+    "usage_breakdown": "Usage breakdown (shared quota)"
   },
   "devin_quota": {
     "title": "Devin Quota",
@@ -1372,7 +1376,9 @@
           "title": "Server Configuration",
           "description": "Basic server settings",
           "host": "Host Address",
-          "port": "Port"
+          "port": "Port",
+          "github_token": "Global GitHub Token",
+          "github_token_hint": "Used for server-side GitHub requests, such as panel updates and plugin downloads. Takes precedence over GITHUB_TOKEN; leave empty to use environment credentials, or unauthenticated requests if none are set. Matching plugin store authentication rules take precedence."
         },
         "tls": {
           "title": "TLS/SSL Configuration",
@@ -2558,5 +2564,17 @@
     "allowlist_hint": "Exact strings that are never masked (localhost, docs examples, test numbers). Not a substring match.",
     "allowlist_placeholder": "127.0.0.1",
     "add_allowlist": "Add"
+  },
+  "plugin_quota": {
+    "title": "Plugin Quota",
+    "empty_title": "No Plugin Auth Files",
+    "empty_desc": "Connect a plugin account to view its remaining quota.",
+    "idle": "Click here to refresh quota",
+    "loading": "Loading quota...",
+    "load_failed": "Failed to load quota: {{message}}",
+    "missing_auth_index": "Auth file missing auth_index",
+    "empty_data": "No quota data available",
+    "plan_label": "Plan",
+    "remaining_percent": "{{percent}}% remaining"
   }
 }

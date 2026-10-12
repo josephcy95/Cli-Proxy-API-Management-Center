@@ -1,3 +1,4 @@
+import { isPluginQuotaFile } from '@/utils/quota/validators';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
@@ -94,6 +95,9 @@ export type AuthFileCardProps = {
 
 const resolveQuotaType = (file: AuthFileItem): QuotaProviderType | null => {
   const provider = resolveAuthProvider(file);
+  if (isPluginQuotaFile(file)) {
+    return 'plugin';
+  }
   if (!QUOTA_PROVIDER_TYPES.has(provider as QuotaProviderType)) return null;
   return provider as QuotaProviderType;
 };

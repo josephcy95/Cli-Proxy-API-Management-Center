@@ -11,3 +11,4 @@ export * from './builders';
 export * from './resetCredits';
 export * from './codexQuotaPersist';
 export * from './xaiPaid';
+export * from './identity';

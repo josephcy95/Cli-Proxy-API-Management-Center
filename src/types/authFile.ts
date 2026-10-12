@@ -58,6 +58,9 @@ export interface AuthFileItem {
   email?: string;
   size?: number;
   authIndex?: string | number | null;
+  supportsQuota?: boolean;
+  quotaProvider?: string;
+  quotaPluginId?: string;
   runtimeOnly?: boolean | string;
   disabled?: boolean;
   disabled_reason?: string;

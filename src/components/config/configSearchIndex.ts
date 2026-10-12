@@ -41,6 +41,14 @@ type Translate = (key: string) => string;
 const L = (key: string) => `config_management.visual.${key}`;
 
 export const CONFIG_FIELD_SEARCH_INDEX: ConfigFieldSearchEntry[] = [
+  {
+    fieldId: 'githubToken',
+    sectionId: 'connectivity',
+    labelKey: L('sections.server.github_token'),
+    hintKey: L('sections.server.github_token_hint'),
+    yamlKeys: ['server', 'github-token'],
+    keywords: ['GitHub', 'token'],
+  },
   // ── connectivity ──────────────────────────────────────────────────────────
   {
     fieldId: 'host',

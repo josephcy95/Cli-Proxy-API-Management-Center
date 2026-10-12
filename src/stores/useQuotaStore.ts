@@ -8,6 +8,7 @@ import type {
   ClaudeQuotaState,
   CodexQuotaState,
   DevinQuotaState,
+  PluginQuotaState,
   KimiQuotaState,
   MetaQuotaState,
   QoderCNQuotaState,
@@ -27,6 +28,8 @@ interface QuotaStoreState {
   qodercnQuota: Record<string, QoderCNQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   devinQuota: Record<string, DevinQuotaState>;
+  pluginQuota: Record<string, PluginQuotaState>;
+  setPluginQuota: (updater: QuotaUpdater<Record<string, PluginQuotaState>>) => void;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
@@ -57,6 +60,9 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   qodercnQuota: {},
   xaiQuota: {},
   devinQuota: {},
+  pluginQuota: {},
+  setPluginQuota: (updater) =>
+    set((state) => ({ pluginQuota: resolveUpdater(updater, state.pluginQuota) })),
   setAntigravityQuota: (updater) =>
     set((state) => ({
       antigravityQuota: resolveUpdater(updater, state.antigravityQuota),
@@ -110,6 +116,9 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
         qodercnQuota: remove(state.qodercnQuota),
         xaiQuota: remove(state.xaiQuota),
         devinQuota: remove(state.devinQuota),
+        pluginQuota: Object.fromEntries(
+          Object.entries(state.pluginQuota).filter(([key]) => key.split('\0')[0] !== name)
+        ),
       };
     }),
   clearQuotaCache: (names) =>
@@ -138,6 +147,9 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
           qodercnQuota: drop(state.qodercnQuota),
           xaiQuota: drop(state.xaiQuota),
           devinQuota: drop(state.devinQuota),
+          pluginQuota: Object.fromEntries(
+            Object.entries(state.pluginQuota).filter(([key]) => !names.includes(key.split('\0')[0]))
+          ),
         };
       }
       return {
@@ -151,6 +163,7 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
         qodercnQuota: {},
         xaiQuota: {},
         devinQuota: {},
+        pluginQuota: {},
       };
     }),
 }));

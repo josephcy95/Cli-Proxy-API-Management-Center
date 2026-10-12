@@ -91,6 +91,9 @@ export interface CodexUsagePayload {
 
 // Claude API payload types
 export interface ClaudeUsageWindow {
+  limit_dollars?: number | null;
+  used_dollars?: number | null;
+  remaining_dollars?: number | null;
   utilization: number;
   resets_at: string;
 }
@@ -195,6 +198,19 @@ export interface AntigravityQuotaBucket {
   remainingFraction: number;
   resetTime?: string;
   description?: string;
+}
+
+export interface PluginQuotaMetric {
+  key: string;
+  label: string;
+  value: number;
+  unit?: string;
+  format?: 'number' | 'currency';
+  currency?: string;
+}
+
+export interface PluginQuotaState extends AntigravityQuotaState {
+  summary: PluginQuotaMetric[];
 }
 
 export interface AntigravityQuotaState {
