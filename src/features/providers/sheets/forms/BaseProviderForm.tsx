@@ -1,4 +1,4 @@
-import { mergeDiscoveredModels } from '../../modelEntries';
+import { mergeDiscoveredModels, removeModelAt } from '../../modelEntries';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -450,10 +450,7 @@ export function BaseProviderForm({
   };
 
   const removeModelEntry = (idx: number) => {
-    updateField(
-      'models',
-      modelsList.filter((_, i) => i !== idx)
-    );
+    updateField('models', removeModelAt(modelsList, idx));
   };
 
   return (

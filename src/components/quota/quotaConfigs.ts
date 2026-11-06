@@ -1,4 +1,5 @@
-import { resolveKimiQuotaUrl } from '@/services/api/kimiQuota';
+import { normalizeClaudeUsageSnapshot } from '@/services/api/claudeUsage';
+import { resolveKimiQuotaUrl, fetchKimiPlanName } from '@/services/api/kimiQuota';
 /**
  * Quota configuration definitions.
  */
@@ -16,6 +17,7 @@ import type {
   AntigravityQuotaState,
   AuthFileItem,
   ClaudeExtraUsage,
+  ClaudeDollarWindow,
   ClaudeProfileResponse,
   ClaudeQuotaState,
   ClaudeQuotaWindow,
@@ -1005,13 +1007,14 @@ const renderAntigravityItems = (
   }
 
   if (groups.length === 0) {
-    if (showEmptyMessage) nodes.push(
-      h(
-        'div',
-        { key: 'empty', className: styleMap.quotaMessage },
-        t('antigravity_quota.empty_models')
-      )
-    );
+    if (showEmptyMessage)
+      nodes.push(
+        h(
+          'div',
+          { key: 'empty', className: styleMap.quotaMessage },
+          t('antigravity_quota.empty_models')
+        )
+      );
     return h(Fragment, null, ...nodes);
   }
 
@@ -1084,6 +1087,9 @@ const renderAntigravityItems = (
 
 const PREMIUM_CODEX_PLAN_TYPES = new Set([
   'pro',
+  'promax',
+  'pro-max',
+  'pro_max',
   'prolite',
   'pro-lite',
   'pro_lite',
@@ -1107,6 +1113,7 @@ const renderCodexItems = (
   const getPlanLabel = (pt?: string | null): string | null => {
     const normalized = normalizePlanType(pt);
     if (!normalized) return null;
+    if (['promax', 'pro-max', 'pro_max'].includes(normalized)) return t('codex_quota.plan_pro500');
     if (normalized === 'pro') return t('codex_quota.plan_pro');
     if (normalized === 'self_serve_business_prolite') {
       return t('codex_quota.plan_business_premium');
@@ -1404,6 +1411,18 @@ const parseClaudeProfilePayload = (payload: unknown): ClaudeProfileResponse | nu
   return null;
 };
 
+const resolveClaudeMaxTier = (profile: ClaudeProfileResponse): string | null => {
+  const organization = profile.organization as
+    (NonNullable<ClaudeProfileResponse['organization']> & { rateLimitTier?: string }) | undefined;
+  const tier = normalizeStringValue(
+    organization?.rate_limit_tier ?? organization?.rateLimitTier
+  )?.toLowerCase();
+  if (!tier) return null;
+  if (tier.endsWith('claude_max_20x')) return 'plan_max20';
+  if (tier.endsWith('claude_max_5x')) return 'plan_max5';
+  return null;
+};
+
 export const resolveClaudePlanType = (profile: ClaudeProfileResponse | null): string | null => {
   if (!profile) return null;
 
@@ -1420,7 +1439,8 @@ export const resolveClaudePlanType = (profile: ClaudeProfileResponse | null): st
 
   // Account flags include personal subscriptions even for a Team-scoped token.
   const hasClaudeMax = normalizeFlagValue(profile.account?.has_claude_max);
-  if (hasClaudeMax) return 'plan_max';
+  const maxTier = resolveClaudeMaxTier(profile);
+  if (hasClaudeMax || maxTier) return maxTier ?? 'plan_max';
 
   const hasClaudePro = normalizeFlagValue(profile.account?.has_claude_pro);
   if (hasClaudePro) return 'plan_pro';
@@ -1437,6 +1457,8 @@ const fetchClaudeQuota = async (
   windows: ClaudeQuotaWindow[];
   extraUsage?: ClaudeExtraUsage | null;
   planType?: string | null;
+  dollarWindows: ClaudeDollarWindow[];
+  observedAt: string;
 }> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
@@ -1449,7 +1471,7 @@ const fetchClaudeQuota = async (
       authIndex,
       method: 'GET',
       url: CLAUDE_USAGE_URL,
-      header: { ...CLAUDE_REQUEST_HEADERS },
+      header: { ...CLAUDE_REQUEST_HEADERS, Accept: 'application/json' },
     }),
     apiCallApi.request({
       authIndex,
@@ -1474,7 +1496,15 @@ const fetchClaudeQuota = async (
     throw new Error(t('claude_quota.empty_windows'));
   }
 
-  const windows = buildClaudeQuotaWindows(payload, t);
+  const snapshot = normalizeClaudeUsageSnapshot(payload);
+  const dollarWindows = snapshot?.dollarWindows ?? [];
+  const windows = buildClaudeQuotaWindows(payload, t).filter(
+    (window) =>
+      !(
+        window.id === 'cloud-session-credits' &&
+        dollarWindows.some((balance) => balance.key === 'iguana_necktie')
+      )
+  );
   const planType =
     profileResult.status === 'fulfilled' &&
     profileResult.value.statusCode >= 200 &&
@@ -1484,7 +1514,13 @@ const fetchClaudeQuota = async (
         )
       : null;
 
-  return { windows, extraUsage: payload.extra_usage, planType };
+  return {
+    windows,
+    extraUsage: snapshot?.extraUsage,
+    dollarWindows,
+    observedAt: new Date().toISOString(),
+    planType,
+  };
 };
 
 const renderClaudeItems = (
@@ -1510,8 +1546,11 @@ const renderClaudeItems = (
     );
   }
 
-  if (extraUsage && extraUsage.is_enabled) {
-    const usedLabel = `$${(extraUsage.used_credits / 100).toFixed(2)} / $${(extraUsage.monthly_limit / 100).toFixed(2)}`;
+  if (extraUsage) {
+    const currency = extraUsage.currency ?? 'USD';
+    const money = (value: number | null) =>
+      value === null ? '--' : `${(value / 100).toFixed(2)} ${currency}`;
+    const usedLabel = `${money(extraUsage.usedCredits)} / ${money(extraUsage.monthlyLimit)}`;
     nodes.push(
       h(
         'div',
@@ -1522,7 +1561,51 @@ const renderClaudeItems = (
     );
   }
 
-  if (windows.length === 0) {
+  if (quota.stale)
+    nodes.unshift(
+      h(
+        'div',
+        { key: 'stale', role: 'status', className: styleMap.quotaMessage },
+        t('claude_quota.stale_snapshot', {
+          time: quota.observedAt ? new Date(quota.observedAt).toLocaleString() : '--',
+        })
+      )
+    );
+  for (const balance of quota.dollarWindows ?? []) {
+    const money = (value: number | null) => (value === null ? '--' : `$${value.toFixed(2)}`);
+    nodes.push(
+      h(
+        'div',
+        { key: balance.key, className: styleMap.quotaRow },
+        h(
+          'div',
+          { className: styleMap.quotaRowHeader },
+          h('span', { className: styleMap.quotaModel }, balance.key),
+          h(
+            'span',
+            { className: styleMap.quotaPercent },
+            t('claude_quota.dollar_balance_remaining', { amount: money(balance.remainingDollars) })
+          )
+        ),
+        h(
+          'div',
+          { className: styleMap.quotaMeta },
+          t('claude_quota.usage_spent_limit', {
+            spent: money(balance.usedDollars),
+            limit: money(balance.limitDollars),
+          })
+        ),
+        h(
+          'div',
+          { className: styleMap.quotaReset },
+          balance.resetsAt
+            ? formatQuotaResetTime(balance.resetsAt)
+            : t('claude_quota.balance_reset_unknown')
+        )
+      )
+    );
+  }
+  if (windows.length === 0 && !extraUsage && !quota.dollarWindows?.length) {
     nodes.push(
       h('div', { key: 'empty', className: styleMap.quotaMessage }, t('claude_quota.empty_windows'))
     );
@@ -1573,7 +1656,13 @@ const renderClaudeItems = (
 
 export const CLAUDE_CONFIG: QuotaConfig<
   ClaudeQuotaState,
-  { windows: ClaudeQuotaWindow[]; extraUsage?: ClaudeExtraUsage | null; planType?: string | null }
+  {
+    windows: ClaudeQuotaWindow[];
+    extraUsage?: ClaudeExtraUsage | null;
+    planType?: string | null;
+    dollarWindows: ClaudeDollarWindow[];
+    observedAt: string;
+  }
 > = {
   type: 'claude',
   i18nPrefix: 'claude_quota',
@@ -1587,6 +1676,9 @@ export const CLAUDE_CONFIG: QuotaConfig<
     windows: data.windows,
     extraUsage: data.extraUsage,
     planType: data.planType,
+    dollarWindows: data.dollarWindows,
+    observedAt: data.observedAt,
+    stale: false,
   }),
   buildErrorState: (message, status) => ({
     status: 'error',
@@ -1670,7 +1762,10 @@ export const CODEX_CONFIG: QuotaConfig<CodexQuotaState, CodexQuotaData> = {
   renderQuotaItems: renderCodexItems,
 };
 
-const fetchKimiQuota = async (file: AuthFileItem, t: TFunction): Promise<KimiQuotaRow[]> => {
+const fetchKimiQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<{ rows: KimiQuotaRow[]; planName: string | null }> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
   if (!authIndex) {
@@ -1707,7 +1802,10 @@ const fetchKimiQuota = async (file: AuthFileItem, t: TFunction): Promise<KimiQuo
     throw new Error(t('kimi_quota.empty_data'));
   }
 
-  return buildKimiQuotaRows(payload);
+  const rows = buildKimiQuotaRows(payload);
+  const planName = await fetchKimiPlanName(authIndex, url);
+  assertCurrent();
+  return { rows, planName };
 };
 
 const renderKimiItems = (
@@ -1723,7 +1821,7 @@ const renderKimiItems = (
     return h('div', { className: styleMap.quotaMessage }, t('kimi_quota.empty_data'));
   }
 
-  return rows.map((row) => {
+  const nodes = rows.map((row) => {
     const limit = row.limit;
     const used = row.used;
     const remaining =
@@ -1759,6 +1857,16 @@ const renderKimiItems = (
       })
     );
   });
+  if (quota.planName)
+    nodes.unshift(
+      h(
+        'div',
+        { key: 'plan', className: styleMap.codexPlan },
+        h('span', { className: styleMap.codexPlanLabel }, t('kimi_quota.plan_label')),
+        h('span', { className: styleMap.codexPlanValue }, quota.planName)
+      )
+    );
+  return nodes;
 };
 
 const toXaiRecord = (value: unknown): Record<string, unknown> | null => {
@@ -2048,11 +2156,9 @@ const renderXaiItems = (
               h(
                 'span',
                 { className: styleMap.quotaPercent },
-                weeklyUsed === null
+                weeklyRemaining === null
                   ? t('xai_quota.usage_unavailable')
-                  : t('xai_quota.used_percent', {
-                      percent: formatXaiPercent(weeklyUsed),
-                    })
+                  : formatXaiPercent(weeklyRemaining)
               ),
               weeklyResetLabel !== '-'
                 ? h(
@@ -2155,7 +2261,10 @@ const renderXaiItems = (
   );
 };
 
-export const KIMI_CONFIG: QuotaConfig<KimiQuotaState, KimiQuotaRow[]> = {
+export const KIMI_CONFIG: QuotaConfig<
+  KimiQuotaState,
+  { rows: KimiQuotaRow[]; planName: string | null }
+> = {
   type: 'kimi',
   i18nPrefix: 'kimi_quota',
   filterFn: (file) => isKimiFile(file) && !isDisabledAuthFile(file),
@@ -2163,7 +2272,7 @@ export const KIMI_CONFIG: QuotaConfig<KimiQuotaState, KimiQuotaRow[]> = {
   storeSelector: (state) => state.kimiQuota,
   storeSetter: 'setKimiQuota',
   buildLoadingState: () => ({ status: 'loading', rows: [] }),
-  buildSuccessState: (rows) => ({ status: 'success', rows }),
+  buildSuccessState: (data) => ({ status: 'success', ...data }),
   buildErrorState: (message, status) => ({
     status: 'error',
     rows: [],

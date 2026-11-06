@@ -45,7 +45,15 @@ class ObfuscatedStorageService {
 
     try {
       const decrypted = obfuscate ? deobfuscateData(raw) : raw;
-      return JSON.parse(decrypted) as T;
+      const parsed = JSON.parse(decrypted) as T;
+      if (obfuscate && raw.startsWith('enc::v1::')) {
+        try {
+          this.setItem(key, parsed);
+        } catch {
+          /* Keep readable credentials if migration cannot write. */
+        }
+      }
+      return parsed;
     } catch {
       // JSON解析失败,尝试兼容旧的纯字符串数据 (非JSON格式)
       try {

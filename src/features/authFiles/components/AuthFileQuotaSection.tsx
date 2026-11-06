@@ -57,7 +57,8 @@ export type AuthFileQuotaRefreshBinding = {
   loading: boolean;
 };
 
-type QuotaState = { status?: string; error?: string; errorStatus?: number } | undefined;
+type QuotaState =
+  { status?: string; error?: string; errorStatus?: number; observedAt?: string | null } | undefined;
 
 const assertNever = (value: never): never => {
   throw new Error(`Unsupported quota type: ${value}`);
@@ -455,6 +456,18 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
           )}
         </div>
       )}
+      {quotaType === 'claude' &&
+      quota &&
+      'observedAt' in quota &&
+      quota.observedAt &&
+      quotaStatus !== 'success'
+        ? (config.renderQuotaItems(quota, t, {
+            styles,
+            QuotaProgressBar,
+            card: true,
+            hideResetCredits: true,
+          }) as ReactNode)
+        : null}
       {quotaStatus === 'loading' ? (
         <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.loading`)}</div>
       ) : quotaStatus === 'idle' ? (

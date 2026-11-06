@@ -690,7 +690,9 @@
     "batch_weight_button": "Set WRR weight",
     "batch_weight_invalid": "Weight must be a safe integer no greater than 1,000,000",
     "batch_weight_success": "WRR weight set to {{weight}} for {{count}} files",
-    "batch_weight_partial": "WRR weight set for {{success}} files, {{failed}} failed"
+    "batch_weight_partial": "WRR weight set for {{success}} files, {{failed}} failed",
+    "use_siwc_label": "Use SIWC (use_siwc)",
+    "use_siwc_hint": "Use the bound SIWC credential when enabled. Turning this off only disables SIWC and preserves binding data. Complete binding before enabling."
   },
   "antigravity_subscription": {
     "plan_unknown": "Unknown",
@@ -760,7 +762,13 @@
     "plan_max5": "Max 5x",
     "plan_max20": "Max 20x",
     "plan_team": "Team",
-    "cloud_session_credits": "Cloud session credits"
+    "cloud_session_credits": "Cloud session credits",
+    "stale_snapshot": "Refresh failed. Showing last successful check: {{time}}",
+    "dollar_balance_remaining": "{{amount}} remaining",
+    "usage_spent_limit": "Spent {{spent}} / Limit {{limit}}",
+    "balance_reset_unknown": "Not provided",
+    "extra_usage_enabled": "Enabled",
+    "extra_usage_disabled": "Disabled"
   },
   "codex_quota": {
     "title": "Codex Quota",
@@ -807,7 +815,8 @@
     "plan_prolite": "Pro 5x",
     "plan_business_premium": "Business Premium",
     "reset_not_confirmed": "Quota reset was not confirmed. Refresh the quota before trying again.",
-    "reset_cooldown_failed": "Quota was reset, but the gateway cooldown could not be cleared. On the original connection, use Clear cooldown on the credential page; do not redeem another reset."
+    "reset_cooldown_failed": "Quota was reset, but the gateway cooldown could not be cleared. On the original connection, use Clear cooldown on the credential page; do not redeem another reset.",
+    "plan_pro500": "Pro 500"
   },
   "qodercn_quota": {
     "title": "Qoder CN Quota",
@@ -862,7 +871,8 @@
     "weekly_limit": "Weekly limit",
     "limit_window": "{{duration}} limit",
     "limit_index": "Limit #{{index}}",
-    "reset_hint": "resets in {{hint}}"
+    "reset_hint": "resets in {{hint}}",
+    "plan_label": "Plan"
   },
   "meta_quota": {
     "title": "Muse (Meta) Quota",
@@ -939,8 +949,8 @@
     "title": "Vertex JSON Login",
     "description": "Upload a Google service account JSON to store it as auth-dir/vertex-<project>.json using the same rules as the CLI vertex-import helper.",
     "location_label": "Region (optional)",
-    "location_placeholder": "us-central1",
-    "location_hint": "Leave empty to use the default region us-central1.",
+    "location_placeholder": "global",
+    "location_hint": "Leave empty to use the default region global.",
     "file_label": "Service account key JSON",
     "file_hint": "Only Google Cloud service account key JSON files are accepted.",
     "file_placeholder": "No file selected",
@@ -2569,5 +2579,39 @@
     "empty_data": "No quota data available",
     "plan_label": "Plan",
     "remaining_percent": "{{percent}}% remaining"
+  },
+  "siwc": {
+    "title": "Bind SIWC",
+    "bind": "Bind SIWC",
+    "tile_caption": "Bind SIWC to a Codex credential",
+    "intro": "Choose a Codex credential. After you authorize in the browser, SIWC will be bound to it.",
+    "target": "Credential",
+    "active": "Active",
+    "bound": "Bound · inactive",
+    "unbound": "Not bound",
+    "expires": "Expires {{date}}",
+    "loading": "Loading credentials…",
+    "no_targets": "No Codex credentials can be bound to SIWC yet.",
+    "load_failed": "Could not load credentials. Close and try again.",
+    "start": "Start authorization",
+    "starting": "Generating authorization link…",
+    "wait": "Waiting for authorization…",
+    "cancel": "Cancel binding",
+    "retry": "Start over",
+    "step_open": "Open the authorization page and sign in",
+    "open": "Open authorization page",
+    "copy": "Copy link",
+    "callback": "Paste the callback URL",
+    "hint": "After authorizing, the browser redirects to http://127.0.0.1:1455/auth/callback. Even if the page fails to load, copy the full URL from the address bar and paste it here.",
+    "submit": "Submit",
+    "submitted": "Callback submitted. Waiting for confirmation…",
+    "invalid_callback": "Incomplete URL: it needs the matching state plus code and client_id (or an OAuth error).",
+    "callback_failed": "Callback submission failed. Check the URL and try again.",
+    "ok": "SIWC bound",
+    "ok_hint": "SIWC is now bound to {{name}}.",
+    "done": "Done",
+    "error": "Binding failed. Please start over.",
+    "unsupported": "This backend does not support SIWC binding.",
+    "expired": "The binding session expired. Please start over."
   }
 }

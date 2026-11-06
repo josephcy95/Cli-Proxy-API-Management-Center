@@ -13,6 +13,7 @@ import type {
 } from '@/features/authFiles/hooks/useAuthFilesPrefixProxyEditor';
 import {
   supportsAuthFileUsingApi,
+  supportsAuthFileSiwc,
   supportsAuthFileWebsockets,
 } from '@/features/authFiles/constants';
 import styles from '@/pages/AuthFilesPage.module.scss';
@@ -99,8 +100,8 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
               editor?.saving === true ||
               !dirty ||
               !editor?.json ||
-              Boolean(editor?.headersTouched && editor.headersError)
-              || Boolean(editor?.weightError)
+              Boolean(editor?.headersTouched && editor.headersError) ||
+              Boolean(editor?.weightError)
             }
           >
             {t('common.save')}
@@ -195,6 +196,18 @@ export function AuthFilesPrefixProxyEditorModal(props: AuthFilesPrefixProxyEdito
                           ariaLabel={t('auth_files.using_api_label')}
                         />
                         <FieldHint hint={t('auth_files.using_api_hint')} />
+                      </div>
+                    )}
+                    {supportsAuthFileSiwc(editor.providerKey) && (
+                      <div className={styles.prefixProxySwitch}>
+                        <ToggleSwitch
+                          checked={editor.useSiwc}
+                          onChange={(value) => onChange('useSiwc', value)}
+                          disabled={disableControls || editor.saving}
+                          label={t('auth_files.use_siwc_label')}
+                          ariaLabel={t('auth_files.use_siwc_label')}
+                        />
+                        <FieldHint hint={t('auth_files.use_siwc_hint')} />
                       </div>
                     )}
                   </div>

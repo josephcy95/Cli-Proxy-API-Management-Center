@@ -15,6 +15,7 @@ import { notifyAuthFilesChanged } from '@/features/authFiles/authFilesEvents';
 import { getPluginTitle, resolvePluginAssetURL } from '@/features/plugins/pluginResources';
 import type { PluginListEntry } from '@/types';
 import styles from './OAuthPage.module.scss';
+import { SiwcBindDialog } from '@/features/oauth/components/SiwcBindDialog';
 import { validateDevinCallback } from './devinOAuth';
 import iconCodex from '@/assets/icons/codex.svg';
 import iconClaude from '@/assets/icons/claude.svg';
@@ -222,24 +223,30 @@ const buildPluginOAuthProviderCards = (
 ): PluginOAuthProviderCard[] => {
   const seenProviders = new Set(BUILTIN_PROVIDER_IDS);
   return plugins.flatMap((plugin) => {
-    const provider = plugin.oauthProvider;
-    if (
-      !plugin.supportsOAuth ||
-      !plugin.effectiveEnabled ||
-      !provider ||
-      seenProviders.has(provider)
-    ) {
-      return [];
-    }
-    seenProviders.add(provider);
-    return [
-      {
-        kind: 'plugin' as const,
-        id: provider,
-        title: getPluginTitle(plugin),
-        icon: resolvePluginAssetURL(plugin.logo || plugin.metadata?.logo || '', apiBase),
-      },
-    ];
+    if (!plugin.supportsOAuth || !plugin.effectiveEnabled) return [];
+    const providers = plugin.oauthProviders?.length
+      ? plugin.oauthProviders
+      : plugin.oauthProvider
+        ? [plugin.oauthProvider]
+        : [];
+    return providers.flatMap((provider) => {
+      if (seenProviders.has(provider)) return [];
+      seenProviders.add(provider);
+      const entry = plugin.oauthProviderEntries?.find(
+        (candidate) => candidate.identifier === provider
+      );
+      return [
+        {
+          kind: 'plugin' as const,
+          id: provider,
+          title: entry?.name || getPluginTitle(plugin),
+          icon: resolvePluginAssetURL(
+            entry?.logo || plugin.logo || plugin.metadata?.logo || '',
+            apiBase
+          ),
+        },
+      ];
+    });
   });
 };
 
@@ -311,6 +318,7 @@ const resolveCallbackUrl = (provider: string, input: string, state?: string): st
 };
 
 export function OAuthPage() {
+  const [siwcOpen, setSiwcOpen] = useState(false);
   const { t } = useTranslation();
   const navigate = useNavigate();
   const apiBase = useAuthStore((state) => state.apiBase);
@@ -943,6 +951,10 @@ export function OAuthPage() {
       <div className={styles.content}>
         <section className={styles.providerSection}>
           <div className={styles.providerList}>{renderLoginCards()}</div>
+          <Button variant="secondary" onClick={() => setSiwcOpen(true)}>
+            {t('siwc.title')}
+          </Button>
+          {siwcOpen && <SiwcBindDialog onClose={() => setSiwcOpen(false)} />}
         </section>
 
         {/* Vertex JSON 登录 */}

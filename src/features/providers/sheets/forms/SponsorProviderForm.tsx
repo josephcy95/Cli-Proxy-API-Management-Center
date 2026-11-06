@@ -1,4 +1,4 @@
-import { mergeDiscoveredModels } from '../../modelEntries';
+import { mergeDiscoveredModels, removeModelAt } from '../../modelEntries';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Collapsible } from '@/components/ui/Collapsible';
@@ -251,8 +251,7 @@ function SponsorModelSection({
   };
 
   const removeModelEntry = (modelIndex: number) => {
-    const next = modelsList.filter((_, itemIndex) => itemIndex !== modelIndex);
-    onChange(next.length ? next : [emptyModel()]);
+    onChange(removeModelAt(modelsList, modelIndex));
   };
 
   return (

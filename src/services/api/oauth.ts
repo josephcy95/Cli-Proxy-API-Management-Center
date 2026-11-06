@@ -47,6 +47,14 @@ const normalizeProviderForManagementPath = (provider: string): string => {
   return key;
 };
 
+export interface SiwcBindResponse {
+  status: 'ok';
+  url: string;
+  state: string;
+  flow: 'siwc_bind';
+  expires_in: number;
+}
+
 export const oauthApi = {
   startAuth: (provider: string, signal?: AbortSignal) => {
     const providerKey = normalizeProviderForManagementPath(provider);
@@ -81,3 +89,23 @@ export const oauthApi = {
     );
   },
 };
+
+/** Start and cleanup must use the same connection, even after the dialog closes. */
+export function captureSiwcBindingApi() {
+  const client = apiClient.captureConnection('v8');
+  return {
+    start: (name: string) => client.post<SiwcBindResponse>('/oauth/siwc/bind', { name }),
+    cancel: (state: string) => client.delete('/oauth/session', { params: { state } }),
+    getStatus: (state: string, signal: AbortSignal) =>
+      client.get<{ status: 'ok' | 'wait' | 'error'; error?: string }>('/oauth/status', {
+        params: { state },
+        signal,
+      }),
+    submitCallback: (redirectUrl: string, signal: AbortSignal) =>
+      client.post<OAuthCallbackResponse>(
+        '/oauth/callback',
+        { provider: 'codex', redirect_url: redirectUrl },
+        { signal }
+      ),
+  };
+}

@@ -481,3 +481,11 @@ export const isModelExcluded = (
     return pattern.toLowerCase() === modelId.toLowerCase();
   });
 };
+
+export const supportsAuthFileSiwc = (providerKey: string): boolean => providerKey === 'codex';
+export const readAuthFileUseSiwc = (value: Record<string, unknown>): boolean =>
+  parseDisableCoolingValue(value.use_siwc) ?? false;
+export const applyAuthFileUseSiwc = (
+  value: Record<string, unknown>,
+  useSiwc: boolean
+): Record<string, unknown> => ({ ...value, use_siwc: useSiwc });

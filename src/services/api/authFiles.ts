@@ -23,6 +23,7 @@ export type AuthFileFieldsPatch = {
   'disable-cooling'?: boolean;
   websockets?: boolean;
   using_api?: boolean;
+  use_siwc?: boolean;
   note?: string;
   excluded_models?: string[];
   'excluded-models'?: string[];
@@ -251,7 +252,18 @@ const dedupeAuthFilesResponse = (payload: AuthFilesResponse): AuthFilesResponse 
     grouped.set(key, [entry]);
   });
 
-  const normalizedFiles = Array.from(grouped.values()).map(mergeAuthFileEntries);
+  const normalizedFiles = Array.from(grouped.values())
+    .map(mergeAuthFileEntries)
+    .map((entry) => ({
+      ...entry,
+      siwcBindSupported: (entry.siwc_bind_supported ?? entry.siwcBindSupported) === true,
+      useSiwc: (entry.use_siwc ?? entry.useSiwc) === true,
+      siwcBound: (entry.siwc_bound ?? entry.siwcBound) === true,
+      siwcExpiresAt:
+        typeof (entry.siwc_expires_at ?? entry.siwcExpiresAt) === 'string'
+          ? String(entry.siwc_expires_at ?? entry.siwcExpiresAt)
+          : undefined,
+    }));
   normalizedFiles.sort((left, right) =>
     readTextField(left, 'name').localeCompare(readTextField(right, 'name'), undefined, {
       sensitivity: 'accent',

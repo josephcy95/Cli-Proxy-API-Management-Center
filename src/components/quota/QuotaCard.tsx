@@ -17,6 +17,7 @@ export interface QuotaStatusState {
   status: QuotaStatus;
   error?: string;
   errorStatus?: number;
+  observedAt?: string | null;
 }
 
 export interface QuotaProgressBarProps {
@@ -129,6 +130,9 @@ export function QuotaCard<TState extends QuotaStatusState>({
       </div>
 
       <div className={styles.quotaSection}>
+        {defaultType === 'claude' && quota?.observedAt && quotaStatus !== 'success'
+          ? renderQuotaItems(quota, t, { styles, QuotaProgressBar })
+          : null}
         {quotaLoading ? (
           <div className={styles.quotaMessage}>{t(`${i18nPrefix}.loading`)}</div>
         ) : quotaStatus === 'idle' ? (

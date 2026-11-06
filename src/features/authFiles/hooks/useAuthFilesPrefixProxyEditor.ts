@@ -6,6 +6,9 @@ import { useNotificationStore } from '@/stores';
 import {
   applyAuthFileWebsockets,
   applyAuthFileUsingApi,
+  applyAuthFileUseSiwc,
+  readAuthFileUseSiwc,
+  supportsAuthFileSiwc,
   normalizeProviderKey,
   parsePriorityValue,
   readAuthFileDisableCooling,
@@ -27,8 +30,7 @@ type AuthFileHeadersErrorKey =
   | 'auth_files.headers_invalid_object'
   | 'auth_files.headers_invalid_value';
 type AuthFileContentErrorKey =
-  | 'auth_files.prefix_proxy_invalid_json'
-  | 'auth_files.prefix_proxy_html_challenge';
+  'auth_files.prefix_proxy_invalid_json' | 'auth_files.prefix_proxy_html_challenge';
 type AuthFileWeightErrorKey = 'auth_files.weight_invalid_integer' | 'auth_files.weight_invalid_max';
 type AuthFileEditorErrorKey = AuthFileHeadersErrorKey | AuthFileWeightErrorKey;
 
@@ -40,6 +42,7 @@ export type PrefixProxyEditorField =
   | 'disableCooling'
   | 'websockets'
   | 'usingApi'
+  | 'useSiwc'
   | 'note'
   | 'excludedModelsText'
   | 'allowPrivateInstructions'
@@ -69,6 +72,8 @@ export type PrefixProxyEditorState = {
   websocketsTouched: boolean;
   usingApi: boolean;
   usingApiTouched: boolean;
+  useSiwc: boolean;
+  useSiwcTouched: boolean;
   note: string;
   noteTouched: boolean;
   excludedModelsText: string;
@@ -372,6 +377,13 @@ export const buildAuthFileFieldsPatch = (
       patch.using_api = nextUsingApi;
     }
   }
+  if (supportsAuthFileSiwc(editor.providerKey) && editor.useSiwcTouched) {
+    const originalUseSiwc = readAuthFileUseSiwc(original);
+    const nextUseSiwc = Boolean(editor.useSiwc);
+    if (nextUseSiwc !== originalUseSiwc) {
+      patch.use_siwc = nextUseSiwc;
+    }
+  }
 
   if (editor.headersTouched) {
     const { value: parsedHeaders, errorKey } = parseHeadersText(editor.headersText);
@@ -463,6 +475,9 @@ const buildPrefixProxyUpdatedText = (
   if (patch.using_api !== undefined) {
     next = applyAuthFileUsingApi(next, patch.using_api);
   }
+  if (patch.use_siwc !== undefined) {
+    next = applyAuthFileUseSiwc(next, patch.use_siwc);
+  }
 
   return JSON.stringify(next);
 };
@@ -526,6 +541,8 @@ export function useAuthFilesPrefixProxyEditor(
       disableCoolingTouched: false,
       websockets: false,
       websocketsTouched: false,
+      useSiwc: false,
+      useSiwcTouched: false,
       usingApi: false,
       usingApiTouched: false,
       note: '',
@@ -613,6 +630,8 @@ export function useAuthFilesPrefixProxyEditor(
           disableCoolingTouched: false,
           websockets,
           websocketsTouched: false,
+          useSiwc: supportsAuthFileSiwc(providerKey) ? readAuthFileUseSiwc(json) : false,
+          useSiwcTouched: false,
           usingApi,
           usingApiTouched: false,
           note,
@@ -667,6 +686,9 @@ export function useAuthFilesPrefixProxyEditor(
       }
       if (field === 'usingApi') {
         return { ...prev, usingApi: Boolean(value), usingApiTouched: true };
+      }
+      if (field === 'useSiwc') {
+        return { ...prev, useSiwc: Boolean(value), useSiwcTouched: true };
       }
       if (field === 'note') return { ...prev, note: String(value), noteTouched: true };
       if (field === 'excludedModelsText') {
