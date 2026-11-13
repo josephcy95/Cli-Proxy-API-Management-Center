@@ -7,7 +7,8 @@ import type { ReactElement, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { Button } from '@/components/ui/Button';
 import { IconRefreshCw } from '@/components/ui/icons';
-import type { AuthFileItem, ResolvedTheme, ThemeColors } from '@/types';
+import { CodexAccountActions, ClaudeAccountActions } from './QuotaAccountActions';
+import type { CodexQuotaState, AuthFileItem, ResolvedTheme, ThemeColors } from '@/types';
 import { TYPE_COLORS } from '@/utils/quota';
 import styles from '@/pages/QuotaPage.module.scss';
 
@@ -72,6 +73,7 @@ interface QuotaCardProps<TState extends QuotaStatusState> {
   cardClassName: string;
   defaultType: string;
   canRefresh?: boolean;
+  sharedCredentialCount?: number;
   onRefresh?: () => void;
   resetQuotaAction?: ReactNode;
   renderQuotaItems: (quota: TState, t: TFunction, helpers: QuotaRenderHelpers) => ReactNode;
@@ -85,6 +87,7 @@ export function QuotaCard<TState extends QuotaStatusState>({
   cardClassName,
   defaultType,
   canRefresh = false,
+  sharedCredentialCount = 1,
   onRefresh,
   resetQuotaAction,
   renderQuotaItems,
@@ -158,6 +161,23 @@ export function QuotaCard<TState extends QuotaStatusState>({
           renderQuotaItems(quota, t, { styles, QuotaProgressBar })
         ) : (
           <div className={styles.quotaMessage}>{t(idleMessageKey)}</div>
+        )}
+        {defaultType === 'codex' && (
+          <CodexAccountActions
+            file={item}
+            quota={quota as CodexQuotaState | undefined}
+            disabled={!canRefresh}
+            sharedCredentialCount={sharedCredentialCount}
+          />
+        )}
+        {defaultType === 'claude' && (
+          <ClaudeAccountActions
+            file={item}
+            enabled={quotaStatus === 'success'}
+            disabled={!canRefresh}
+            refreshToken={quota?.observedAt}
+            onRefresh={onRefresh ?? (() => {})}
+          />
         )}
       </div>
 

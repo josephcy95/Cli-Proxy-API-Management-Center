@@ -1,0 +1,33 @@
+.facts {
+  margin: 0 0 16px;
+}
+.fact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  dt {
+    font-weight: 600;
+  }
+  dd {
+    margin: 0;
+  }
+}
+.status,
+.confirmedAt {
+  margin-left: 8px;
+}
+.intro,
+.scope,
+.feedback {
+  margin: 12px 0;
+}
+.choices {
+  display: grid;
+  gap: 12px;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

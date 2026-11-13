@@ -1,3 +1,4 @@
+import { compareAntigravityQuotaBuckets } from '@/utils/quota/builders';
 import { normalizeClaudeUsageSnapshot } from '@/services/api/claudeUsage';
 import { resolveKimiQuotaUrl, fetchKimiPlanName } from '@/services/api/kimiQuota';
 /**
@@ -323,6 +324,8 @@ const fetchAntigravityQuota = async (
   let lastStatus: number | undefined;
   let priorityStatus: number | undefined;
   let hadSuccess = false;
+  const collectedGroups = new Map<string, AntigravityQuotaData['groups'][number]>();
+  let serverTimeOffsetMs: number | null = null;
 
   for (const url of ANTIGRAVITY_QUOTA_URLS) {
     try {
@@ -358,11 +361,26 @@ const fetchAntigravityQuota = async (
         continue;
       }
 
-      return {
-        groups,
-        subscription: await subscriptionPromise,
-        serverTimeOffsetMs: resolveResponseServerTimeOffsetMs(result.header),
-      };
+      if (collectedGroups.size === 0)
+        serverTimeOffsetMs = resolveResponseServerTimeOffsetMs(result.header);
+      for (const group of groups) {
+        const existing = collectedGroups.get(group.id);
+        if (!existing) {
+          collectedGroups.set(group.id, group);
+          continue;
+        }
+        const ids = new Set(existing.buckets.map((bucket) => bucket.id));
+        existing.buckets = [
+          ...existing.buckets,
+          ...group.buckets.filter((bucket) => !ids.has(bucket.id)),
+        ].sort(compareAntigravityQuotaBuckets);
+      }
+      if (
+        [...collectedGroups.values()].some((group) =>
+          group.buckets.some((bucket) => bucket.id.toLowerCase().startsWith('gemini-'))
+        )
+      )
+        break;
     } catch (err: unknown) {
       lastError = err instanceof Error ? err.message : t('common.unknown_error');
       const status = getStatusFromError(err);
@@ -376,7 +394,11 @@ const fetchAntigravityQuota = async (
   }
 
   if (hadSuccess) {
-    return { groups: [], subscription: await subscriptionPromise, serverTimeOffsetMs: null };
+    return {
+      groups: [...collectedGroups.values()],
+      subscription: await subscriptionPromise,
+      serverTimeOffsetMs,
+    };
   }
 
   throw createStatusError(lastError || t('common.unknown_error'), priorityStatus ?? lastStatus);
@@ -1551,12 +1573,21 @@ const renderClaudeItems = (
     const money = (value: number | null) =>
       value === null ? '--' : `${(value / 100).toFixed(2)} ${currency}`;
     const usedLabel = `${money(extraUsage.usedCredits)} / ${money(extraUsage.monthlyLimit)}`;
+    const settingDisabled =
+      extraUsage.isEnabled === false ||
+      extraUsage.userDisabled === true ||
+      extraUsage.disabledReason === 'user_disabled';
+    const setting = settingDisabled
+      ? t('claude_quota.extra_usage_disabled')
+      : extraUsage.isEnabled === true
+        ? t('claude_quota.extra_usage_enabled')
+        : t('claude_quota.plan_unknown');
     nodes.push(
       h(
         'div',
         { key: 'extra', className: styleMap.codexPlan },
         h('span', { className: styleMap.codexPlanLabel }, t('claude_quota.extra_usage_label')),
-        h('span', { className: styleMap.codexPlanValue }, usedLabel)
+        h('span', { className: styleMap.codexPlanValue }, `${setting} · ${usedLabel}`)
       )
     );
   }

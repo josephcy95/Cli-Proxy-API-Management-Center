@@ -3,10 +3,10 @@
  */
 
 import axios from 'axios';
+import { apiClient } from './client';
 import { normalizeModelList } from '@/utils/models';
 import { normalizeApiBase } from '@/utils/connection';
 import { apiCallApi, getApiCallErrorMessage } from './apiCall';
-import { apiClient } from './client';
 import { isRecord } from '@/utils/helpers';
 
 const DEFAULT_CLAUDE_BASE_URL = 'https://api.anthropic.com';
@@ -101,6 +101,14 @@ export interface ModelSourceCandidate {
 export type ModelSourcesMap = Record<string, ModelSourceCandidate[]>;
 
 export const modelsApi = {
+  /** Refresh the global backend catalogs, not auth-file credentials. */
+  async refreshCatalog(): Promise<{ changedProviders: string[] }> {
+    const response = await apiClient
+      .captureConnection('v8')
+      .post<{ changed_providers: string[] | null }>('/models/refresh');
+    return { changedProviders: response.changed_providers ?? [] };
+  },
+
   /**
    * Candidate auth pools for each model id (management API).
    * Ordered by scheduler preference: provider priority, then key priority.

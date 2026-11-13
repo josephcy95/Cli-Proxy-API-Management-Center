@@ -1,3 +1,4 @@
+import { useModelCatalogSync } from '@/features/authFiles/hooks/useModelCatalogSync';
 import {
   useCallback,
   type CSSProperties,
@@ -68,10 +69,7 @@ import {
   type XaiStatusFilter,
 } from '@/features/authFiles/xaiStatus';
 import { getAuthFileAuthIndex, listResettableCooldownFiles } from '@/features/authFiles/cooldown';
-import {
-  codexQuotaHasAvailableCapacity,
-  fetchCodexQuota,
-} from '@/components/quota/quotaConfigs';
+import { codexQuotaHasAvailableCapacity, fetchCodexQuota } from '@/components/quota/quotaConfigs';
 import {
   persistCodexQuotaSnapshot,
   codexQuotaPersistInputFromData,
@@ -319,6 +317,7 @@ export function AuthFilesPage() {
     batchSetJailbreak,
   } = useAuthFilesData({ onCooldownReset: clearCodexRefreshState });
 
+  const [modelCatalogVersion, setModelCatalogVersion] = useState(0);
   const {
     excluded,
     excludedError,
@@ -334,7 +333,7 @@ export function AuthFilesPage() {
     handleToggleFork,
     handleRenameAlias,
     handleDeleteAlias,
-  } = useAuthFilesOauth({ viewMode, files });
+  } = useAuthFilesOauth({ viewMode, files, modelCatalogVersion });
 
   const {
     modelsModalOpen,
@@ -345,7 +344,15 @@ export function AuthFilesPage() {
     modelsError,
     showModels,
     closeModelsModal,
+    invalidateModels,
   } = useAuthFilesModels();
+
+  const { syncingModelCatalog, syncModelCatalog } = useModelCatalogSync(() => {
+    invalidateModels();
+    setModelCatalogVersion((version) => version + 1);
+    if (modelsModalOpen && modelsFileName)
+      void showModels({ name: modelsFileName, type: modelsFileType });
+  });
 
   const {
     prefixProxyEditor,
@@ -373,8 +380,8 @@ export function AuthFilesPage() {
         : normalizedFilter !== 'all' &&
             files.some(
               (file) =>
-                canonicalAuthFileType(String(file.type ?? file.provider ?? '')) === normalizedFilter &&
-                isPluginQuotaFile(file)
+                canonicalAuthFileType(String(file.type ?? file.provider ?? '')) ===
+                  normalizedFilter && isPluginQuotaFile(file)
             )
           ? 'plugin'
           : null;
@@ -727,10 +734,7 @@ export function AuthFilesPage() {
       })),
     [codexRefreshByName, sorted]
   );
-  const codexRefreshableFilteredItems = useMemo(
-    () => listCodexRefreshableFiles(sorted),
-    [sorted]
-  );
+  const codexRefreshableFilteredItems = useMemo(() => listCodexRefreshableFiles(sorted), [sorted]);
 
   const refreshCodexData = useCallback(async () => {
     const codexFiles = codexRefreshableFilteredItems;
@@ -815,13 +819,7 @@ export function AuthFilesPage() {
       t('auth_files.codex_refresh_result', { successful, failed, persistenceFailed }),
       failed > 0 || persistenceFailed > 0 ? 'warning' : 'success'
     );
-  }, [
-    clearCodexRefreshState,
-    codexRefreshableFilteredItems,
-    loadFiles,
-    showNotification,
-    t,
-  ]);
+  }, [clearCodexRefreshState, codexRefreshableFilteredItems, loadFiles, showNotification, t]);
   const cooldownResettableNames = useMemo(
     () => new Set(cooldownResettableFilteredItems.map((file) => file.name)),
     [cooldownResettableFilteredItems]
@@ -1025,6 +1023,15 @@ export function AuthFilesPage() {
         title={renderFilterTags()}
         extra={
           <div className={styles.headerActions}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void syncModelCatalog()}
+              disabled={disableControls || syncingModelCatalog}
+              loading={syncingModelCatalog}
+            >
+              {t('auth_files.sync_catalog_button')}
+            </Button>
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               {t('auth_files.clear_filters')}
             </Button>

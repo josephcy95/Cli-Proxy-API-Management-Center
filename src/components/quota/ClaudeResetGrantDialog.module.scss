@@ -1,0 +1,29 @@
+.choices {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  &[data-disabled='true'] {
+    opacity: 0.6;
+  }
+}
+.details {
+  display: grid;
+  gap: 4px;
+}
+.footer {
+  width: 100%;
+}
+.summary {
+  margin-bottom: 12px;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

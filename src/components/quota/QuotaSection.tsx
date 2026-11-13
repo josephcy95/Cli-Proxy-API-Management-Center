@@ -1,3 +1,4 @@
+import { codexCreditOverageKey } from './creditOverage';
 /**
  * Generic quota section component.
  */
@@ -124,6 +125,15 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
     () => files.filter((file) => config.filterFn(file)),
     [files, config]
   );
+  const sharedCredentialCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const file of files) {
+      if (!config.filterFn(file) || config.type !== 'codex') continue;
+      const key = codexCreditOverageKey(file);
+      if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }, [files, config]);
   const showAllAllowed = filteredFiles.length <= MAX_SHOW_ALL_THRESHOLD;
   const effectiveViewMode: ViewMode = viewMode === 'all' && !showAllAllowed ? 'paged' : viewMode;
 
@@ -396,6 +406,9 @@ export function QuotaSection<TState extends QuotaStatusState, TData>({
                 <QuotaCard
                   key={config.cacheKey?.(item) ?? item.name}
                   item={item}
+                  sharedCredentialCount={
+                    sharedCredentialCounts.get(codexCreditOverageKey(item) ?? '') ?? 1
+                  }
                   quota={itemQuota}
                   resolvedTheme={resolvedTheme}
                   i18nPrefix={config.i18nPrefix}

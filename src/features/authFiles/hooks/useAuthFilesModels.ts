@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { authFilesApi } from '@/services/api';
+import { apiClient, authFilesApi } from '@/services/api';
 import { useNotificationStore } from '@/stores';
 import type { AuthFileItem } from '@/types';
 import type { AuthFileModelItem } from '@/features/authFiles/constants';
@@ -16,6 +16,8 @@ export type UseAuthFilesModelsResult = {
   modelsError: ModelsError;
   showModels: (item: AuthFileItem) => Promise<void>;
   closeModelsModal: () => void;
+  /** 文件集变更后失效缓存；不传 names 则全部清空。 */
+  invalidateModels: (names?: string[]) => void;
 };
 
 export function useAuthFilesModels(): UseAuthFilesModelsResult {
@@ -29,32 +31,70 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
   const [modelsFileType, setModelsFileType] = useState('');
   const [modelsError, setModelsError] = useState<ModelsError>(null);
   const modelsCacheRef = useRef<Map<string, AuthFileModelItem[]>>(new Map());
+  const modelsCacheVersionRef = useRef(0);
+  const modelsConnectionRef = useRef(apiClient.getConnectionRevision());
+  const modelsFileVersionRef = useRef<Map<string, number>>(new Map());
+  const activeModelsRequestIdRef = useRef(0);
 
   const closeModelsModal = useCallback(() => {
+    activeModelsRequestIdRef.current += 1;
     setModelsModalOpen(false);
+    setModelsLoading(false);
+  }, []);
+
+  const invalidateModels = useCallback((names?: string[]) => {
+    if (!names) {
+      modelsCacheRef.current.clear();
+      modelsFileVersionRef.current.clear();
+      modelsCacheVersionRef.current += 1;
+      return;
+    }
+    new Set(names.map((name) => name.trim()).filter(Boolean)).forEach((name) => {
+      modelsCacheRef.current.delete(name);
+      modelsFileVersionRef.current.set(name, (modelsFileVersionRef.current.get(name) ?? 0) + 1);
+    });
   }, []);
 
   const showModels = useCallback(
     async (item: AuthFileItem) => {
+      const revision = apiClient.getConnectionRevision();
+      if (modelsConnectionRef.current !== revision) {
+        invalidateModels();
+        modelsConnectionRef.current = revision;
+      }
+      const cacheKey = item.name.trim();
+      const requestId = ++activeModelsRequestIdRef.current;
+
       setModelsFileName(item.name);
       setModelsFileType(item.type || '');
       setModelsList([]);
       setModelsError(null);
       setModelsModalOpen(true);
 
-      const cached = modelsCacheRef.current.get(item.name);
+      const cached = modelsCacheRef.current.get(cacheKey);
       if (cached) {
         setModelsList(cached);
         setModelsLoading(false);
         return;
       }
 
+      const cacheVersion = modelsCacheVersionRef.current;
+      const fileVersion = modelsFileVersionRef.current.get(cacheKey) ?? 0;
+      const isCacheCurrent = () =>
+        revision === apiClient.getConnectionRevision() &&
+        cacheVersion === modelsCacheVersionRef.current &&
+        fileVersion === (modelsFileVersionRef.current.get(cacheKey) ?? 0);
+      const isRequestCurrent = () => requestId === activeModelsRequestIdRef.current;
+
       setModelsLoading(true);
       try {
         const models = await authFilesApi.getModelsForAuthFile(item.name);
-        modelsCacheRef.current.set(item.name, models);
-        setModelsList(models);
+        if (isCacheCurrent()) {
+          modelsCacheRef.current.set(cacheKey, models);
+          if (isRequestCurrent()) setModelsList(models);
+        }
       } catch (err) {
+        if (!isRequestCurrent() || !isCacheCurrent()) return;
         const errorMessage = err instanceof Error ? err.message : '';
         if (
           errorMessage.includes('404') ||
@@ -66,10 +106,10 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
           showNotification(`${t('notification.load_failed')}: ${errorMessage}`, 'error');
         }
       } finally {
-        setModelsLoading(false);
+        if (isRequestCurrent()) setModelsLoading(false);
       }
     },
-    [showNotification, t]
+    [invalidateModels, showNotification, t]
   );
 
   return {
@@ -81,5 +121,6 @@ export function useAuthFilesModels(): UseAuthFilesModelsResult {
     modelsError,
     showModels,
     closeModelsModal,
+    invalidateModels,
   };
 }

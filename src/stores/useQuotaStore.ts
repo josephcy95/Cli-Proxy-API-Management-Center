@@ -6,6 +6,8 @@ import { create } from 'zustand';
 import type {
   AntigravityQuotaState,
   ClaudeQuotaState,
+  CodexCreditOverageEntry,
+  CodexCreditOverageOperation,
   CodexQuotaState,
   DevinQuotaState,
   PluginQuotaState,
@@ -23,13 +25,26 @@ interface QuotaStoreState {
   antigravityQuota: Record<string, AntigravityQuotaState>;
   claudeQuota: Record<string, ClaudeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
+  /**
+   * Account-level, keyed by codexCreditOverageKey(). Survives per-file invalidation
+   * because removing one credential does not change the account setting.
+   */
+  codexCreditOverage: Record<string, CodexCreditOverageEntry>;
+  /** A quota refresh must not release a pending or ambiguous mutation; auth resets it. */
+  codexCreditOverageOperations: Record<string, CodexCreditOverageOperation>;
+  devinQuota: Record<string, DevinQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   metaQuota: Record<string, MetaQuotaState>;
   qodercnQuota: Record<string, QoderCNQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
-  devinQuota: Record<string, DevinQuotaState>;
   pluginQuota: Record<string, PluginQuotaState>;
   setPluginQuota: (updater: QuotaUpdater<Record<string, PluginQuotaState>>) => void;
+  setCodexCreditOverage: (key: string, entry: CodexCreditOverageEntry | undefined) => void;
+  setCodexCreditOverageOperation: (
+    accountId: string,
+    operation: CodexCreditOverageOperation | undefined
+  ) => void;
+  clearCodexCreditOverageOperations: () => void;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
@@ -55,14 +70,38 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
   antigravityQuota: {},
   claudeQuota: {},
   codexQuota: {},
+  codexCreditOverage: {},
+  codexCreditOverageOperations: {},
+  devinQuota: {},
   kimiQuota: {},
   metaQuota: {},
   qodercnQuota: {},
   xaiQuota: {},
-  devinQuota: {},
   pluginQuota: {},
   setPluginQuota: (updater) =>
     set((state) => ({ pluginQuota: resolveUpdater(updater, state.pluginQuota) })),
+  setCodexCreditOverage: (key, entry) =>
+    set((state) => {
+      if (state.codexCreditOverage[key] === entry) return state;
+      const codexCreditOverage = { ...state.codexCreditOverage };
+      if (entry) {
+        codexCreditOverage[key] = entry;
+      } else {
+        delete codexCreditOverage[key];
+      }
+      return { codexCreditOverage };
+    }),
+  setCodexCreditOverageOperation: (accountId, operation) =>
+    set((state) => {
+      const codexCreditOverageOperations = { ...state.codexCreditOverageOperations };
+      if (operation) {
+        codexCreditOverageOperations[accountId] = operation;
+      } else {
+        delete codexCreditOverageOperations[accountId];
+      }
+      return { codexCreditOverageOperations };
+    }),
+  clearCodexCreditOverageOperations: () => set({ codexCreditOverageOperations: {} }),
   setAntigravityQuota: (updater) =>
     set((state) => ({
       antigravityQuota: resolveUpdater(updater, state.antigravityQuota),
@@ -181,14 +220,15 @@ export const useQuotaStore = create<QuotaStoreState>((set) => ({
       return {
         cacheGeneration: state.cacheGeneration + 1,
         fileGenerations: {},
+        devinQuota: {},
         antigravityQuota: {},
         claudeQuota: {},
         codexQuota: {},
+        codexCreditOverage: {},
         kimiQuota: {},
         metaQuota: {},
         qodercnQuota: {},
         xaiQuota: {},
-        devinQuota: {},
         pluginQuota: {},
       };
     }),

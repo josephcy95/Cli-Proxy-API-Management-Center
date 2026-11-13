@@ -10,6 +10,36 @@ describe('quota cache session isolation', () => {
     useQuotaStore.getState().clearQuotaCache();
   });
 
+  test('full reset clears every provider snapshot but preserves unresolved credit writes', () => {
+    const keys = [
+      'antigravityQuota',
+      'claudeQuota',
+      'codexQuota',
+      'devinQuota',
+      'kimiQuota',
+      'metaQuota',
+      'qodercnQuota',
+      'xaiQuota',
+      'pluginQuota',
+    ] as const;
+    const snapshots = Object.fromEntries(
+      keys.map((key) => [key, { 'old-session.json': { status: 'loading' } }])
+    );
+    useQuotaStore.setState(snapshots);
+    useQuotaStore
+      .getState()
+      .setCodexCreditOverageOperation('account', { status: 'unconfirmed', target: true, at: 1 });
+    useQuotaStore.getState().clearQuotaCache();
+    for (const key of keys) expect(useQuotaStore.getState()[key]).toEqual({});
+    expect(useQuotaStore.getState().codexCreditOverageOperations.account).toEqual({
+      status: 'unconfirmed',
+      target: true,
+      at: 1,
+    });
+    useQuotaStore.getState().clearCodexCreditOverageOperations();
+    expect(useQuotaStore.getState().codexCreditOverageOperations).toEqual({});
+  });
+
   test('prevents an earlier connection from committing after the cache is cleared', () => {
     const previousConnection = captureQuotaCacheGeneration();
     let committed = false;

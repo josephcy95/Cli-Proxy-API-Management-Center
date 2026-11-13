@@ -57,14 +57,17 @@ class ApiClient {
   }
 
   /** Pin start and cleanup to one connection; stale responses cannot mutate the current session. */
-  captureConnection(managementVersion?: 'v8'): ApiClient {
+  captureConnection(managementVersionOrGuard?: 'v8' | (() => boolean)): ApiClient {
     const revision = this.connectionRevision;
-    const client = new ApiClient(() => this.connectionRevision === revision);
+    const isCurrent =
+      typeof managementVersionOrGuard === 'function' ? managementVersionOrGuard : () => true;
+    const client = new ApiClient(() => this.connectionRevision === revision && isCurrent());
     client.apiBase =
-      managementVersion === 'v8'
+      managementVersionOrGuard === 'v8'
         ? this.apiBase.replace(/\/v0\/management$/i, '/v8/management')
         : this.apiBase;
     client.managementKey = this.managementKey;
+    client.instance.defaults.timeout = this.instance.defaults.timeout;
     return client;
   }
 
