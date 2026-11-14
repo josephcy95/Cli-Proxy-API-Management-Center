@@ -193,6 +193,8 @@ export function VisualConfigEditor({
   const pageTransitionLayer = usePageTransitionLayer();
   const isCurrentLayer = pageTransitionLayer ? pageTransitionLayer.isCurrentLayer : true;
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const antigravityModelListLabelId = useId();
+  const antigravityModelListHintId = `${antigravityModelListLabelId}-hint`;
   const routingStrategyLabelId = useId();
   const routingStrategyHintId = `${routingStrategyLabelId}-hint`;
   const disableImageGenerationLabelId = useId();
@@ -1086,6 +1088,36 @@ export function VisualConfigEditor({
                         onChange={(nextValue) =>
                           onChange({
                             routingStrategy: nextValue as VisualConfigValues['routingStrategy'],
+                          })
+                        }
+                      />
+                    </FieldShell>
+                  </FieldAnchor>
+                  <FieldAnchor fieldId="antigravityModelListMode">
+                    <FieldShell
+                      label={t('config_management.visual.sections.network.antigravity_model_list')}
+                      labelId={antigravityModelListLabelId}
+                      hint={t(
+                        'config_management.visual.sections.network.antigravity_model_list_hint'
+                      )}
+                      hintId={antigravityModelListHintId}
+                    >
+                      <Select
+                        value={values.antigravityModelListMode}
+                        options={['canonical', 'variants', 'both'].map((mode) => ({
+                          value: mode,
+                          label: t(
+                            `config_management.visual.sections.network.antigravity_model_list_${mode}`
+                          ),
+                        }))}
+                        id={`${antigravityModelListLabelId}-select`}
+                        disabled={disabled}
+                        ariaLabelledBy={antigravityModelListLabelId}
+                        ariaDescribedBy={antigravityModelListHintId}
+                        onChange={(mode) =>
+                          onChange({
+                            antigravityModelListMode:
+                              mode as VisualConfigValues['antigravityModelListMode'],
                           })
                         }
                       />

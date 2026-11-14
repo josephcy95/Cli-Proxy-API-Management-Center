@@ -976,6 +976,7 @@ function getNextDirtyFields(
       'disableImageGeneration',
       'gptImage2BaseModel',
       'authAutoRefreshWorkers',
+      'antigravityModelListMode',
       'antigravitySignatureCacheEnabled',
       'antigravitySignatureBypassStrict',
       'claudeHeaderUserAgent',
@@ -1233,6 +1234,12 @@ export function useVisualConfig() {
             : '',
         authAutoRefreshWorkers: String(parsed['auth-auto-refresh-workers'] ?? ''),
         wsAuth: readConfigBoolean(parsed['ws-auth'], false),
+        antigravityModelListMode:
+          asRecord(parsed.antigravity)?.['model-list-mode'] === 'variants'
+            ? 'variants'
+            : asRecord(parsed.antigravity)?.['model-list-mode'] === 'both'
+              ? 'both'
+              : 'canonical',
         antigravitySignatureCacheEnabled: readConfigBoolean(
           parsed['antigravity-signature-cache-enabled'],
           true
@@ -1467,6 +1474,10 @@ export function useVisualConfig() {
           setIntFromStringInDoc(doc, ['auth-auto-refresh-workers'], values.authAutoRefreshWorkers);
         }
         if (dirtyFields.has('wsAuth')) setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);
+        if (dirtyFields.has('antigravityModelListMode')) {
+          ensureMapInDoc(doc, ['antigravity']);
+          doc.setIn(['antigravity', 'model-list-mode'], values.antigravityModelListMode);
+        }
         if (dirtyFields.has('antigravitySignatureCacheEnabled')) {
           if (
             docHas(doc, ['antigravity-signature-cache-enabled']) ||

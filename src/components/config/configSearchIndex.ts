@@ -170,6 +170,14 @@ export const CONFIG_FIELD_SEARCH_INDEX: ConfigFieldSearchEntry[] = [
     keywords: ['round-robin', 'weighted-round-robin', 'wrr', 'fill-first'],
   },
   {
+    fieldId: 'antigravityModelListMode',
+    sectionId: 'network',
+    labelKey: L('sections.network.antigravity_model_list'),
+    hintKey: L('sections.network.antigravity_model_list_hint'),
+    yamlKeys: ['antigravity', 'model-list-mode', 'oauth.providers.antigravity'],
+    keywords: ['Gemini', 'reasoning', 'effort', 'variants', 'canonical', 'high', 'xhigh'],
+  },
+  {
     fieldId: 'disableImageGeneration',
     sectionId: 'network',
     labelKey: L('sections.network.disable_image_generation'),
