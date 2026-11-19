@@ -103,10 +103,13 @@ When both sides touch the same feature, **keep fork behavior** if equal or bette
 - **No sponsor/promo content** — never reintroduce upstream ads, sponsor badges, donate chrome, splash, or marketing surfaces
 
 ## Ship policy
+For every upstream sync with changes to ship, finish the preservation gate, commit the merge, push `main` to `origin`, tag the next fork version, and verify the GitHub release and its assets. In the handoff, list what was discarded, combined, improved, and deliberately left out, including cleanly applied changes. Include the upstream ref, merge SHA, verification results, and release link.
+
 See parent `../AGENTS.md`. In short:
 - **Minor** → implement only; commit only if needed; no push/tag/release unless asked.
 - **Medium** → commit when done; offer push/release.
 - **Meaningful** (upstream merge, user-facing/deploy-blocking, multi-file feature) → push + tag + release.
+- Use the next fork `v1.x.y` tag and verify that the release contains the single-file `management.html` panel.
 - Conventional commits (e.g. `feat: …`, `fix(auth-files): …`, `ci: …`).
 
 ## Architecture notes
