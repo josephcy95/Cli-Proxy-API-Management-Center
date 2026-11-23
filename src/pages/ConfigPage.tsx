@@ -37,6 +37,14 @@ function readCommercialModeFromYaml(yamlContent: string): boolean {
   }
 }
 
+function preserveSourceLineEndings(draft: string, original: string): string {
+  // CodeMirror emits LF even when the server file uses CRLF.
+  if (original.includes('\r\n') && !/[\r\n]/.test(original.replace(/\r\n/g, ''))) {
+    return draft.replace(/\r?\n/g, '\r\n');
+  }
+  return draft;
+}
+
 function normalizeYamlForVisualDiff(yamlContent: string): string {
   try {
     const doc = parseDocument(yamlContent);
@@ -157,10 +165,12 @@ export function ConfigPage() {
     try {
       const latestServerYaml = await configFileApi.fetchConfigYaml();
       if (latestServerYaml !== previewServerYaml) {
-        const nextMergedYaml =
-          previewTab === 'visual' && !dirty
-            ? applyVisualChangesToYaml(latestServerYaml)
-            : mergedYaml;
+        let nextMergedYaml = mergedYaml;
+        if (previewTab === 'source') {
+          nextMergedYaml = preserveSourceLineEndings(content, latestServerYaml);
+        } else if (!dirty) {
+          nextMergedYaml = applyVisualChangesToYaml(latestServerYaml);
+        }
         const nextServerYaml =
           previewTab === 'visual' ? normalizeYamlForVisualDiff(latestServerYaml) : latestServerYaml;
 
@@ -266,7 +276,9 @@ export function ConfigPage() {
       // In source mode, save exactly what the user edited. In visual mode, preserve the
       // local source draft when it has unsaved edits so source-only backend fields are not dropped.
       const nextMergedYaml =
-        activeTab === 'source' ? content : applyVisualChangesToYaml(visualBaseYaml);
+        activeTab === 'source'
+          ? preserveSourceLineEndings(content, latestServerYaml)
+          : applyVisualChangesToYaml(visualBaseYaml);
 
       // In visual mode, applyVisualChangesToYaml re-serializes YAML via parseDocument → toString,
       // which may reformat comments/whitespace. Normalize the server YAML through the same pipeline
